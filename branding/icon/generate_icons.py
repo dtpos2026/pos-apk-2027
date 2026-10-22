@@ -1,56 +1,104 @@
-import sys, os
-from PIL import Image
+"""Generate DT Food POS launcher icons.
+
+Usage: python3 -I generate_icons.py <logo.jpg> <repo_root>
+The Digital Target mark is cropped from the supplied logo (never redrawn);
+only the food cloche is drawn here.
+"""
+import os, sys
 import numpy as np
-src="/root/.claude/uploads/7d752d48-b39d-555c-8e86-fbd844d93a0d/666e925b-image.jpg"
-im=Image.open(src).convert("RGB")
-a=np.asarray(im).astype(float)
-bg=np.median(a[:200,:200].reshape(-1,3),axis=0)
-print("bg",bg, "#%02X%02X%02X"%tuple(int(x) for x in bg))
-lum=a.mean(axis=2)
-lo=lum[:200,:200].mean()
-alpha=np.clip((lum-lo)/(255-lo),0,1)
-# mark region only (exclude text, x>520)
-m=alpha.copy(); m[:, 540:]=0
-ys,xs=np.where(m>0.5); x0,x1,y0,y1=xs.min(),xs.max(),ys.min(),ys.max()
-print(x0,x1,y0,y1)
-mark=m[y0-2:y1+3, x0-2:x1+3]
-S=4096
-def render(canvas, frac, bgcol=None, color=(255,255,255)):
-    h,w=mark.shape; s=canvas*frac/max(h,w)
-    mk=Image.fromarray((mark*255).astype("uint8")).resize((round(w*s),round(h*s)),Image.LANCZOS)
-    base=Image.new("RGBA",(canvas,canvas),(0,0,0,0) if bgcol is None else bgcol+(255,))
-    layer=Image.new("RGBA",mk.size,color+(255,)); layer.putalpha(mk)
-    base.alpha_composite(layer,((canvas-mk.width)//2,(canvas-mk.height)//2))
+from PIL import Image, ImageDraw
+
+SRC, ROOT = sys.argv[1], sys.argv[2]
+PURPLE = (0x3D, 0x09, 0x6D)
+OUT = os.path.join(ROOT, "branding/icon")
+RES = os.path.join(ROOT, "android-res")
+
+# --- Digital Target mark (alpha mask from the supplied logo) ---
+a = np.asarray(Image.open(SRC).convert("RGB")).astype(float)
+lum = a.mean(axis=2)
+lo = lum[:200, :200].mean()
+m = np.clip((lum - lo) / (255 - lo), 0, 1)
+m[:, 540:] = 0
+ys, xs = np.where(m > 0.5)
+mark = m[ys.min() - 2:ys.max() + 3, xs.min() - 2:xs.max() + 3]
+
+# --- Food cloche (serving dome), supersampled ---
+def cloche():
+    W, H = 1200, 800
+    im = Image.new("L", (W, H), 0)
+    d = ImageDraw.Draw(im)
+    dome = Image.new("L", (W, H), 0)
+    ImageDraw.Draw(dome).ellipse((100, 120, 1100, 1160), fill=255)
+    ImageDraw.Draw(dome).rectangle((0, 640, W, H), fill=0)
+    im.paste(255, mask=dome)
+    d.ellipse((545, 20, 655, 130), fill=255)                      # knob
+    d.rounded_rectangle((40, 690, 1160, 770), 40, fill=255)       # plate
+    d.line((260, 560, 330, 400), fill=0, width=0)
+    # soft highlight cut-out on the dome
+    d.arc((190, 210, 1010, 1030), 205, 250, fill=0, width=34)
+    bb = im.getbbox()
+    return np.asarray(im.crop(bb)).astype(float) / 255
+
+food = cloche()
+
+def group():
+    """Mark above cloche, as one white-on-transparent alpha mask."""
+    mh, mw = mark.shape
+    mw_t = 1000
+    mk = Image.fromarray((mark * 255).astype("uint8")).resize((mw_t, round(mh * mw_t / mw)), Image.LANCZOS)
+    fw = round(mw_t * 1.25)
+    fd = Image.fromarray((food * 255).astype("uint8"))
+    fd = fd.resize((fw, round(fd.height * fw / fd.width)), Image.LANCZOS)
+    gap = 130
+    gw, gh = fw, mk.height + gap + fd.height
+    g = Image.new("L", (gw, gh), 0)
+    g.paste(mk, ((gw - mk.width) // 2, 0))
+    g.paste(fd, (0, mk.height + gap))
+    return g
+
+G = group()
+
+def render(canvas, height_frac, bg=None, color=(255, 255, 255)):
+    h = round(canvas * height_frac)
+    g = G.resize((round(G.width * h / G.height), h), Image.LANCZOS)
+    base = Image.new("RGBA", (canvas, canvas), (0, 0, 0, 0) if bg is None else bg + (255,))
+    layer = Image.new("RGBA", g.size, color + (255,))
+    layer.putalpha(g)
+    base.alpha_composite(layer, ((canvas - g.width) // 2, (canvas - g.height) // 2))
     return base
-P=(0x3D,0x09,0x6D)
-out="branding/icon"
-render(1024,0.50,P).convert("RGB").save(f"{out}/dt_food_pos_icon_1024.png")          # store/legacy
-render(1024,0.40,None).save(f"{out}/ic_launcher_foreground.png")                       # adaptive fg (safe zone)
-Image.new("RGB",(1024,1024),P).save(f"{out}/ic_launcher_background.png")
-render(1024,0.40,None,(0,0,0)).save(f"{out}/ic_launcher_monochrome.png")
-# Android mipmaps
-dens={"mdpi":48,"hdpi":72,"xhdpi":96,"xxhdpi":144,"xxxhdpi":192}
-fg=render(1024,0.40,None); full=render(1024,0.50,P)
-for d,px in dens.items():
-    r=f"android-res/mipmap-{d}"; os.makedirs(r,exist_ok=True)
-    full.convert("RGB").resize((px,px),Image.LANCZOS).save(f"{r}/ic_launcher.png")
-    # round
-    ic=full.resize((px*4,px*4),Image.LANCZOS)
-    mask=Image.new("L",ic.size,0)
-    from PIL import ImageDraw
-    ImageDraw.Draw(mask).ellipse((0,0,ic.size[0]-1,ic.size[1]-1),fill=255); ic.putalpha(mask)
-    ic.resize((px,px),Image.LANCZOS).save(f"{r}/ic_launcher_round.png")
-    fpx=round(px*108/48)
-    fg.resize((fpx,fpx),Image.LANCZOS).save(f"{r}/ic_launcher_foreground.png")
-    render(1024,0.40,None,(0,0,0)).resize((fpx,fpx),Image.LANCZOS).save(f"{r}/ic_launcher_monochrome.png")
-render(512,0.50,P).convert("RGB").save(f"{out}/playstore_512.png")
-# preview sheet
-sheet=Image.new("RGB",(1400,520),(235,235,240))
-sq=full.resize((400,400),Image.LANCZOS).convert("RGB")
-from PIL import ImageDraw
-rr=Image.new("L",(400,400),0); ImageDraw.Draw(rr).rounded_rectangle((0,0,399,399),90,fill=255)
-ci=Image.new("L",(400,400),0); ImageDraw.Draw(ci).ellipse((0,0,399,399),fill=255)
-sheet.paste(sq,(40,60),rr); sheet.paste(sq,(500,60),ci)
-for i,s in enumerate((144,96,48)):
-    sheet.paste(sq.resize((s,s),Image.LANCZOS),(960+i*150 if i<2 else 1260,60),Image.new("L",(s,s),255) if False else None)
-sheet.save(f"{out}/preview.png")
+
+FULL = render(1024, 0.56, PURPLE)
+FG = render(1024, 0.50)          # adaptive foreground: inside 66% safe zone
+MONO = render(1024, 0.50, None, (0, 0, 0))
+
+FULL.convert("RGB").save(f"{OUT}/dt_food_pos_icon_1024.png")
+FULL.convert("RGB").resize((512, 512), Image.LANCZOS).save(f"{OUT}/playstore_512.png")
+FG.save(f"{OUT}/ic_launcher_foreground.png")
+MONO.save(f"{OUT}/ic_launcher_monochrome.png")
+Image.new("RGB", (1024, 1024), PURPLE).save(f"{OUT}/ic_launcher_background.png")
+
+for d, px in {"mdpi": 48, "hdpi": 72, "xhdpi": 96, "xxhdpi": 144, "xxxhdpi": 192}.items():
+    r = f"{RES}/mipmap-{d}"
+    os.makedirs(r, exist_ok=True)
+    FULL.convert("RGB").resize((px, px), Image.LANCZOS).save(f"{r}/ic_launcher.png")
+    big = FULL.resize((px * 4, px * 4), Image.LANCZOS)
+    mask = Image.new("L", big.size, 0)
+    ImageDraw.Draw(mask).ellipse((0, 0, big.width - 1, big.height - 1), fill=255)
+    big.putalpha(mask)
+    big.resize((px, px), Image.LANCZOS).save(f"{r}/ic_launcher_round.png")
+    fp = round(px * 108 / 48)
+    FG.resize((fp, fp), Image.LANCZOS).save(f"{r}/ic_launcher_foreground.png")
+    MONO.resize((fp, fp), Image.LANCZOS).save(f"{r}/ic_launcher_monochrome.png")
+
+# preview: squircle, circle, small sizes
+sheet = Image.new("RGB", (1300, 480), (236, 236, 242))
+sq = FULL.convert("RGB").resize((380, 380), Image.LANCZOS)
+rr = Image.new("L", (380, 380), 0); ImageDraw.Draw(rr).rounded_rectangle((0, 0, 379, 379), 90, fill=255)
+ci = Image.new("L", (380, 380), 0); ImageDraw.Draw(ci).ellipse((0, 0, 379, 379), fill=255)
+sheet.paste(sq, (40, 50), rr); sheet.paste(sq, (460, 50), ci)
+x = 900
+for s in (192, 96, 48):
+    t = FULL.convert("RGB").resize((s, s), Image.LANCZOS)
+    mk = Image.new("L", (s, s), 0); ImageDraw.Draw(mk).rounded_rectangle((0, 0, s - 1, s - 1), s // 4, fill=255)
+    sheet.paste(t, (x, 50), mk); x += s + 30
+sheet.save(f"{OUT}/preview.png")
