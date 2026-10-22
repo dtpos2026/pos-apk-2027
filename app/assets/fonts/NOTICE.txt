@@ -1,0 +1,4 @@
+Inter (Inter-*.otf): Copyright The Inter Project Authors, SIL Open Font License 1.1 (https://openfontlicense.org).
+Noto Naskh Arabic (NotoNaskhArabic.ttf): Copyright 2022 The Noto Project Authors, SIL Open Font License 1.1 (see OFL-NotoNaskhArabic.txt).
+Both are used for UI text; Noto Naskh Arabic covers Arabic and Urdu script.
+JetBrains Mono (JetBrainsMono-Regular.ttf): Copyright The JetBrains Mono Project Authors, SIL Open Font License 1.1. Used for the receipt preview so columns line up like the printed receipt.

@@ -28,11 +28,15 @@ Legend for verification: **unit-tested** (automated test passes here), **viewed*
 - [x] Draft recovery (reload after restart, discard), live print preview text identical to printed content, receipt loader from the DB snapshot (**unit-tested**)
 - [x] Print queue with real LAN (TCP 9100) transport, tested against a loopback fake printer: bill and KOT routing by station, retry with attempt limit, DUPLICATE reprint + audit, never blocks the sale, crash recovery of stuck jobs (**tested on a fake printer only; no real printer has been tried**). Bluetooth/BLE/USB transports are NOT implemented (need native plugins and hardware).
 
+- [x] **App screens, widget-tested with real fonts on a simulated phone and tablet (133 tests in total pass, analyzer clean):** first-run setup, PIN login with lockout, shell with role-based navigation, Sell screen (menu grid, search, categories, weight items in 0.5 kg steps, cart, discount for authorised users, order types), shift open/close with cash variance, checkout with split payments, quick-cash buttons and live change, receipt preview identical to the printed text, print queue hook, Menu management (add/edit/availability/delete, CSV import with dry-run), Reports (gross / refunds / net / tax / by method), Settings (language, business profile, LAN printers, encrypted backup), Urdu and Arabic with right-to-left layout, animated splash (Lottie). Screenshots in `docs/screens/`.
+  - Bugs the UI tests found and fixed: two quick taps created two draft orders; the cart sheet stayed open after a sale; button text lost the app font; long totals overflowed.
+  - **Not tested on a real device or emulator.** Screenshots come from Flutter's test renderer.
+
 ## In progress
-- [ ] App screens (login, POS billing, checkout, tables, menu, reports, settings)
+- [ ] Tables and waiters (UI), customers and udhaar screens, inventory screens (purchases, wastage, low stock), expenses, staff management, PDF/Excel export, Bluetooth printing
 
 ## Pending
-Billing UI, menu management UI, tables UI, inventory UI (purchases, wastage), expenses, customer screens, reports and PDF/Excel export, printing transports (Bluetooth/LAN/USB) and real-printer tests, SQLCipher on device, sync pull side, Super Admin web panel, licensing server, invoices, support chat, notifications, Urdu/Arabic, Phase 2 online ordering.
+Tables UI, inventory UI (purchases, wastage), expenses, customer screens, staff management UI, PDF/Excel export, Bluetooth/BLE/USB printing and real-printer tests, SQLCipher on device, Excel (.xlsx) import, sync pull side, Super Admin web panel, licensing server, invoices, support chat, notifications, Urdu/Arabic, Phase 2 online ordering.
 
 ## Blocked
 - APK/AAB build: needs `dl.google.com` access.
