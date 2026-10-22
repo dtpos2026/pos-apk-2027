@@ -1,0 +1,358 @@
+-- DT Food POS: local (on-device) database. SQLite, encrypted with SQLCipher in production.
+-- Conventions
+--   * Primary keys are UUIDv4 text, generated on the device (no server round trip, safe for offline + sync).
+--   * Money is stored as integer minor units (paisa/fils) in *_minor columns. Never floats.
+--   * Quantities are integer thousandths (qty_milli: 1500 = 1.5 kg) so weight items stay exact.
+--   * Mutable master rows carry version + updated_at + deleted_at (soft delete = sync tombstone).
+--   * Financial/ledger tables are append-only: corrections are new rows, never UPDATE/DELETE.
+--   * Every write to a synced table also inserts an outbox row in the same transaction.
+PRAGMA foreign_keys = ON;
+
+-- ---------- business & settings ----------
+CREATE TABLE business_profile (
+  id TEXT PRIMARY KEY CHECK (id = 'self'),
+  business_id TEXT,                         -- server-side tenant id, set after approval
+  name TEXT NOT NULL, owner_name TEXT, phone TEXT, address TEXT,
+  logo_path TEXT, business_type TEXT NOT NULL DEFAULT 'restaurant',
+  currency TEXT NOT NULL DEFAULT 'PKR' CHECK (length(currency) = 3),
+  currency_minor_digits INTEGER NOT NULL DEFAULT 2,
+  tax_number_label TEXT, tax_number TEXT,   -- NTN/STRN (PK) or TRN (UAE)
+  language TEXT NOT NULL DEFAULT 'en',      -- en | ur | ar
+  rounding_mode TEXT NOT NULL DEFAULT 'none' CHECK (rounding_mode IN ('none','nearest_1','nearest_5','nearest_10')),
+  theme_primary TEXT, updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE setting (
+  key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE tax_rate (
+  id TEXT PRIMARY KEY, name TEXT NOT NULL,
+  rate_bp INTEGER NOT NULL CHECK (rate_bp BETWEEN 0 AND 10000),   -- basis points: 500 = 5%
+  inclusive INTEGER NOT NULL DEFAULT 0 CHECK (inclusive IN (0,1)),
+  is_default INTEGER NOT NULL DEFAULT 0,
+  version INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL, deleted_at INTEGER
+);
+
+CREATE TABLE payment_method (
+  id TEXT PRIMARY KEY, name TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('cash','card','bank','wallet','credit','other')),
+  enabled INTEGER NOT NULL DEFAULT 1, sort INTEGER NOT NULL DEFAULT 0,
+  version INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL, deleted_at INTEGER
+);
+
+-- ---------- staff, roles, permissions ----------
+CREATE TABLE role (
+  id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE,
+  permissions TEXT NOT NULL,                -- JSON array of permission keys, e.g. ["bill.void","discount.apply"]
+  is_system INTEGER NOT NULL DEFAULT 0,
+  version INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL, deleted_at INTEGER
+);
+
+CREATE TABLE staff (
+  id TEXT PRIMARY KEY, name TEXT NOT NULL, phone TEXT,
+  role_id TEXT NOT NULL REFERENCES role(id),
+  pin_hash TEXT NOT NULL, pin_salt TEXT NOT NULL,   -- Argon2id/PBKDF2 of the PIN, never the PIN
+  failed_pins INTEGER NOT NULL DEFAULT 0, locked_until INTEGER,
+  daily_wage_minor INTEGER NOT NULL DEFAULT 0, active INTEGER NOT NULL DEFAULT 1,
+  version INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL, deleted_at INTEGER
+);
+
+CREATE TABLE attendance (
+  id TEXT PRIMARY KEY, staff_id TEXT NOT NULL REFERENCES staff(id),
+  day TEXT NOT NULL,                        -- local business date YYYY-MM-DD
+  check_in INTEGER, check_out INTEGER, wage_minor INTEGER NOT NULL DEFAULT 0,
+  UNIQUE (staff_id, day)
+);
+
+-- ---------- menu ----------
+CREATE TABLE category (
+  id TEXT PRIMARY KEY, name TEXT NOT NULL, name_alt TEXT, image_path TEXT,
+  sort INTEGER NOT NULL DEFAULT 0, station TEXT,    -- kitchen routing station (grill, fryer, bar...)
+  version INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL, deleted_at INTEGER
+);
+
+CREATE TABLE product (
+  id TEXT PRIMARY KEY, category_id TEXT REFERENCES category(id),
+  name TEXT NOT NULL, name_alt TEXT, sku TEXT, barcode TEXT, image_path TEXT,
+  base_price_minor INTEGER NOT NULL CHECK (base_price_minor >= 0),
+  tax_rate_id TEXT REFERENCES tax_rate(id),
+  unit TEXT NOT NULL DEFAULT 'pc',          -- pc | kg | g | l | ml
+  available INTEGER NOT NULL DEFAULT 1, track_stock INTEGER NOT NULL DEFAULT 0,
+  kind TEXT NOT NULL DEFAULT 'item' CHECK (kind IN ('item','combo')),
+  version INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL, deleted_at INTEGER
+);
+CREATE UNIQUE INDEX product_sku_uq ON product(sku) WHERE sku IS NOT NULL AND deleted_at IS NULL;
+CREATE INDEX product_barcode_ix ON product(barcode) WHERE barcode IS NOT NULL;
+CREATE INDEX product_category_ix ON product(category_id, deleted_at);
+
+CREATE TABLE product_variant (              -- size, weight, half/full...
+  id TEXT PRIMARY KEY, product_id TEXT NOT NULL REFERENCES product(id),
+  name TEXT NOT NULL, price_minor INTEGER NOT NULL CHECK (price_minor >= 0), sku TEXT,
+  version INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL, deleted_at INTEGER
+);
+
+CREATE TABLE product_price (                -- per order type price override
+  product_id TEXT NOT NULL REFERENCES product(id),
+  variant_id TEXT REFERENCES product_variant(id),
+  order_type TEXT NOT NULL CHECK (order_type IN ('dine_in','takeaway','delivery','counter')),
+  price_minor INTEGER NOT NULL CHECK (price_minor >= 0),
+  PRIMARY KEY (product_id, variant_id, order_type)
+);
+
+CREATE TABLE modifier_group (
+  id TEXT PRIMARY KEY, name TEXT NOT NULL,
+  min_select INTEGER NOT NULL DEFAULT 0, max_select INTEGER NOT NULL DEFAULT 1,
+  version INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL, deleted_at INTEGER,
+  CHECK (max_select >= min_select)
+);
+CREATE TABLE modifier_option (
+  id TEXT PRIMARY KEY, group_id TEXT NOT NULL REFERENCES modifier_group(id),
+  name TEXT NOT NULL, price_minor INTEGER NOT NULL DEFAULT 0, sort INTEGER NOT NULL DEFAULT 0,
+  version INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL, deleted_at INTEGER
+);
+CREATE TABLE product_modifier_group (
+  product_id TEXT NOT NULL REFERENCES product(id),
+  group_id TEXT NOT NULL REFERENCES modifier_group(id),
+  PRIMARY KEY (product_id, group_id)
+);
+
+CREATE TABLE combo_item (                   -- components of a product with kind = 'combo'
+  combo_id TEXT NOT NULL REFERENCES product(id),
+  product_id TEXT NOT NULL REFERENCES product(id),
+  qty_milli INTEGER NOT NULL DEFAULT 1000,
+  PRIMARY KEY (combo_id, product_id)
+);
+
+-- ---------- floors & tables ----------
+CREATE TABLE area (
+  id TEXT PRIMARY KEY, name TEXT NOT NULL, sort INTEGER NOT NULL DEFAULT 0,
+  version INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL, deleted_at INTEGER
+);
+CREATE TABLE dining_table (
+  id TEXT PRIMARY KEY, area_id TEXT NOT NULL REFERENCES area(id),
+  label TEXT NOT NULL, seats INTEGER NOT NULL DEFAULT 4,
+  status TEXT NOT NULL DEFAULT 'free' CHECK (status IN ('free','occupied','reserved','cleaning')),
+  waiter_id TEXT REFERENCES staff(id),
+  version INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL, deleted_at INTEGER
+);
+
+-- ---------- customers & credit (udhaar) ----------
+CREATE TABLE customer (
+  id TEXT PRIMARY KEY, name TEXT NOT NULL, phone TEXT, address TEXT, notes TEXT,
+  credit_limit_minor INTEGER NOT NULL DEFAULT 0, loyalty_points INTEGER NOT NULL DEFAULT 0,
+  version INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL, deleted_at INTEGER
+);
+CREATE INDEX customer_phone_ix ON customer(phone);
+
+CREATE TABLE customer_ledger (              -- append-only; balance = SUM(amount_minor). +ve = customer owes us
+  id TEXT PRIMARY KEY, customer_id TEXT NOT NULL REFERENCES customer(id),
+  kind TEXT NOT NULL CHECK (kind IN ('sale_credit','recovery','adjustment','refund')),
+  amount_minor INTEGER NOT NULL, order_id TEXT, payment_id TEXT, note TEXT,
+  staff_id TEXT REFERENCES staff(id), created_at INTEGER NOT NULL
+);
+CREATE INDEX customer_ledger_ix ON customer_ledger(customer_id, created_at);
+
+-- ---------- orders & billing ----------
+CREATE TABLE invoice_sequence (             -- gap-free numbering per prefix and business day/year
+  prefix TEXT NOT NULL, period TEXT NOT NULL, last_no INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (prefix, period)
+);
+
+CREATE TABLE shift (
+  id TEXT PRIMARY KEY, staff_id TEXT NOT NULL REFERENCES staff(id),
+  opened_at INTEGER NOT NULL, opening_cash_minor INTEGER NOT NULL DEFAULT 0,
+  closed_at INTEGER, closing_cash_counted_minor INTEGER, expected_cash_minor INTEGER,
+  variance_minor INTEGER, note TEXT
+);
+CREATE UNIQUE INDEX shift_one_open_per_staff ON shift(staff_id) WHERE closed_at IS NULL;
+
+CREATE TABLE "order" (
+  id TEXT PRIMARY KEY,
+  invoice_no TEXT UNIQUE,                   -- assigned at settlement, null while a draft/held
+  order_type TEXT NOT NULL CHECK (order_type IN ('dine_in','takeaway','delivery','counter')),
+  status TEXT NOT NULL CHECK (status IN ('draft','held','new','preparing','ready','served','paid','void','refunded')),
+  table_id TEXT REFERENCES dining_table(id), customer_id TEXT REFERENCES customer(id),
+  waiter_id TEXT REFERENCES staff(id), cashier_id TEXT REFERENCES staff(id), shift_id TEXT REFERENCES shift(id),
+  guests INTEGER, note TEXT, delivery_address TEXT, source TEXT NOT NULL DEFAULT 'pos',  -- pos | online
+  subtotal_minor INTEGER NOT NULL DEFAULT 0, discount_minor INTEGER NOT NULL DEFAULT 0,
+  service_charge_minor INTEGER NOT NULL DEFAULT 0, delivery_charge_minor INTEGER NOT NULL DEFAULT 0,
+  tax_minor INTEGER NOT NULL DEFAULT 0, tip_minor INTEGER NOT NULL DEFAULT 0,
+  rounding_minor INTEGER NOT NULL DEFAULT 0, total_minor INTEGER NOT NULL DEFAULT 0,
+  paid_minor INTEGER NOT NULL DEFAULT 0,
+  business_date TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, settled_at INTEGER,
+  version INTEGER NOT NULL DEFAULT 1
+);
+CREATE INDEX order_date_ix ON "order"(business_date, status);
+CREATE INDEX order_table_ix ON "order"(table_id, status);
+
+CREATE TABLE order_item (
+  id TEXT PRIMARY KEY, order_id TEXT NOT NULL REFERENCES "order"(id),
+  product_id TEXT NOT NULL REFERENCES product(id), variant_id TEXT REFERENCES product_variant(id),
+  name TEXT NOT NULL,                       -- snapshot: receipts must not change when the menu changes
+  qty_milli INTEGER NOT NULL CHECK (qty_milli > 0),
+  unit_price_minor INTEGER NOT NULL, discount_minor INTEGER NOT NULL DEFAULT 0,
+  tax_rate_bp INTEGER NOT NULL DEFAULT 0, tax_inclusive INTEGER NOT NULL DEFAULT 0,
+  tax_minor INTEGER NOT NULL DEFAULT 0, line_total_minor INTEGER NOT NULL,
+  note TEXT, station TEXT, kot_sent_at INTEGER,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','void'))
+);
+CREATE INDEX order_item_order_ix ON order_item(order_id);
+
+CREATE TABLE order_item_modifier (
+  id TEXT PRIMARY KEY, order_item_id TEXT NOT NULL REFERENCES order_item(id),
+  option_id TEXT, name TEXT NOT NULL, price_minor INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE payment (                      -- append-only
+  id TEXT PRIMARY KEY, order_id TEXT NOT NULL REFERENCES "order"(id),
+  method_id TEXT NOT NULL REFERENCES payment_method(id), method_kind TEXT NOT NULL,
+  amount_minor INTEGER NOT NULL CHECK (amount_minor > 0), reference TEXT,
+  tendered_minor INTEGER, change_minor INTEGER,
+  staff_id TEXT REFERENCES staff(id), shift_id TEXT REFERENCES shift(id), created_at INTEGER NOT NULL
+);
+CREATE INDEX payment_order_ix ON payment(order_id);
+
+CREATE TABLE refund (                       -- append-only; void = refund of the whole bill with reason
+  id TEXT PRIMARY KEY, order_id TEXT NOT NULL REFERENCES "order"(id),
+  kind TEXT NOT NULL CHECK (kind IN ('void','refund')),
+  amount_minor INTEGER NOT NULL CHECK (amount_minor > 0), method_id TEXT REFERENCES payment_method(id),
+  reason TEXT NOT NULL, approved_by TEXT REFERENCES staff(id), staff_id TEXT REFERENCES staff(id),
+  shift_id TEXT REFERENCES shift(id), created_at INTEGER NOT NULL
+);
+
+CREATE TABLE cash_movement (                -- cash in/out of the drawer (expenses paid in cash, owner drops...)
+  id TEXT PRIMARY KEY, shift_id TEXT NOT NULL REFERENCES shift(id),
+  direction TEXT NOT NULL CHECK (direction IN ('in','out')), amount_minor INTEGER NOT NULL CHECK (amount_minor > 0),
+  reason TEXT NOT NULL, staff_id TEXT REFERENCES staff(id), created_at INTEGER NOT NULL
+);
+
+CREATE TABLE day_close (                    -- Z report snapshot
+  id TEXT PRIMARY KEY, business_date TEXT NOT NULL UNIQUE, closed_at INTEGER NOT NULL, staff_id TEXT,
+  gross_sales_minor INTEGER NOT NULL, refunds_minor INTEGER NOT NULL, net_sales_minor INTEGER NOT NULL,
+  tax_minor INTEGER NOT NULL, payload TEXT NOT NULL    -- JSON breakdown by payment method, category...
+);
+
+-- ---------- inventory (ledger, not overwritten quantities) ----------
+CREATE TABLE stock_item (
+  id TEXT PRIMARY KEY, name TEXT NOT NULL, unit TEXT NOT NULL,       -- base unit: g, ml, pc
+  product_id TEXT REFERENCES product(id),                            -- set when a sold product is stocked directly
+  reorder_level_milli INTEGER NOT NULL DEFAULT 0, avg_cost_minor_per_unit INTEGER NOT NULL DEFAULT 0,
+  version INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL, deleted_at INTEGER
+);
+CREATE TABLE stock_movement (               -- append-only; on_hand = SUM(delta_milli)
+  id TEXT PRIMARY KEY, stock_item_id TEXT NOT NULL REFERENCES stock_item(id),
+  delta_milli INTEGER NOT NULL,
+  reason TEXT NOT NULL CHECK (reason IN ('purchase','sale','recipe','wastage','adjustment','opening','return')),
+  order_id TEXT, purchase_id TEXT, unit_cost_minor INTEGER, note TEXT,
+  staff_id TEXT REFERENCES staff(id), created_at INTEGER NOT NULL
+);
+CREATE INDEX stock_movement_ix ON stock_movement(stock_item_id, created_at);
+
+CREATE TABLE recipe_line (                  -- product (+variant) consumes stock_item
+  product_id TEXT NOT NULL REFERENCES product(id), variant_id TEXT REFERENCES product_variant(id),
+  stock_item_id TEXT NOT NULL REFERENCES stock_item(id), qty_milli INTEGER NOT NULL CHECK (qty_milli > 0),
+  PRIMARY KEY (product_id, variant_id, stock_item_id)
+);
+
+CREATE TABLE supplier (
+  id TEXT PRIMARY KEY, name TEXT NOT NULL, phone TEXT, address TEXT,
+  version INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL, deleted_at INTEGER
+);
+CREATE TABLE purchase (
+  id TEXT PRIMARY KEY, supplier_id TEXT REFERENCES supplier(id), invoice_ref TEXT,
+  total_minor INTEGER NOT NULL, paid_minor INTEGER NOT NULL DEFAULT 0,
+  business_date TEXT NOT NULL, created_at INTEGER NOT NULL, staff_id TEXT REFERENCES staff(id)
+);
+CREATE TABLE purchase_line (
+  id TEXT PRIMARY KEY, purchase_id TEXT NOT NULL REFERENCES purchase(id),
+  stock_item_id TEXT NOT NULL REFERENCES stock_item(id),
+  qty_milli INTEGER NOT NULL CHECK (qty_milli > 0), unit_cost_minor INTEGER NOT NULL
+);
+CREATE TABLE supplier_ledger (              -- append-only; +ve = we owe the supplier
+  id TEXT PRIMARY KEY, supplier_id TEXT NOT NULL REFERENCES supplier(id),
+  kind TEXT NOT NULL CHECK (kind IN ('purchase','payment','adjustment')),
+  amount_minor INTEGER NOT NULL, purchase_id TEXT, note TEXT, created_at INTEGER NOT NULL
+);
+
+-- ---------- finance ----------
+CREATE TABLE expense_category (id TEXT PRIMARY KEY, name TEXT NOT NULL, deleted_at INTEGER);
+CREATE TABLE expense (
+  id TEXT PRIMARY KEY, category_id TEXT REFERENCES expense_category(id),
+  amount_minor INTEGER NOT NULL CHECK (amount_minor > 0), method_id TEXT REFERENCES payment_method(id),
+  note TEXT, business_date TEXT NOT NULL, staff_id TEXT REFERENCES staff(id), created_at INTEGER NOT NULL
+);
+CREATE TABLE bank_account (
+  id TEXT PRIMARY KEY, name TEXT NOT NULL, account_no TEXT, opening_minor INTEGER NOT NULL DEFAULT 0,
+  version INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL, deleted_at INTEGER
+);
+
+-- ---------- printing ----------
+CREATE TABLE printer (
+  id TEXT PRIMARY KEY, name TEXT NOT NULL,
+  connection TEXT NOT NULL CHECK (connection IN ('bluetooth','ble','lan','usb','pdf')),
+  address TEXT, paper_mm INTEGER NOT NULL DEFAULT 58 CHECK (paper_mm IN (58, 80)),
+  role TEXT NOT NULL CHECK (role IN ('bill','kot','both')), station TEXT,
+  codepage TEXT NOT NULL DEFAULT 'cp437', raster_text INTEGER NOT NULL DEFAULT 0,  -- 1 = render Urdu/Arabic as bitmap
+  enabled INTEGER NOT NULL DEFAULT 1,
+  version INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL, deleted_at INTEGER
+);
+CREATE TABLE receipt_template (
+  id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK (kind IN ('bill','kot','z_report')),
+  config TEXT NOT NULL,                     -- JSON: header/footer, logo, qr, font size, copies, fields
+  version INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL
+);
+CREATE TABLE print_job (                    -- printing never blocks saving; failed jobs stay here for retry
+  id TEXT PRIMARY KEY, printer_id TEXT REFERENCES printer(id), kind TEXT NOT NULL,
+  order_id TEXT, payload BLOB NOT NULL, is_duplicate INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','printing','done','failed')),
+  attempts INTEGER NOT NULL DEFAULT 0, last_error TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+);
+CREATE INDEX print_job_status_ix ON print_job(status, created_at);
+
+-- ---------- audit ----------
+CREATE TABLE audit_log (                    -- append-only; protected from user-level cleanup
+  id TEXT PRIMARY KEY, at INTEGER NOT NULL, staff_id TEXT, action TEXT NOT NULL,
+  entity TEXT, entity_id TEXT, before_json TEXT, after_json TEXT, reason TEXT, device_id TEXT,
+  critical INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX audit_at_ix ON audit_log(at);
+CREATE TRIGGER audit_no_update BEFORE UPDATE ON audit_log BEGIN SELECT RAISE(ABORT, 'audit_log is append-only'); END;
+CREATE TRIGGER audit_no_delete BEFORE DELETE ON audit_log WHEN OLD.critical = 1
+  BEGIN SELECT RAISE(ABORT, 'critical audit rows cannot be deleted'); END;
+
+-- append-only guards for financial tables
+CREATE TRIGGER payment_no_update BEFORE UPDATE ON payment BEGIN SELECT RAISE(ABORT, 'payment is append-only'); END;
+CREATE TRIGGER payment_no_delete BEFORE DELETE ON payment BEGIN SELECT RAISE(ABORT, 'payment is append-only'); END;
+CREATE TRIGGER refund_no_update BEFORE UPDATE ON refund BEGIN SELECT RAISE(ABORT, 'refund is append-only'); END;
+CREATE TRIGGER refund_no_delete BEFORE DELETE ON refund BEGIN SELECT RAISE(ABORT, 'refund is append-only'); END;
+CREATE TRIGGER stock_mv_no_update BEFORE UPDATE ON stock_movement BEGIN SELECT RAISE(ABORT, 'stock_movement is append-only'); END;
+CREATE TRIGGER stock_mv_no_delete BEFORE DELETE ON stock_movement BEGIN SELECT RAISE(ABORT, 'stock_movement is append-only'); END;
+CREATE TRIGGER cust_ledger_no_update BEFORE UPDATE ON customer_ledger BEGIN SELECT RAISE(ABORT, 'customer_ledger is append-only'); END;
+CREATE TRIGGER cust_ledger_no_delete BEFORE DELETE ON customer_ledger BEGIN SELECT RAISE(ABORT, 'customer_ledger is append-only'); END;
+
+-- ---------- sync ----------
+CREATE TABLE outbox (                       -- one row per change; drained oldest-first, retried with backoff
+  seq INTEGER PRIMARY KEY AUTOINCREMENT,
+  idempotency_key TEXT NOT NULL UNIQUE,     -- server ignores a key it has already applied: no duplicate sales
+  entity TEXT NOT NULL, entity_id TEXT NOT NULL,
+  op TEXT NOT NULL CHECK (op IN ('upsert','delete','append')),
+  payload TEXT NOT NULL, entity_version INTEGER,
+  created_at INTEGER NOT NULL, attempts INTEGER NOT NULL DEFAULT 0,
+  next_attempt_at INTEGER NOT NULL DEFAULT 0, last_error TEXT, acked_at INTEGER
+);
+CREATE INDEX outbox_pending_ix ON outbox(acked_at, next_attempt_at);
+CREATE TABLE sync_state (key TEXT PRIMARY KEY, value TEXT NOT NULL);   -- pull cursors, last_sync_at, device_id
+
+-- ---------- licence cache (verified on every launch, never trusted blindly) ----------
+CREATE TABLE license_cache (
+  id TEXT PRIMARY KEY CHECK (id = 'self'),
+  token TEXT NOT NULL,                      -- signed licence (Ed25519); verified with the public key bundled in the app
+  last_validated_at INTEGER NOT NULL,       -- server time at last successful online check
+  last_seen_wall_clock INTEGER NOT NULL,    -- highest device clock ever observed (rollback detection)
+  last_seen_monotonic_ms INTEGER
+);
+CREATE TABLE inbox_message (                -- announcements, payment notices, support replies delivered by sync/push
+  id TEXT PRIMARY KEY, kind TEXT NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL,
+  critical INTEGER NOT NULL DEFAULT 0, received_at INTEGER NOT NULL, read_at INTEGER
+);
