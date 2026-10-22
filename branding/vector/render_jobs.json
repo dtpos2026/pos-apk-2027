@@ -1,0 +1,181 @@
+[
+ {
+  "svg": "./branding/vector/icon.svg",
+  "out": "./branding/icon/dt_food_pos_icon_1024.png",
+  "size": 1024
+ },
+ {
+  "svg": "./branding/vector/icon.svg",
+  "out": "./branding/icon/playstore_512.png",
+  "size": 512
+ },
+ {
+  "svg": "./branding/vector/foreground.svg",
+  "out": "./branding/icon/ic_launcher_foreground.png",
+  "size": 1024,
+  "transparent": true
+ },
+ {
+  "svg": "./branding/vector/foreground.svg",
+  "out": "./branding/icon/art_foreground_2048.png",
+  "size": 2048,
+  "transparent": true
+ },
+ {
+  "svg": "./branding/vector/monochrome.svg",
+  "out": "./branding/icon/ic_launcher_monochrome.png",
+  "size": 1024,
+  "transparent": true
+ },
+ {
+  "svg": "./branding/vector/background.svg",
+  "out": "./branding/icon/ic_launcher_background.png",
+  "size": 1024
+ },
+ {
+  "svg": "./branding/vector/icon.svg",
+  "out": "./android-res/mipmap-mdpi/ic_launcher.png",
+  "size": 48
+ },
+ {
+  "svg": "./branding/vector/icon_round.svg",
+  "out": "./android-res/mipmap-mdpi/ic_launcher_round.png",
+  "size": 48,
+  "transparent": true
+ },
+ {
+  "svg": "./branding/vector/foreground.svg",
+  "out": "./android-res/mipmap-mdpi/ic_launcher_foreground.png",
+  "size": 108,
+  "transparent": true
+ },
+ {
+  "svg": "./branding/vector/monochrome.svg",
+  "out": "./android-res/mipmap-mdpi/ic_launcher_monochrome.png",
+  "size": 108,
+  "transparent": true
+ },
+ {
+  "svg": "./branding/vector/background.svg",
+  "out": "./android-res/mipmap-mdpi/ic_launcher_background.png",
+  "size": 108
+ },
+ {
+  "svg": "./branding/vector/icon.svg",
+  "out": "./android-res/mipmap-hdpi/ic_launcher.png",
+  "size": 72
+ },
+ {
+  "svg": "./branding/vector/icon_round.svg",
+  "out": "./android-res/mipmap-hdpi/ic_launcher_round.png",
+  "size": 72,
+  "transparent": true
+ },
+ {
+  "svg": "./branding/vector/foreground.svg",
+  "out": "./android-res/mipmap-hdpi/ic_launcher_foreground.png",
+  "size": 162,
+  "transparent": true
+ },
+ {
+  "svg": "./branding/vector/monochrome.svg",
+  "out": "./android-res/mipmap-hdpi/ic_launcher_monochrome.png",
+  "size": 162,
+  "transparent": true
+ },
+ {
+  "svg": "./branding/vector/background.svg",
+  "out": "./android-res/mipmap-hdpi/ic_launcher_background.png",
+  "size": 162
+ },
+ {
+  "svg": "./branding/vector/icon.svg",
+  "out": "./android-res/mipmap-xhdpi/ic_launcher.png",
+  "size": 96
+ },
+ {
+  "svg": "./branding/vector/icon_round.svg",
+  "out": "./android-res/mipmap-xhdpi/ic_launcher_round.png",
+  "size": 96,
+  "transparent": true
+ },
+ {
+  "svg": "./branding/vector/foreground.svg",
+  "out": "./android-res/mipmap-xhdpi/ic_launcher_foreground.png",
+  "size": 216,
+  "transparent": true
+ },
+ {
+  "svg": "./branding/vector/monochrome.svg",
+  "out": "./android-res/mipmap-xhdpi/ic_launcher_monochrome.png",
+  "size": 216,
+  "transparent": true
+ },
+ {
+  "svg": "./branding/vector/background.svg",
+  "out": "./android-res/mipmap-xhdpi/ic_launcher_background.png",
+  "size": 216
+ },
+ {
+  "svg": "./branding/vector/icon.svg",
+  "out": "./android-res/mipmap-xxhdpi/ic_launcher.png",
+  "size": 144
+ },
+ {
+  "svg": "./branding/vector/icon_round.svg",
+  "out": "./android-res/mipmap-xxhdpi/ic_launcher_round.png",
+  "size": 144,
+  "transparent": true
+ },
+ {
+  "svg": "./branding/vector/foreground.svg",
+  "out": "./android-res/mipmap-xxhdpi/ic_launcher_foreground.png",
+  "size": 324,
+  "transparent": true
+ },
+ {
+  "svg": "./branding/vector/monochrome.svg",
+  "out": "./android-res/mipmap-xxhdpi/ic_launcher_monochrome.png",
+  "size": 324,
+  "transparent": true
+ },
+ {
+  "svg": "./branding/vector/background.svg",
+  "out": "./android-res/mipmap-xxhdpi/ic_launcher_background.png",
+  "size": 324
+ },
+ {
+  "svg": "./branding/vector/icon.svg",
+  "out": "./android-res/mipmap-xxxhdpi/ic_launcher.png",
+  "size": 192
+ },
+ {
+  "svg": "./branding/vector/icon_round.svg",
+  "out": "./android-res/mipmap-xxxhdpi/ic_launcher_round.png",
+  "size": 192,
+  "transparent": true
+ },
+ {
+  "svg": "./branding/vector/foreground.svg",
+  "out": "./android-res/mipmap-xxxhdpi/ic_launcher_foreground.png",
+  "size": 432,
+  "transparent": true
+ },
+ {
+  "svg": "./branding/vector/monochrome.svg",
+  "out": "./android-res/mipmap-xxxhdpi/ic_launcher_monochrome.png",
+  "size": 432,
+  "transparent": true
+ },
+ {
+  "svg": "./branding/vector/background.svg",
+  "out": "./android-res/mipmap-xxxhdpi/ic_launcher_background.png",
+  "size": 432
+ },
+ {
+  "svg": "./branding/vector/mark_white.svg",
+  "out": "./branding/animation/dt_mark_white.png",
+  "size": 128,
+  "transparent": true
+ }
+]

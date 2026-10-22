@@ -1,7 +1,7 @@
 """Splash screen and Play Store feature graphic for DT Food POS.
 
 Usage: python3 -I generate_brand_assets.py <logo.jpg> <repo_root>
-Needs branding/icon/ic_launcher_foreground.png (run generate_icons.py first) and the Inter font.
+Needs branding/icon/art_foreground_2048.png (run vector/build_vector.py + render.mjs first) and the Inter font.
 """
 import os, sys
 import numpy as np
@@ -31,7 +31,7 @@ def gradient(w, h):
     img = (c1 * (1 - t) + c2 * t) * 0.85 + np.array([0x7A, 0x38, 0xC8]) * 0.3 * glow
     return Image.fromarray(np.clip(img, 0, 255).astype("uint8")).convert("RGBA")
 
-fg = Image.open(os.path.join(ROOT, "branding/icon/ic_launcher_foreground.png")).convert("RGBA")
+fg = Image.open(os.path.join(ROOT, "branding/icon/art_foreground_2048.png")).convert("RGBA")
 l, t, r, b = fg.getbbox()
 half = max(fg.width // 2 - l, r - fg.width // 2)   # symmetric crop keeps the receipt centred
 ART = fg.crop((fg.width // 2 - half, t, fg.width // 2 + half, b))   # splash: receipt centred
