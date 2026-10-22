@@ -14,6 +14,11 @@ class EscPosBuilder {
   }
   final int paperMm;
   final _bytes = BytesBuilder();
+  final _preview = StringBuffer();
+
+  /// Plain-text rendering of everything printed so far: the live print preview. Built alongside the bytes, so the
+  /// preview can never drift from what the printer receives. (QR/bitmaps appear as placeholders.)
+  String get previewText => _preview.toString();
 
   int get columns => paperMm == 80 ? 48 : 32;
   Uint8List toBytes() => _bytes.toBytes();
@@ -52,13 +57,19 @@ class EscPosBuilder {
   List<int> _ascii(String s) => s.runes.map((r) => (r >= 0x20 && r < 0x7F) ? r : 0x3F).toList();
 
   EscPosBuilder text(String s) {
-    _raw(_ascii(s));
+    final a = _ascii(s);
+    _raw(a);
+    _preview.write(String.fromCharCodes(a));
     return this;
   }
 
   EscPosBuilder line([String s = '']) {
-    _raw(_ascii(s));
+    final a = _ascii(s);
+    _raw(a);
     _raw([0x0A]);
+    _preview
+      ..write(String.fromCharCodes(a))
+      ..write('\n');
     return this;
   }
 
@@ -115,6 +126,7 @@ class EscPosBuilder {
     final n = d.length + 3;
     _raw([0x1D, 0x28, 0x6B, n & 0xFF, n >> 8, 0x31, 0x50, 0x30, ...d]);
     _raw([0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x51, 0x30]); // print
+    _preview.writeln('[QR: $data]');
     return this;
   }
 
@@ -125,6 +137,7 @@ class EscPosBuilder {
     if (bits.length != widthBytes * heightPx) throw ArgumentError('bitmap data length mismatch');
     _raw([0x1D, 0x76, 0x30, 0x00, widthBytes & 0xFF, widthBytes >> 8, heightPx & 0xFF, heightPx >> 8]);
     _raw(bits);
+    _preview.writeln('[image ${widthBytes * 8}x$heightPx]');
     return this;
   }
 

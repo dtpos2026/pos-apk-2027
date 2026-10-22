@@ -236,6 +236,61 @@ class PosService {
         taxInclusive: i.taxInclusive,
       );
 
+  /// Latest unsettled draft (for crash recovery on the next launch), or null.
+  Future<String?> latestDraftId() async {
+    final r = await _select("SELECT id FROM \"order\" WHERE status = 'draft' ORDER BY updated_at DESC LIMIT 1");
+    return r.isEmpty ? null : r.first['id'] as String;
+  }
+
+  Future<DraftOrder?> loadDraft(String id) async {
+    final rows = await _select('SELECT * FROM "order" WHERE id = ? AND status IN (\'draft\', \'held\')', [id]);
+    if (rows.isEmpty) return null;
+    final o = rows.first;
+    final items = <CartItem>[];
+    for (final r in await _select('SELECT * FROM order_item WHERE order_id = ? ORDER BY rowid', [id])) {
+      final mods = await _select('SELECT * FROM order_item_modifier WHERE order_item_id = ?', [r['id']]);
+      items.add(CartItem(
+        productId: r['product_id'] as String,
+        variantId: r['variant_id'] as String?,
+        name: r['name'] as String,
+        qtyMilli: r['qty_milli'] as int,
+        unitPriceMinor: r['unit_price_minor'] as int,
+        modifiers: [for (final m in mods) CartModifier(optionId: m['option_id'] as String?, name: m['name'] as String, priceMinor: m['price_minor'] as int)],
+        lineDiscountMinor: r['discount_minor'] as int,
+        taxRateBp: r['tax_rate_bp'] as int,
+        taxInclusive: (r['tax_inclusive'] as int) == 1,
+        note: r['note'] as String?,
+        station: r['station'] as String?,
+      ));
+    }
+    return DraftOrder(
+      id: id,
+      orderType: o['order_type'] as String,
+      items: items,
+      config: _configFromJson(o['bill_config'] as String?),
+      tableId: o['table_id'] as String?,
+      customerId: o['customer_id'] as String?,
+      waiterId: o['waiter_id'] as String?,
+      guests: o['guests'] as int?,
+      note: o['note'] as String?,
+      held: o['status'] == 'held',
+    );
+  }
+
+  /// Removes an unsettled draft (cart emptied or cancelled). Settled orders can never be deleted.
+  Future<void> discardDraft(String id) => db.transaction(() async {
+        final rows = await _select('SELECT status, table_id FROM "order" WHERE id = ?', [id]);
+        if (rows.isEmpty) return;
+        if (!{'draft', 'held'}.contains(rows.first['status'])) throw PosException('not_editable', 'Only unsettled orders can be discarded');
+        await _exec('DELETE FROM order_item_modifier WHERE order_item_id IN (SELECT id FROM order_item WHERE order_id = ?)', [id]);
+        await _exec('DELETE FROM order_item WHERE order_id = ?', [id]);
+        await _exec('DELETE FROM "order" WHERE id = ?', [id]);
+        if (rows.first['table_id'] != null) {
+          await _exec("UPDATE dining_table SET status='free', updated_at=?, version=version+1 WHERE id=? AND NOT EXISTS (SELECT 1 FROM \"order\" WHERE table_id = ? AND status IN ('draft','held','new','preparing','ready','served'))",
+              [_ts, rows.first['table_id'], rows.first['table_id']]);
+        }
+      });
+
   // ---- settlement ----
   Future<String> _nextInvoiceNo() async {
     final period = _businessDate.replaceAll('-', '');

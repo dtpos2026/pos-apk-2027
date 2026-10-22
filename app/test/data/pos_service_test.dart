@@ -43,6 +43,7 @@ Future<String> draft([List<CartItem>? items, String? customer, String? table, Bi
     );
 
 void main() {
+  draftTests();
   setUp(() async {
     db = AppDatabase(NativeDatabase.memory());
     idCounter = 0;
@@ -206,5 +207,47 @@ void main() {
     expect(rep.refundsMinor, 58000);
     expect(rep.netMinor, 116000);
     expect(rep.byMethod, {'Cash': 58000, 'Card': 116000});
+  });
+}
+
+void draftTests() {
+  group('draft recovery', () {
+    setUp(() async {
+      db = AppDatabase(NativeDatabase.memory());
+      idCounter = 0;
+      clock = DateTime(2026, 1, 12, 19, 40);
+      svc = PosService(db, now: () => clock, newId: () => 'id-${++idCounter}');
+      await seed();
+    });
+    tearDown(() => db.close());
+
+    test('a draft survives an app restart and reloads exactly', () async {
+      final id = await svc.saveDraft(
+        DraftOrder(orderType: 'dine_in', tableId: 't1', items: [
+          CartItem(productId: 'burger', name: 'Burger', qtyMilli: 2000, unitPriceMinor: 50000, taxRateBp: 1600, modifiers: const [CartModifier(name: 'Extra cheese', priceMinor: 5000)], note: 'No onion'),
+        ]),
+        staffId: 'owner',
+      );
+      final fresh = PosService(db, now: () => clock); // "app restarted"
+      expect(await fresh.latestDraftId(), id);
+      final d = (await fresh.loadDraft(id))!;
+      expect(d.orderType, 'dine_in');
+      expect(d.tableId, 't1');
+      expect(d.items.single.qtyMilli, 2000);
+      expect(d.items.single.modifiers.single.name, 'Extra cheese');
+      expect(d.items.single.note, 'No onion');
+    });
+
+    test('discarding frees the table and removes everything; settled orders cannot be discarded', () async {
+      final id = await svc.saveDraft(DraftOrder(orderType: 'dine_in', tableId: 't1', items: [burger()]), staffId: 'owner');
+      await svc.discardDraft(id);
+      expect(await count('"order"'), 0);
+      expect(await count('order_item'), 0);
+      expect((await db.customSelect("SELECT status FROM dining_table WHERE id='t1'").getSingle()).data['status'], 'free');
+      final id2 = await svc.saveDraft(DraftOrder(orderType: 'counter', items: [burger()]), staffId: 'owner');
+      await svc.settleOrder(orderId: id2, payments: [const SettlePayment(methodId: 'cash', amountMinor: 58000)], staffId: 'owner');
+      await expectLater(svc.discardDraft(id2), throwsA(isA<PosException>()));
+      expect(await svc.latestDraftId(), isNull);
+    });
   });
 }

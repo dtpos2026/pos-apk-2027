@@ -78,7 +78,12 @@ String _m(int minor, Currency c) => formatMinor(minor, currency: c, symbol: fals
 
 /// Customer bill. Text is ASCII-only; if [ReceiptData] contains Arabic-script text, the caller must render those
 /// lines to bitmaps (see [needsRaster]) instead; this builder reports which fields need it via [rasterFields].
-Uint8List buildBill(ReceiptData d, {int paperMm = 58, int copies = 1}) {
+Uint8List buildBill(ReceiptData d, {int paperMm = 58, int copies = 1}) => _bill(d, paperMm, copies).toBytes();
+
+/// The exact text that [buildBill] prints (without control codes): used for the on-screen print preview.
+String previewBill(ReceiptData d, {int paperMm = 58}) => _bill(d, paperMm, 1).previewText;
+
+EscPosBuilder _bill(ReceiptData d, int paperMm, int copies) {
   final b = EscPosBuilder(paperMm: paperMm);
   for (var copy = 0; copy < copies; copy++) {
     b.init().codePage(0);
@@ -122,7 +127,7 @@ Uint8List buildBill(ReceiptData d, {int paperMm = 58, int copies = 1}) {
     b.line('Powered by Digital Target');
     b.cut();
   }
-  return b.toBytes();
+  return b;
 }
 
 /// Names of fields in [d] that contain Arabic-script text and therefore need bitmap rendering.

@@ -25,6 +25,9 @@ Legend for verification: **unit-tested** (automated test passes here), **viewed*
 - [x] Sync engine (outbox drain, exponential backoff + jitter, per-record ordering, parking of rejected items) tested against a fake server, **including "server applied but ACK lost" with no duplicate**. No real server exists yet, so this is untested against a real backend.
 - [x] Encrypted backup/restore: AES-256-GCM, PBKDF2, integrity check, wrong passphrase/tampering/truncation detected, pruning (**unit-tested**). Not yet wired to a UI or to cloud upload.
 
+- [x] Draft recovery (reload after restart, discard), live print preview text identical to printed content, receipt loader from the DB snapshot (**unit-tested**)
+- [x] Print queue with real LAN (TCP 9100) transport, tested against a loopback fake printer: bill and KOT routing by station, retry with attempt limit, DUPLICATE reprint + audit, never blocks the sale, crash recovery of stuck jobs (**tested on a fake printer only; no real printer has been tried**). Bluetooth/BLE/USB transports are NOT implemented (need native plugins and hardware).
+
 ## In progress
 - [ ] App screens (login, POS billing, checkout, tables, menu, reports, settings)
 

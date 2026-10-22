@@ -103,6 +103,18 @@ void main() {
       expect(b.sublist(b.length - 4), [0x1D, 0x56, 0x42, 0x00]);
     });
 
+    test('preview text is exactly what is printed', () {
+      final d = sample();
+      final preview = previewBill(d);
+      expect(preview, contains('2 x Zinger Burger'));
+      expect(preview, contains('1,218.00'));
+      expect(preview, isNot(contains('\x1B')));
+      final printed = ascii(buildBill(d)).replaceAll(RegExp(r'[\x00-\x09\x0B-\x1F]'), '');
+      for (final l in preview.split('\n').where((l) => l.trim().isNotEmpty)) {
+        expect(printed, contains(l.trim()));
+      }
+    });
+
     test('duplicate marker', () {
       expect(ascii(buildBill(sample(dup: true))), contains('*** DUPLICATE ***'));
     });
