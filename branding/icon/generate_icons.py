@@ -45,8 +45,7 @@ def shadow(im, off=18, blur=22, alpha=90):
 def build_receipt():
     """Receipt + fork/knife badge. Returns (RGBA art, mono alpha mask)."""
     w, h, r = 680, 940, 215
-    gw, gh = w + 175, h + 85                      # group box incl. badge overhang
-    ox, oy = (S - gw) // 2, (S - gh) // 2
+    ox, oy = (S - w) // 2, (S - h) // 2           # receipt itself is centred; badge overhangs
     bx, by = ox + w - 40, oy + h - 130            # badge centre
 
     body = Image.new("L", (S, S), 0)

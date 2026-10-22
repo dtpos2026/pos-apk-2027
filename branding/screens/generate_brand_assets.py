@@ -32,7 +32,10 @@ def gradient(w, h):
     return Image.fromarray(np.clip(img, 0, 255).astype("uint8")).convert("RGBA")
 
 fg = Image.open(os.path.join(ROOT, "branding/icon/ic_launcher_foreground.png")).convert("RGBA")
-ART = fg.crop(fg.getbbox())          # receipt + badge incl. shadow
+l, t, r, b = fg.getbbox()
+half = max(fg.width // 2 - l, r - fg.width // 2)   # symmetric crop keeps the receipt centred
+ART = fg.crop((fg.width // 2 - half, t, fg.width // 2 + half, b))   # splash: receipt centred
+ART_TIGHT = fg.crop(fg.getbbox())                                  # feature graphic: art sits left of the text
 
 def text_c(d, cx, y, s, font, fill, spacing=0):
     w = d.textlength(s, font=font) + spacing * (len(s) - 1)
@@ -66,7 +69,7 @@ sp.convert("RGB").save(f"{OUT}/splash_1080x1920.png")
 W, H = 1024, 500
 fgimg = gradient(W, H)
 big = mark(820, (255, 255, 255), 0.05); fgimg.alpha_composite(big, (W - 560, -130))
-art = ART.resize((round(ART.width * 400 / ART.height), 400), Image.LANCZOS)
+art = ART_TIGHT.resize((round(ART_TIGHT.width * 400 / ART_TIGHT.height), 400), Image.LANCZOS)
 fgimg.alpha_composite(art, (70, 50))
 d = ImageDraw.Draw(fgimg)
 d.text((420, 150), "DT Food POS", font=ImageFont.truetype(FONT.format("ExtraBold"), 84), fill=(255, 255, 255))
