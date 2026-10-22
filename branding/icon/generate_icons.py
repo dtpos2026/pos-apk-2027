@@ -43,66 +43,78 @@ def shadow(im, off=18, blur=22, alpha=90):
     return out
 
 def build_receipt():
-    """Returns (receipt RGBA, mask of the receipt body, mask of the printed content)."""
-    w, h = 760, 1040
-    ox, oy = (S - w) // 2, (S - h) // 2
+    """Receipt + fork/knife badge. Returns (RGBA art, mono alpha mask)."""
+    w, h, r = 680, 940, 215
+    gw, gh = w + 175, h + 85                      # group box incl. badge overhang
+    ox, oy = (S - gw) // 2, (S - gh) // 2
+    bx, by = ox + w - 40, oy + h - 130            # badge centre
+
     body = Image.new("L", (S, S), 0)
     bd = ImageDraw.Draw(body)
-    bd.rounded_rectangle((ox, oy, ox + w, oy + h - 50), 46, fill=255, corners=(True, True, False, False))
+    bd.rounded_rectangle((ox, oy, ox + w, oy + h - 50), 44, fill=255, corners=(True, True, False, False))
     n, step = 10, w / 10
     pts = [(ox, oy + h - 50)]
     for i in range(n):
         pts += [(ox + step * i + step / 2, oy + h), (ox + step * (i + 1), oy + h - 50)]
     bd.polygon(pts, fill=255)
 
-    ink = Image.new("RGBA", (S, S), (0, 0, 0, 0))   # coloured content
-    cut = Image.new("L", (S, S), 0)                 # content silhouette (for monochrome)
-    d, cd = ImageDraw.Draw(ink), ImageDraw.Draw(cut)
+    art = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    art.paste(Image.new("RGBA", (S, S), WHITE + (255,)), mask=body)
+    d = ImageDraw.Draw(art)
+    cut = Image.new("L", (S, S), 0)
+    cd = ImageDraw.Draw(cut)
 
-    mk = mark_mask(190)
+    # DT mark (from the supplied logo)
+    mk = mark_mask(260)
     layer = Image.new("RGBA", mk.size, PURPLE + (255,)); layer.putalpha(mk)
-    ink.alpha_composite(layer, (S // 2 - mk.width // 2, oy + 70))
-    cut.paste(mk, (S // 2 - mk.width // 2, oy + 70), mk)
+    mx, my = ox + (w - mk.width) // 2, oy + 80
+    art.alpha_composite(layer, (mx, my)); cut.paste(mk, (mx, my), mk)
 
-    # burger
-    cx, bw, y0 = S // 2, 520, oy + 330
-    dome = Image.new("L", (S, S), 0)
-    dd = ImageDraw.Draw(dome)
-    dd.ellipse((cx - bw // 2, y0, cx + bw // 2, y0 + 380), fill=255)
-    dd.rectangle((0, y0 + 190, S, S), fill=0)
-    ink.paste(Image.new("RGBA", (S, S), BUN + (255,)), mask=dome)
-    cut.paste(255, mask=dome)
-    for sx, sy, r in [(-150, 60, 0), (-30, 35, 25), (95, 62, -20), (175, 110, 15), (-190, 125, -30), (20, 120, 10)]:
-        e = Image.new("RGBA", (46, 24), (0, 0, 0, 0)); ImageDraw.Draw(e).ellipse((0, 0, 45, 23), fill=SEED + (255,))
-        e = e.rotate(r, expand=True)
-        ink.alpha_composite(e, (cx + sx - e.width // 2, y0 + sy - e.height // 2))
-    wave = [(cx - bw // 2 - 24 + i, y0 + 222 + 12 * math.sin(i / 24)) for i in range(0, bw + 48, 4)]
-    for px_, py_ in wave:
-        d.ellipse((px_ - 17, py_ - 17, px_ + 17, py_ + 17), fill=LAV + (255,))
-    d.rounded_rectangle((cx - bw // 2 - 14, y0 + 250, cx + bw // 2 + 14, y0 + 322), 36, fill=PURPLE + (255,))
-    d.polygon([(cx - bw // 2 + 20, y0 + 312), (cx + bw // 2 - 20, y0 + 312), (cx + bw // 2 - 110, y0 + 362),
-               (cx + bw // 2 - 190, y0 + 318), (cx + bw // 2 - 250, y0 + 366), (cx - bw // 2 + 90, y0 + 318)], fill=CHEESE + (255,))
-    d.rounded_rectangle((cx - bw // 2, y0 + 330, cx + bw // 2, y0 + 410), 40, fill=BUN + (255,))
-    for xy in [(cx - bw // 2 - 14, y0 + 190, cx + bw // 2 + 14, y0 + 410)]:
-        cd.rounded_rectangle(xy, 40, fill=255)
+    # line items
+    for i, y in enumerate([oy + 430 + i * 105 for i in range(4)]):
+        lw = 400 if i % 2 == 0 else 310
+        d.rounded_rectangle((ox + 80, y, ox + 80 + lw, y + 36), 18, fill=LINE + (255,))
+        d.rounded_rectangle((ox + w - 80 - 110, y, ox + w - 80, y + 36), 18, fill=LINE + (255,))
+        cd.rounded_rectangle((ox + 80, y, ox + 80 + lw, y + 36), 18, fill=255)
+        cd.rounded_rectangle((ox + w - 80 - 110, y, ox + w - 80, y + 36), 18, fill=255)
+    d.rounded_rectangle((ox + 80, oy + 850, ox + w - 80, oy + 868), 9, fill=PURPLE + (255,))
+    cd.rounded_rectangle((ox + 80, oy + 850, ox + w - 80, oy + 868), 9, fill=255)
 
-    # printed lines + total
-    ly = oy + 790
-    d.rounded_rectangle((ox + 70, ly, ox + 70 + 330, ly + 26), 13, fill=LINE + (255,))
-    d.rounded_rectangle((ox + w - 70 - 110, ly, ox + w - 70, ly + 26), 13, fill=LINE + (255,))
-    d.rounded_rectangle((ox + 70, ly + 60, ox + w - 70, ly + 78), 9, fill=PURPLE + (255,))
-    d.rounded_rectangle((ox + 70, ly + 110, ox + 70 + 240, ly + 136), 13, fill=PURPLE + (255,))
-    d.rounded_rectangle((ox + w - 70 - 170, ly + 110, ox + w - 70, ly + 136), 13, fill=PURPLE + (255,))
-    for xy in [(ox + 70, ly, ox + w - 70, ly + 136)]:
-        cd.rectangle(xy, fill=255)
+    # badge
+    badge = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    ImageDraw.Draw(badge).ellipse((bx - r, by - r, bx + r, by + r), fill=AMBER + (255,))
+    badge = shadow(badge, 14, 18, 110)
+    art = shadow(art)
+    art.alpha_composite(badge)
 
-    rec = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    rec.paste(Image.new("RGBA", (S, S), WHITE + (255,)), mask=body)
-    rec.alpha_composite(ink)
-    return rec, body, cut
+    # fork + knife glyph, as an alpha mask so it can also be cut out of the mono layer
+    k = r / 250
+    g = Image.new("L", (S, S), 0)
+    gd = ImageDraw.Draw(g)
+    fx = bx - 70 * k
+    for dx in (-34, 0, 34):
+        gd.rounded_rectangle((fx + dx * k - 9 * k, by - 150 * k, fx + dx * k + 9 * k, by - 30 * k), 9 * k, fill=255)
+    gd.pieslice((fx - 43 * k, by - 80 * k, fx + 43 * k, by + 20 * k), 0, 180, fill=255)
+    gd.rectangle((fx - 43 * k, by - 60 * k, fx + 43 * k, by - 25 * k), fill=255)
+    gd.rounded_rectangle((fx - 11 * k, by - 20 * k, fx + 11 * k, by + 150 * k), 11 * k, fill=255)
+    kx = bx + 60 * k
+    kp = [(kx, by - 150 * k)] + [(kx + 48 * k * math.sin(math.radians(t)), by - 150 * k + 130 * k * (1 - math.cos(math.radians(t)))) for t in range(0, 91, 6)] + [(kx + 48 * k, by + 20 * k), (kx, by + 20 * k)]
+    gd.polygon(kp, fill=255)
+    gd.rounded_rectangle((kx - 2 * k, by - 10 * k, kx + 48 * k, by + 150 * k), 24 * k, fill=255)
+    gl = Image.new("RGBA", (S, S), PURPLE + (255,)); gl.putalpha(g)
+    art.alpha_composite(gl)
 
-REC, BODY, CUT = build_receipt()
-FG = shadow(REC)
+    # monochrome: receipt (content cut out, gap ring round badge) + badge disc (glyph cut out)
+    disc = Image.new("L", (S, S), 0)
+    ImageDraw.Draw(disc).ellipse((bx - r, by - r, bx + r, by + r), fill=255)
+    ring = Image.new("L", (S, S), 0)
+    ImageDraw.Draw(ring).ellipse((bx - r - 26, by - r - 26, bx + r + 26, by + r + 26), fill=255)
+    m = np.asarray(body).astype(float) - np.asarray(cut).astype(float) - np.asarray(ring).astype(float)
+    m = np.clip(m, 0, 255) + np.clip(np.asarray(disc).astype(float) - np.asarray(g).astype(float), 0, 255)
+    mono_mask = Image.fromarray(np.clip(m, 0, 255).astype("uint8"))
+    return art, mono_mask
+
+FG, MONO_MASK = build_receipt()
 
 def scaled(layer, f):
     n = round(S * f)
@@ -110,14 +122,13 @@ def scaled(layer, f):
 
 def full_icon():
     b = gradient()
-    big = FG.resize((round(S * 1.3),) * 2, Image.LANCZOS)
+    big = FG.resize((round(S * 1.25),) * 2, Image.LANCZOS)
     b.alpha_composite(big, ((S - big.width) // 2, (S - big.height) // 2))
     return b
 
 def mono():
-    a = np.asarray(BODY).astype(float) - np.asarray(CUT).astype(float)
-    m = Image.fromarray(np.clip(a, 0, 255).astype("uint8"))
-    l = Image.new("RGBA", (S, S), (0, 0, 0, 255)); l.putalpha(m)
+    l = Image.new("RGBA", (S, S), (0, 0, 0, 255))
+    l.putalpha(MONO_MASK)
     return l
 
 FULL, MONO = full_icon(), mono()
