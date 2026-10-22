@@ -9,7 +9,10 @@ class PaymentInput {
 }
 
 class SettlementResult {
-  const SettlementResult({required this.paidMinor, required this.changeMinor, required this.dueMinor});
+  const SettlementResult({required this.paidMinor, required this.changeMinor, required this.dueMinor, required this.appliedMinor});
+
+  /// Amount each input payment actually contributed, in input order (cash minus its change).
+  final List<int> appliedMinor;
 
   /// Amount that actually settles the bill (cash change is excluded).
   final int paidMinor;
@@ -25,19 +28,26 @@ SettlementResult settle(int totalMinor, List<PaymentInput> payments) {
   if (totalMinor < 0) throw ArgumentError('total must not be negative');
   var remaining = totalMinor;
   var paid = 0;
-  for (final p in payments.where((p) => p.kind != PaymentKind.cash)) {
+  final applied = List<int>.filled(payments.length, 0);
+  for (var i = 0; i < payments.length; i++) {
+    final p = payments[i];
+    if (p.kind == PaymentKind.cash) continue;
     if (p.amountMinor <= 0) throw ArgumentError('payment must be positive');
     if (p.amountMinor > remaining) throw ArgumentError('${p.kind.name} payment exceeds the amount due');
     remaining -= p.amountMinor;
     paid += p.amountMinor;
+    applied[i] = p.amountMinor;
   }
   var change = 0;
-  for (final p in payments.where((p) => p.kind == PaymentKind.cash)) {
+  for (var i = 0; i < payments.length; i++) {
+    final p = payments[i];
+    if (p.kind != PaymentKind.cash) continue;
     if (p.amountMinor <= 0) throw ArgumentError('payment must be positive');
-    final applied = p.amountMinor > remaining ? remaining : p.amountMinor;
-    change += p.amountMinor - applied;
-    remaining -= applied;
-    paid += applied;
+    final a = p.amountMinor > remaining ? remaining : p.amountMinor;
+    change += p.amountMinor - a;
+    remaining -= a;
+    paid += a;
+    applied[i] = a;
   }
-  return SettlementResult(paidMinor: paid, changeMinor: change, dueMinor: remaining);
+  return SettlementResult(paidMinor: paid, changeMinor: change, dueMinor: remaining, appliedMinor: applied);
 }

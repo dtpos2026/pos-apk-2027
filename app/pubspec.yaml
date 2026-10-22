@@ -8,13 +8,18 @@ environment:
 
 dependencies:
   cryptography: ^2.9.0
+  drift: ^2.31.0
   flutter:
     sdk: flutter
+  sqlite3: ^2.9.0
+  uuid: ^4.6.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  drift_dev: ^2.31.0
+  build_runner: ^2.15.1
 
 flutter:
   uses-material-design: true

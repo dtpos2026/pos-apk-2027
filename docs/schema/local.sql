@@ -23,7 +23,7 @@ CREATE TABLE business_profile (
 );
 
 CREATE TABLE setting (
-  key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at INTEGER NOT NULL
+  setting_key TEXT PRIMARY KEY, setting_value TEXT NOT NULL, updated_at INTEGER NOT NULL
 );
 
 CREATE TABLE tax_rate (
@@ -175,6 +175,7 @@ CREATE TABLE "order" (
   table_id TEXT REFERENCES dining_table(id), customer_id TEXT REFERENCES customer(id),
   waiter_id TEXT REFERENCES staff(id), cashier_id TEXT REFERENCES staff(id), shift_id TEXT REFERENCES shift(id),
   guests INTEGER, note TEXT, delivery_address TEXT, source TEXT NOT NULL DEFAULT 'pos',  -- pos | online
+  bill_config TEXT,                         -- JSON of discount/service/delivery/tip/rounding so the bill can be recomputed exactly
   subtotal_minor INTEGER NOT NULL DEFAULT 0, discount_minor INTEGER NOT NULL DEFAULT 0,
   service_charge_minor INTEGER NOT NULL DEFAULT 0, delivery_charge_minor INTEGER NOT NULL DEFAULT 0,
   tax_minor INTEGER NOT NULL DEFAULT 0, tip_minor INTEGER NOT NULL DEFAULT 0,
@@ -312,7 +313,7 @@ CREATE INDEX print_job_status_ix ON print_job(status, created_at);
 
 -- ---------- audit ----------
 CREATE TABLE audit_log (                    -- append-only; protected from user-level cleanup
-  id TEXT PRIMARY KEY, at INTEGER NOT NULL, staff_id TEXT, action TEXT NOT NULL,
+  id TEXT PRIMARY KEY, at INTEGER NOT NULL, staff_id TEXT, event TEXT NOT NULL,
   entity TEXT, entity_id TEXT, before_json TEXT, after_json TEXT, reason TEXT, device_id TEXT,
   critical INTEGER NOT NULL DEFAULT 0
 );
@@ -342,7 +343,7 @@ CREATE TABLE outbox (                       -- one row per change; drained oldes
   next_attempt_at INTEGER NOT NULL DEFAULT 0, last_error TEXT, acked_at INTEGER
 );
 CREATE INDEX outbox_pending_ix ON outbox(acked_at, next_attempt_at);
-CREATE TABLE sync_state (key TEXT PRIMARY KEY, value TEXT NOT NULL);   -- pull cursors, last_sync_at, device_id
+CREATE TABLE sync_state (state_key TEXT PRIMARY KEY, state_value TEXT NOT NULL);   -- pull cursors, last_sync_at, device_id
 
 -- ---------- licence cache (verified on every launch, never trusted blindly) ----------
 CREATE TABLE license_cache (

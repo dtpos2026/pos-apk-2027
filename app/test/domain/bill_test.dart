@@ -100,6 +100,7 @@ void main() {
       final r = settle(8750, [const PaymentInput(PaymentKind.cash, 10000)]);
       expect(r.changeMinor, 1250);
       expect(r.paidMinor, 8750);
+      expect(r.appliedMinor, [8750]);
       expect(r.isSettled, isTrue);
     });
     test('split card + cash', () {
@@ -111,6 +112,7 @@ void main() {
       final r = settle(10000, [const PaymentInput(PaymentKind.cash, 7000), const PaymentInput(PaymentKind.wallet, 6000)]);
       expect(r.paidMinor, 10000);
       expect(r.changeMinor, 3000);
+      expect(r.appliedMinor, [4000, 6000]);
     });
     test('non-cash overpay is rejected', () {
       expect(() => settle(1000, [const PaymentInput(PaymentKind.card, 1500)]), throwsArgumentError);

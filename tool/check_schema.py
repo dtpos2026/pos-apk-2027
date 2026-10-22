@@ -13,7 +13,7 @@ c.execute("insert into payment(id,order_id,method_id,method_kind,amount_minor,cr
 checks = {
   "payment update blocked": fails("update payment set amount_minor=1"),
   "payment delete blocked": fails("delete from payment"),
-  "audit update blocked": (c.execute("insert into audit_log(id,at,action,critical) values('a',1,'x',1)") or fails("update audit_log set action='y'")),
+  "audit update blocked": (c.execute("insert into audit_log(id,at,event,critical) values('a',1,'x',1)") or fails("update audit_log set event='y'")),
   "critical audit delete blocked": fails("delete from audit_log"),
   "negative qty rejected": fails("""insert into order_item(id,order_id,product_id,name,qty_milli,unit_price_minor,line_total_minor) values('i','o','nope','n',0,1,1)"""),
   "duplicate idempotency key rejected": (c.execute("insert into outbox(idempotency_key,entity,entity_id,op,payload,created_at) values('k','order','o','upsert','{}',1)") or fails("insert into outbox(idempotency_key,entity,entity_id,op,payload,created_at) values('k','order','o','upsert','{}',1)")),
