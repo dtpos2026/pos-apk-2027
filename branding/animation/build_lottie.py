@@ -101,7 +101,8 @@ gitems.append(poly(bowl))
 gitems.append(rect(*g["fork_handle"]))
 gitems.append(poly(g["knife_blade"]))
 gitems.append(rect(*g["knife_handle"]))
-layer("fork_knife", [group(gitems, A.PURPLE)], (cx, cy), scale=pop(100, 14), opacity=hidden_until(100))
+# one group per shape: overlapping paths inside one fill group would cancel each other (non-zero winding)
+layer("fork_knife", [group([it], A.PURPLE) for it in gitems], (cx, cy), scale=pop(100, 14), opacity=hidden_until(100))
 
 layers.reverse()                              # Lottie: first layer is on top
 for i, l in enumerate(layers): l["ind"] = i + 1
