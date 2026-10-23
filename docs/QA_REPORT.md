@@ -6,11 +6,11 @@ Version **0.3.0** · date 2026-10-23 · prepared from actual test runs (commands
 
 | Area | Result | How it was checked |
 |---|---|---|
-| Android app logic and screens | **PASS** (221 automated tests) | `flutter test` — real SQLite, real widgets, fonts loaded |
+| Android app logic and screens | **PASS** (225 automated tests) | `flutter test` — real SQLite, real widgets, fonts loaded |
 | Static analysis | **PASS** (0 issues) | `flutter analyze` |
 | Firestore security rules | **PASS** (13 tests) | Firebase emulator, `npm test` in `firebase/` |
 | Super Admin panel | **PASS** (22 unit/UI + 1 end-to-end) | Vitest; end-to-end runs the real panel code against Auth + Firestore emulators |
-| Android release build (APK/AAB) | see §5 | GitHub Actions |
+| Android release build (APK/AAB) | **PASS** (run 26, includes the new Android code) | GitHub Actions |
 | **Real phone, real printer, real Firebase project** | **NOT TESTED** | No device or printer is available to this build environment. Must be done by DT before giving the app to restaurants (checklist in §6). |
 
 ## 2. What the automated tests cover (UAT scenarios)
@@ -38,6 +38,10 @@ Version **0.3.0** · date 2026-10-23 · prepared from actual test runs (commands
 | 19 | **Location**: asked once, shared only when allowed, switch off stops it; "Not now" shares nothing | PASS |
 | 20 | Support chat both ways | PASS |
 | 21 | Rules: restaurant cannot approve itself, read others, forge admin/chat/invoice; only the owner email can claim Super Admin; audit log append-only | PASS |
+| 23 | **Day close (Z report)**: totals, methods, udhaar given/recovered, expenses, cash short/over; refused while a shift is open; closed once; slip text; share | PASS |
+| 24 | **Payment accounts**: add JazzCash/bank, duplicate refused, switch off hides it at checkout, cash cannot be switched off | PASS |
+| 25 | **WhatsApp**: bill to customer (0300-… becomes 92300…), udhaar reminder with name/amount/business | PASS (opens WhatsApp on a phone; tested with a fake) |
+| 26 | **Bill as image** (PNG) shared | PASS |
 | 22 | Panel end-to-end: register → approve (DTC-0001) → phone limit → block → sales → invoice → payment extends expiry → suspend → chat → settings → admins → audit entries | PASS |
 
 ## 3. Defects found during QC and fixed
@@ -62,8 +66,10 @@ A Flutter app always contains the Flutter engine (`libflutter.so`, ~11 MB uncomp
 | Item | Value |
 |---|---|
 | Commands (CI) | `flutter analyze` · `flutter test` · `flutter build apk --release --split-per-abi --obfuscate --split-debug-info=build/symbols` · `flutter build appbundle …` |
-| Artifacts | `releases/dt-food-pos-latest.apk` (arm64), `releases/dt-food-pos-armv7-old-phones.apk`, `releases/dt-food-admin-panel.zip` |
-| Signing | Debug key (no release keystore secret yet). Install works; Play Store needs a release key. **Updates install over the old app only with the same key** — set the release key before giving the app to restaurants. |
+| Artifacts | `releases/dt-food-pos-latest.apk` (arm64) **25,787,288 bytes (24.6 MB)**, `releases/dt-food-pos-armv7-old-phones.apk` **23,885,062 bytes (22.8 MB)**, `releases/dt-food-admin-panel.zip` |
+| SHA-256 (arm64) | `0cb6481b6233d6fe1031afde490e6c25cd6ca67b11e84475d0026a028c66a9f5` |
+| Size history | 75 MB (one APK for all phones) → 27.2 MB (split) → **24.6 MB** (fonts, obfuscation, plugins replaced). What remains: Flutter engine 11.7 MB, app code 9.4 MB, Android/Firebase code 3.4 MB, SQLite 1.5 MB (uncompressed). |
+| Signing | Debug key until the 4 GitHub secrets are added (keystore was generated and given to the owner privately, not committed). Install works; Play Store needs a release key. **Updates install over the old app only with the same key** — set the release key before giving the app to restaurants. |
 
 ## 6. Manual acceptance on real hardware (to be done by DT)
 
