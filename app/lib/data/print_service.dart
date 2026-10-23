@@ -115,6 +115,19 @@ class PrintService {
     return ids;
   }
 
+  /// Queues any document (day-close slip, reports) on every enabled bill printer, laid out per paper width.
+  Future<List<String>> queueDocument(String kind, ReceiptDoc Function(int paperMm) build) async {
+    final printers = await _select("SELECT * FROM printer WHERE enabled = 1 AND deleted_at IS NULL AND role IN ('bill','both') ORDER BY name");
+    final ids = <String>[];
+    for (final p in printers) {
+      final paper = p['paper_mm'] as int;
+      final b = await EscPosRenderer(paperMm: paper, rasterizer: rasterizer).render(build(paper));
+      EscPosRenderer.cut(b);
+      ids.add(await _enqueue(p['id'] as String, kind, null, b.toBytes(), false));
+    }
+    return ids;
+  }
+
   /// Queues kitchen tickets: items are grouped by station and sent to the printer for that station
   /// (a kot printer with no station receives everything not claimed by a station printer).
   Future<List<String>> queueKot(String orderId, {bool reprint = false, bool onlyNew = false}) async {

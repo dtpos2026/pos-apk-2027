@@ -12,6 +12,9 @@ import 'package:dt_food_pos/data/setup_service.dart';
 import 'package:dt_food_pos/data/shift_service.dart';
 import 'package:dt_food_pos/data/staff_service.dart';
 import 'package:dt_food_pos/data/table_service.dart';
+import 'package:dt_food_pos/domain/day_close_doc.dart';
+import 'package:dt_food_pos/domain/money.dart';
+import 'package:dt_food_pos/domain/receipt_doc.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 late AppDatabase db;
@@ -54,6 +57,41 @@ void main() {
     creditId = await methodId('credit');
   });
   tearDown(() => db.close());
+
+  group('day close (Z report)', () {
+    test('Z report adds up sales, discounts, refunds, methods, udhaar, expenses and the cash drawer', () async {
+      final cust = await CustomerService(h).save(name: 'Ahmed', creditLimitMinor: 500000, staffId: owner);
+      await product('p', 'Karahi', 100000);
+      final shift = await shifts.openShift(owner, openingCashMinor: 5000);
+      await sell('p', 100000, [SettlePayment(methodId: cashId, amountMinor: 100000)], shift: shift);
+      await sell('p', 100000, [SettlePayment(methodId: cardId, amountMinor: 100000)], shift: shift);
+      await sell('p', 100000, [SettlePayment(methodId: creditId, amountMinor: 100000)], customer: cust, shift: shift);
+      await CustomerService(h).receivePayment(customerId: cust, amountMinor: 40000, methodId: cashId, staffId: owner);
+      await ExpenseService(h).add(amountMinor: 3000, category: 'Gas', methodId: cashId, staffId: owner);
+      final before = await shifts.zReport('2026-01-12');
+      expect(before.bills, 3);
+      expect(before.netMinor, 300000);
+      expect(before.creditGivenMinor, 100000);
+      expect(before.creditRecoveredMinor, 40000);
+      expect(before.expensesMinor, 3000);
+      expect(before.anyShiftOpen, isTrue);
+      expect(before.closedAt, isNull);
+      await expectLater(shifts.closeDay('2026-01-12', staffId: owner), throwsA(isA<PosException>().having((e) => e.code, 'code', 'shift_open')));
+      final exp = (await shifts.summary(shift)).expectedMinor;
+      await shifts.closeShift(shift, countedMinor: exp - 500);
+      await shifts.closeDay('2026-01-12', staffId: owner);
+      final z = await shifts.zReport('2026-01-12');
+      expect(z.closedAt, isNotNull);
+      expect(z.cashVarianceMinor, -500);
+      final text = docToText(buildZReportDoc(z, businessName: 'T', currency: Currency.pkr, printedAt: '2026-01-12 23:00'), 58);
+      expect(text, contains('DAY CLOSE (Z REPORT)'));
+      expect(text, contains('NET SALES'));
+      expect(text, contains('3,000.00'));
+      expect(text, contains('Udhaar given'));
+      expect(text, contains('-5.00'));
+      expect(text, isNot(contains('NOT CLOSED YET')));
+    });
+  });
 
   group('customers and udhaar', () {
     late CustomerService svc;

@@ -16,6 +16,43 @@ class ShiftSummary {
   int get expectedMinor => openingMinor + cashSalesMinor - cashRefundsMinor + cashInMinor - cashOutMinor;
 }
 
+class ShiftLine {
+  const ShiftLine({required this.staff, required this.openedAt, this.closedAt, required this.openingMinor, this.expectedMinor, this.countedMinor, this.varianceMinor});
+  final String staff;
+  final int openedAt;
+  final int? closedAt;
+  final int openingMinor;
+  final int? expectedMinor;
+  final int? countedMinor;
+  final int? varianceMinor;
+}
+
+/// End-of-day (Z) report figures. Gross = settled bills incl. tax; net = gross - refunds.
+class ZReport {
+  const ZReport({
+    required this.date, required this.bills, required this.grossMinor, required this.discountMinor, required this.refundsMinor,
+    required this.taxMinor, required this.byMethod, required this.creditGivenMinor, required this.creditRecoveredMinor,
+    required this.expensesMinor, required this.shifts, this.closedAt,
+  });
+  final String date;
+  final int bills;
+  final int grossMinor;
+  final int discountMinor;
+  final int refundsMinor;
+  final int taxMinor;
+  final Map<String, int> byMethod;
+  final int creditGivenMinor;
+  final int creditRecoveredMinor;
+  final int expensesMinor;
+  final List<ShiftLine> shifts;
+
+  /// When the day was closed; null = still open.
+  final int? closedAt;
+  int get netMinor => grossMinor - refundsMinor;
+  int get cashVarianceMinor => shifts.fold(0, (s, x) => s + (x.varianceMinor ?? 0));
+  bool get anyShiftOpen => shifts.any((x) => x.closedAt == null);
+}
+
 /// Cash drawer shifts and the end-of-day (Z) report.
 class ShiftService {
   ShiftService(this.db, this.pos, {DateTime Function()? now, String Function()? newId})
@@ -72,6 +109,33 @@ class ShiftService {
             [_ts, countedMinor, sum.expectedMinor, variance, note, shiftId]);
         return variance;
       });
+
+  /// Figures for one business date ('YYYY-MM-DD'), whether or not the day has been closed.
+  Future<ZReport> zReport(String businessDate) async {
+    final r = await pos.salesReport(businessDate);
+    final p = businessDate.split('-').map(int.parse).toList();
+    final from = DateTime(p[0], p[1], p[2]).millisecondsSinceEpoch, to = DateTime(p[0], p[1], p[2] + 1).millisecondsSinceEpoch;
+    int one(List<Map<String, Object?>> rows) => (rows.first.values.first as int?) ?? 0;
+    final discount = one(await _select("SELECT COALESCE(SUM(discount_minor),0) AS v FROM \"order\" WHERE business_date = ? AND status IN ('paid','void','refunded')", [businessDate]));
+    final credit = one(await _select("SELECT COALESCE(SUM(p.amount_minor),0) AS v FROM payment p JOIN \"order\" o ON o.id = p.order_id WHERE o.business_date = ? AND p.method_kind = 'credit'", [businessDate]));
+    final recovered = -one(await _select("SELECT COALESCE(SUM(amount_minor),0) AS v FROM customer_ledger WHERE kind = 'recovery' AND created_at >= ? AND created_at < ?", [from, to]));
+    final expenses = one(await _select('SELECT COALESCE(SUM(amount_minor),0) AS v FROM expense WHERE business_date = ?', [businessDate]));
+    final shifts = [
+      for (final s in await _select(
+          'SELECT s.*, st.name AS staff_name FROM shift s LEFT JOIN staff st ON st.id = s.staff_id WHERE (s.opened_at >= ? AND s.opened_at < ?) OR (s.closed_at >= ? AND s.closed_at < ?) OR (s.closed_at IS NULL AND s.opened_at < ?) ORDER BY s.opened_at',
+          [from, to, from, to, to]))
+        ShiftLine(
+          staff: (s['staff_name'] as String?) ?? '-', openedAt: s['opened_at'] as int, closedAt: s['closed_at'] as int?, openingMinor: s['opening_cash_minor'] as int,
+          expectedMinor: s['expected_cash_minor'] as int?, countedMinor: s['closing_cash_counted_minor'] as int?, varianceMinor: s['variance_minor'] as int?,
+        ),
+    ];
+    final closed = await _select('SELECT closed_at FROM day_close WHERE business_date = ?', [businessDate]);
+    return ZReport(
+      date: businessDate, bills: r.bills, grossMinor: r.grossMinor, discountMinor: discount, refundsMinor: r.refundsMinor, taxMinor: r.taxMinor,
+      byMethod: r.byMethod, creditGivenMinor: credit, creditRecoveredMinor: recovered, expensesMinor: expenses, shifts: shifts,
+      closedAt: closed.isEmpty ? null : closed.first['closed_at'] as int,
+    );
+  }
 
   /// Z report. Refuses while any shift is still open; stores an immutable snapshot (one per business date).
   Future<void> closeDay(String businessDate, {required String staffId}) => db.transaction(() async {

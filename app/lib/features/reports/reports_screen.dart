@@ -15,6 +15,7 @@ import '../../data/queries.dart';
 import '../../domain/money.dart';
 import '../../domain/report_pdf.dart';
 import '../common/dialogs.dart';
+import 'day_close_screen.dart';
 
 String _key(DateTime d) => '${d.year}-${two(d.month)}-${two(d.day)}';
 
@@ -158,6 +159,15 @@ class _Summary extends ConsumerWidget {
       ]),
       const SizedBox(height: 6),
       Text(t['profit_note'], style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+      if (single) ...[
+        const SizedBox(height: 12),
+        FilledButton.tonalIcon(
+          key: const ValueKey('open-day-close'),
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => DayCloseScreen(date: from))),
+          icon: const Icon(Icons.event_available_outlined),
+          label: Text(t['day_close']),
+        ),
+      ],
       if (report?.value != null) ...[
         const SizedBox(height: 20),
         Text(t['by_method'], style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
