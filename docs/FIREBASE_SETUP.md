@@ -13,7 +13,7 @@ Plan: **Spark (free) is enough.** This system uses no Cloud Functions and no Sto
 | 3 | Build → **Hosting** → Get started | Bas "Get started" dabayein (panel ka address `dt-food-app.web.app` banega) |
 | 4 | Project settings → Your apps | Ek **Web app** registered ho (aap ne already banayi hai, config mil chuki hai) |
 | 5 | Authentication → Settings → **Authorized domains** | `dt-food-app.web.app` aur `dt-food-app.firebaseapp.com` (default hote hain) |
-| 6 | Authentication → Users → **Add user** | Apni admin email + mazboot password (yeh Super Admin login hai) |
+| 6 | Authentication → Users → **Add user** | **digitaltarget.digital@gmail.com** + mazboot password (yeh Super Admin login hai; rules sirf isi email ko pehla admin banne dete hain) |
 
 ## 2. Rules, indexes aur panel deploy (apne computer par)
 

@@ -22,7 +22,7 @@ async function restaurant(name: string, email: string) {
 describe.skipIf(!on)('FirebaseApi on the emulator', () => {
   it('runs the whole life of a restaurant', async () => {
     const api = createFirebaseApi(cfg, emu, 'admin');
-    const adminUid = await api._register!('admin@dt.test', 'secret123');
+    const adminUid = await api._register!('digitaltarget.digital@gmail.com', 'secret123');
     expect(await api.ownerClaimed()).toBe(false);
     expect(await api.isAdmin(adminUid)).toBe(false);
     await api.claimSuperAdmin(adminUid);

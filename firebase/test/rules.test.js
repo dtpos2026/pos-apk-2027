@@ -10,7 +10,8 @@ beforeAll(async () => {
 afterAll(() => env.cleanup());
 beforeEach(() => env.clearFirestore());
 
-const as = (uid) => env.authenticatedContext(uid).firestore();
+const OWNER = 'digitaltarget.digital@gmail.com';
+const as = (uid, email) => env.authenticatedContext(uid, email ? { email } : {}).firestore();
 const anon = () => env.unauthenticatedContext().firestore();
 const seed = (fn) => env.withSecurityRulesDisabled(async (c) => fn(c.firestore()));
 const newAccount = (over = {}) => ({ businessName: 'Cafe A', ownerName: 'Ali', phone: '0300', city: 'Lahore', country: 'PK', email: 'a@x.pk', status: 'pending', phoneRequests: ['p1'], createdAt: new Date(), appVersion: '0.1.0', ...over });
@@ -50,7 +51,7 @@ describe('accounts', () => {
 
 describe('admin claim', () => {
   it('the first signed-in user can claim, a second cannot', async () => {
-    const f = as('first');
+    const f = as('first', OWNER);
     const b = writeBatch(f);
     b.set(doc(f, 'config/owner'), { uid: 'first', at: serverTimestamp() });
     b.set(doc(f, 'admins/first'), { at: serverTimestamp() });
@@ -61,6 +62,13 @@ describe('admin claim', () => {
     b2.set(doc(s2, 'admins/second'), { at: serverTimestamp() });
     await assertFails(b2.commit());
     await assertFails(setDoc(doc(as('third'), 'admins/third'), { at: 1 }));
+  });
+  it('a different email cannot claim even when nobody has yet', async () => {
+    const s = as('imposter', 'someone@else.com');
+    const b = writeBatch(s);
+    b.set(doc(s, 'config/owner'), { uid: 'imposter', at: serverTimestamp() });
+    b.set(doc(s, 'admins/imposter'), { at: serverTimestamp() });
+    await assertFails(b.commit());
   });
   it('an admin can add another admin; a normal user cannot', async () => {
     await makeAdmin('adm');

@@ -13,15 +13,17 @@ service cloud.firestore {
 
     // ---- admins ----
     // The very first admin claims the project by writing config/owner and admins/{uid} in one batch.
+    // Only the owner's own email may claim (create that user in the Firebase console first, then claim straight away).
+    function isOwnerEmail() { return request.auth.token.email == 'digitaltarget.digital@gmail.com'; }
     match /admins/{uid} {
       allow read: if signedIn() && (uid == me() || isAdmin());
-      allow create: if signedIn() && uid == me() && !exists(/databases/$(db)/documents/config/owner)
+      allow create: if signedIn() && uid == me() && isOwnerEmail() && !exists(/databases/$(db)/documents/config/owner)
                     && getAfter(/databases/$(db)/documents/config/owner).data.uid == me();
       allow create, update, delete: if isAdmin();
     }
     match /config/owner {
       allow read: if signedIn();
-      allow create: if signedIn() && request.resource.data.uid == me() && onlyKeys(['uid', 'at']);
+      allow create: if signedIn() && isOwnerEmail() && request.resource.data.uid == me() && onlyKeys(['uid', 'at']);
     }
     match /config/branding { allow read: if true; allow write: if isAdmin(); }
     match /config/app      { allow read: if true; allow write: if isAdmin(); }
