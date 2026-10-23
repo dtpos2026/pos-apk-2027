@@ -1,6 +1,5 @@
 import 'dart:io';
-import 'dart:ui';
-
+import 'package:flutter/material.dart' show Locale, ThemeMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/auth_service.dart';
@@ -15,6 +14,7 @@ import '../data/receipt_settings.dart';
 import '../domain/receipt_doc.dart';
 import '../domain/receipt_template.dart';
 import 'logo_picker.dart';
+import 'themes.dart';
 import 'text_rasterizer.dart';
 import '../data/shift_service.dart';
 
@@ -76,6 +76,46 @@ class LocaleNotifier extends Notifier<Locale> {
 }
 
 final localeProvider = NotifierProvider<LocaleNotifier, Locale>(LocaleNotifier.new);
+
+/// Chosen colour theme id (see [themePresets]); saved in the settings table.
+class ThemeIdNotifier extends Notifier<String> {
+  @override
+  String build() => 'dt';
+  Future<void> set(String id) async {
+    state = id;
+    await setSetting(ref.read(databaseProvider), 'theme', id, ref.read(clockProvider)().millisecondsSinceEpoch);
+  }
+
+  Future<void> restore() async {
+    final saved = await getSetting(ref.read(databaseProvider), 'theme');
+    if (saved != null) state = presetById(saved).id;
+  }
+}
+
+final themeIdProvider = NotifierProvider<ThemeIdNotifier, String>(ThemeIdNotifier.new);
+
+class ThemeModeNotifier extends Notifier<ThemeMode> {
+  @override
+  ThemeMode build() => ThemeMode.system;
+  Future<void> set(ThemeMode m) async {
+    state = m;
+    await setSetting(ref.read(databaseProvider), 'theme_mode', modeId(m), ref.read(clockProvider)().millisecondsSinceEpoch);
+  }
+
+  Future<void> restore() async {
+    final saved = await getSetting(ref.read(databaseProvider), 'theme_mode');
+    if (saved != null) state = modeFromId(saved);
+  }
+}
+
+final themeModeProvider = NotifierProvider<ThemeModeNotifier, ThemeMode>(ThemeModeNotifier.new);
+
+/// Loads every saved appearance setting (language, theme, mode). Called once at start-up.
+Future<void> restoreAppearance(WidgetRef ref) async {
+  await ref.read(localeProvider.notifier).restore();
+  await ref.read(themeIdProvider.notifier).restore();
+  await ref.read(themeModeProvider.notifier).restore();
+}
 
 class SessionNotifier extends Notifier<Session?> {
   @override

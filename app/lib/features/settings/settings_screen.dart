@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../app/themes.dart';
 import 'receipt_design_screen.dart';
 
 import '../../app/providers.dart';
@@ -28,6 +29,36 @@ class SettingsScreen extends ConsumerWidget {
           segments: [for (final e in Strings.languageNames.entries) ButtonSegment(value: e.key, label: Text(e.value))],
           selected: {locale.languageCode},
           onSelectionChanged: (s) => ref.read(localeProvider.notifier).set(s.first),
+        ),
+      ]),
+      _Section(t['theme'], [
+        Wrap(spacing: 12, runSpacing: 12, children: [
+          for (final p in themePresets)
+            InkWell(
+              key: ValueKey('theme-${p.id}'),
+              borderRadius: BorderRadius.circular(14),
+              onTap: () => ref.read(themeIdProvider.notifier).set(p.id),
+              child: Container(
+                width: 84,
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), border: Border.all(width: 2, color: ref.watch(themeIdProvider) == p.id ? p.seed : Colors.transparent)),
+                child: Column(children: [
+                  CircleAvatar(radius: 18, backgroundColor: p.seed, child: ref.watch(themeIdProvider) == p.id ? const Icon(Icons.check, color: Colors.white, size: 20) : null),
+                  const SizedBox(height: 6),
+                  Text(t[p.nameKey], textAlign: TextAlign.center, maxLines: 2, style: const TextStyle(fontSize: 12)),
+                ]),
+              ),
+            ),
+        ]),
+        const SizedBox(height: 14),
+        Text(t['theme_mode'], style: const TextStyle(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 6),
+        SegmentedButton<ThemeMode>(
+          key: const ValueKey('theme-mode'),
+          showSelectedIcon: false,
+          segments: [ButtonSegment(value: ThemeMode.system, label: Text(t['mode_system'])), ButtonSegment(value: ThemeMode.light, label: Text(t['mode_light'])), ButtonSegment(value: ThemeMode.dark, label: Text(t['mode_dark']))],
+          selected: {ref.watch(themeModeProvider)},
+          onSelectionChanged: (s) => ref.read(themeModeProvider.notifier).set(s.first),
         ),
       ]),
       _Section(t['business'], [

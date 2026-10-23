@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -53,8 +55,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               padding: const EdgeInsets.all(24),
               child: Column(children: [
                 const SizedBox(height: 8),
-                Text(ref.watch(businessProvider).value?.name ?? t['app_name'], textAlign: TextAlign.center, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800, color: scheme.primary)),
-                const SizedBox(height: 4),
+                _BusinessHeader(compact: _who != null),
+                const SizedBox(height: 6),
                 Text(_who == null ? t['choose_user'] : _who!.name, style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 20),
                 Expanded(
@@ -133,6 +135,27 @@ class _PinPad extends StatelessWidget {
         ),
       ),
       TextButton(onPressed: onChangeUser, child: const Icon(Icons.swap_horiz)),
+    ]);
+  }
+}
+
+/// Business logo, name, address and phone, all centred: the face of the app on the sign-in screen.
+class _BusinessHeader extends ConsumerWidget {
+  const _BusinessHeader({required this.compact});
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final b = ref.watch(businessProvider).value;
+    final scheme = Theme.of(context).colorScheme;
+    final logo = b?.logoPath;
+    final muted = TextStyle(color: scheme.onSurfaceVariant, fontSize: 13.5);
+    return Column(children: [
+      if (logo != null && File(logo).existsSync())
+        Padding(padding: const EdgeInsets.only(bottom: 8), child: Image.file(File(logo), key: const ValueKey('login-logo'), height: compact ? 56 : 96, fit: BoxFit.contain)),
+      Text(b?.name ?? Strings.of(context)['app_name'], textAlign: TextAlign.center, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800, color: scheme.primary)),
+      if (!compact && (b?.address?.trim().isNotEmpty ?? false)) Padding(padding: const EdgeInsets.only(top: 2), child: Text(b!.address!, textAlign: TextAlign.center, style: muted)),
+      if (!compact && (b?.phone?.trim().isNotEmpty ?? false)) Padding(padding: const EdgeInsets.only(top: 2), child: Text(b!.phone!, textAlign: TextAlign.center, style: muted)),
     ]);
   }
 }

@@ -4,8 +4,22 @@ import 'package:flutter/material.dart';
 const brandPurple = Color(0xFF3D096D);
 const brandAmber = Color(0xFFFFB547);
 
+Color _readableOn(Color bg) {
+  double ratio(Color a, Color b) {
+    final l1 = a.computeLuminance(), l2 = b.computeLuminance();
+    return (l1 > l2 ? l1 + 0.05 : l2 + 0.05) / (l1 > l2 ? l2 + 0.05 : l1 + 0.05);
+  }
+
+  return ratio(bg, Colors.white) >= ratio(bg, Colors.black) ? Colors.white : Colors.black;
+}
+
 ThemeData buildTheme({Brightness brightness = Brightness.light, Color seed = brandPurple}) {
-  final scheme = ColorScheme.fromSeed(seedColor: seed, brightness: brightness);
+  // fidelity keeps the seed (the logo purple) as the exact primary colour instead of a muted tonal variant
+  var scheme = ColorScheme.fromSeed(seedColor: seed, brightness: brightness, dynamicSchemeVariant: DynamicSchemeVariant.fidelity);
+  if (brightness == Brightness.light) {
+    // the brand colour itself (not a tonal variant of it) is the main colour, so the app matches the logo exactly
+    scheme = scheme.copyWith(primary: seed, onPrimary: _readableOn(seed));
+  }
   final base = ThemeData(
     useMaterial3: true,
     colorScheme: scheme,

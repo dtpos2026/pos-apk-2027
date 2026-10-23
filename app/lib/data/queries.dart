@@ -6,7 +6,7 @@ import '../domain/money.dart';
 import 'db/database.dart';
 
 class Business {
-  const Business({required this.name, required this.currency, required this.language, this.ownerName, this.address, this.phone, this.taxLabel, this.taxNumber});
+  const Business({required this.name, required this.currency, required this.language, this.ownerName, this.address, this.phone, this.taxLabel, this.taxNumber, this.logoPath});
   final String name;
   final String? ownerName;
   final Currency currency;
@@ -15,6 +15,7 @@ class Business {
   final String? phone;
   final String? taxLabel;
   final String? taxNumber;
+  final String? logoPath;
 }
 
 class MenuCategory {
@@ -76,6 +77,7 @@ Future<Business?> loadBusiness(AppDatabase db) async {
     phone: r['phone'] as String?,
     taxLabel: r['tax_number_label'] as String?,
     taxNumber: r['tax_number'] as String?,
+    logoPath: r['logo_path'] as String?,
   );
 }
 

@@ -8,6 +8,7 @@ import '../features/shell/home_shell.dart';
 import 'providers.dart';
 import 'strings.dart';
 import 'theme.dart';
+import 'themes.dart';
 
 class DtFoodPosApp extends ConsumerWidget {
   const DtFoodPosApp({super.key, this.home});
@@ -18,11 +19,13 @@ class DtFoodPosApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final locale = ref.watch(localeProvider);
+    final seed = presetById(ref.watch(themeIdProvider)).seed;
     return MaterialApp(
       title: 'DT Food POS',
       debugShowCheckedModeBanner: false,
-      theme: buildTheme(),
-      darkTheme: buildTheme(brightness: Brightness.dark),
+      theme: buildTheme(seed: seed),
+      darkTheme: buildTheme(brightness: Brightness.dark, seed: seed),
+      themeMode: ref.watch(themeModeProvider),
       locale: locale,
       supportedLocales: Strings.supported,
       localizationsDelegates: const [GlobalMaterialLocalizations.delegate, GlobalWidgetsLocalizations.delegate, GlobalCupertinoLocalizations.delegate],

@@ -35,7 +35,7 @@ class _Root extends ConsumerStatefulWidget {
 
 class _RootState extends ConsumerState<_Root> {
   bool _splashDone = false;
-  late final Future<void> _ready = ref.read(localeProvider.notifier).restore();
+  late final Future<void> _ready = restoreAppearance(ref);
 
   @override
   Widget build(BuildContext context) => DtFoodPosApp(
