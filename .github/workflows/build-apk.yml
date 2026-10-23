@@ -91,8 +91,8 @@ jobs:
 
       - name: Build APK and AAB
         run: |
-          flutter build apk --release --split-per-abi --build-number=${{ github.run_number }}
-          flutter build appbundle --release --build-number=${{ github.run_number }}
+          flutter build apk --release --split-per-abi --obfuscate --split-debug-info=build/symbols --build-number=${{ github.run_number }}
+          flutter build appbundle --release --obfuscate --split-debug-info=build/symbols --build-number=${{ github.run_number }}
 
       - uses: actions/upload-artifact@v4
         with:
@@ -101,6 +101,7 @@ jobs:
             app/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
             app/build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
             app/build/app/outputs/bundle/release/app-release.aab
+            app/build/symbols/
 
       - name: Keep the APK in the repository (releases/), manual publish runs only
         if: github.event_name == 'workflow_dispatch' && inputs.publish

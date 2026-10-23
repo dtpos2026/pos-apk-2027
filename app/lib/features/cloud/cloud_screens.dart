@@ -9,26 +9,45 @@ import '../../domain/account_gate.dart';
 import '../login/brand_footer.dart';
 import 'support_screen.dart';
 
+/// Digital Target branded layout for the account screens: purple header (same as the splash), content on a card.
 Widget _frame(BuildContext context, {required List<Widget> children}) {
+  final top = MediaQuery.paddingOf(context).top;
   return Scaffold(
-    body: SafeArea(
-      child: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              Image.asset('assets/brand/dt_mark_white.png', height: 56, color: Theme.of(context).colorScheme.primary),
-              const SizedBox(height: 8),
-              Text(Strings.of(context)['app_name'], textAlign: TextAlign.center, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
-              const SizedBox(height: 24),
-              ...children,
-              const SizedBox(height: 24),
-              const BrandFooter(),
-            ]),
+    body: SingleChildScrollView(
+      child: Column(children: [
+        Container(
+          width: double.infinity,
+          padding: EdgeInsets.fromLTRB(24, top + 40, 24, 84),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFF5A1D96), Color(0xFF240341)]),
+          ),
+          child: Column(children: [
+            Image.asset('assets/brand/dt_mark_white.png', height: 52),
+            const SizedBox(height: 12),
+            Text(Strings.of(context)['app_name'], textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: -0.4)),
+            const SizedBox(height: 4),
+            const Text('Digital Target', style: TextStyle(color: Color(0xFFCDB4F0), fontSize: 14, fontWeight: FontWeight.w500, letterSpacing: 0.6)),
+          ]),
+        ),
+        Transform.translate(
+          offset: const Offset(0, -56),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 440),
+              child: Card(
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                elevation: 2,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children),
+                ),
+              ),
+            ),
           ),
         ),
-      ),
+        const Padding(padding: EdgeInsets.only(bottom: 24), child: BrandFooter()),
+      ]),
     ),
   );
 }
@@ -41,7 +60,7 @@ class SetupIncompleteScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = Strings.of(context);
     return _frame(context, children: [
-      Text(t['setup_incomplete_title'], style: Theme.of(context).textTheme.titleLarge),
+      Text(t['setup_incomplete_title'], style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
       const SizedBox(height: 8),
       Text(t['setup_incomplete_body']),
       const SizedBox(height: 8),
@@ -127,11 +146,11 @@ class _CloudAuthScreenState extends ConsumerState<CloudAuthScreen> {
     final t = Strings.of(context);
     final b = _branding;
     return _frame(context, children: [
-      Text(_create ? t['create_account'] : t['sign_in'], style: Theme.of(context).textTheme.titleLarge),
+      Text(_create ? t['create_account'] : t['sign_in'], style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
       const SizedBox(height: 12),
-      TextField(key: const Key('cloud_email'), controller: _email, keyboardType: TextInputType.emailAddress, decoration: InputDecoration(labelText: t['email'])),
+      TextField(key: const Key('cloud_email'), controller: _email, keyboardType: TextInputType.emailAddress, decoration: InputDecoration(labelText: t['email'], prefixIcon: const Icon(Icons.mail_outline))),
       const SizedBox(height: 12),
-      TextField(key: const Key('cloud_password'), controller: _pw, obscureText: true, decoration: InputDecoration(labelText: t['password'])),
+      TextField(key: const Key('cloud_password'), controller: _pw, obscureText: true, decoration: InputDecoration(labelText: t['password'], prefixIcon: const Icon(Icons.lock_outline))),
       if (_error != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(_error!, key: const Key('cloud_error'), style: TextStyle(color: Theme.of(context).colorScheme.error))),
       if (_info != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(_info!)),
       const SizedBox(height: 16),
@@ -191,17 +210,17 @@ class _RegisterBusinessScreenState extends ConsumerState<RegisterBusinessScreen>
   Widget build(BuildContext context) {
     final t = Strings.of(context);
     return _frame(context, children: [
-      Text(t['register_title'], style: Theme.of(context).textTheme.titleLarge),
+      Text(t['register_title'], style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
       const SizedBox(height: 4),
       Text(widget.user.email, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
       const SizedBox(height: 12),
-      TextField(key: const Key('reg_name'), controller: _name, decoration: InputDecoration(labelText: t['business_name'])),
+      TextField(key: const Key('reg_name'), controller: _name, decoration: InputDecoration(labelText: t['business_name'], prefixIcon: const Icon(Icons.storefront_outlined))),
       const SizedBox(height: 12),
-      TextField(key: const Key('reg_owner'), controller: _owner, decoration: InputDecoration(labelText: t['owner_name'])),
+      TextField(key: const Key('reg_owner'), controller: _owner, decoration: InputDecoration(labelText: t['owner_name'], prefixIcon: const Icon(Icons.person_outline))),
       const SizedBox(height: 12),
-      TextField(key: const Key('reg_phone'), controller: _phone, keyboardType: TextInputType.phone, decoration: InputDecoration(labelText: t['phone'])),
+      TextField(key: const Key('reg_phone'), controller: _phone, keyboardType: TextInputType.phone, decoration: InputDecoration(labelText: t['phone'], prefixIcon: const Icon(Icons.phone_outlined))),
       const SizedBox(height: 12),
-      TextField(key: const Key('reg_city'), controller: _city, decoration: InputDecoration(labelText: t['city'])),
+      TextField(key: const Key('reg_city'), controller: _city, decoration: InputDecoration(labelText: t['city'], prefixIcon: const Icon(Icons.location_city_outlined))),
       const SizedBox(height: 12),
       DropdownButtonFormField<String>(
         initialValue: _country,
@@ -243,7 +262,7 @@ class AccessBlockedScreen extends ConsumerWidget {
     return _frame(context, children: [
       Icon(icon, size: 48, color: Theme.of(context).colorScheme.primary),
       const SizedBox(height: 12),
-      Text(t['blk_${key}_t'], textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleLarge),
+      Text(t['blk_${key}_t'], textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
       const SizedBox(height: 8),
       Text(t['blk_${key}_b'], textAlign: TextAlign.center),
       if (d.message.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 12), child: Text(d.message, key: const Key('admin_message'), textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w600))),

@@ -28,6 +28,7 @@ void main() {
     final h = await pumpApp(t, cloud: cloud);
     await settle(t);
     expect(find.byKey(const Key('cloud_submit')), findsOneWidget);
+    await shot(t, '60_cloud_signin');
 
     // wrong password shows the server's plain message
     await t.enterText(find.byKey(const Key('cloud_email')), 'owner@cafe.pk');
@@ -41,6 +42,7 @@ void main() {
     cloud.serverAccount(null); // the server says: no registration yet
     await settle(t);
     expect(find.byKey(const Key('reg_submit')), findsOneWidget);
+    await shot(t, '61_cloud_register');
 
     // empty form is refused locally
     await t.tap(find.byKey(const Key('reg_submit')));
@@ -54,6 +56,7 @@ void main() {
     await settle(t);
     expect(cloud.registered.single.businessName, 'Burger Point');
     expect(find.text('Waiting for approval'), findsOneWidget);
+    await shot(t, '62_cloud_waiting');
     expect(find.byKey(const Key('check_again')), findsOneWidget);
 
     // the admin approves from the panel: the phone id the app registered is now approved
@@ -80,6 +83,7 @@ void main() {
     await settle(t);
     expect(find.text('Account suspended'), findsOneWidget);
     expect(find.text('Pay the March fee'), findsOneWidget);
+    await shot(t, '63_cloud_suspended');
     expect(find.text('Your restaurant data is safe on this phone.'), findsOneWidget);
 
     cloud.serverAccount(account(ok: [phoneId]));
