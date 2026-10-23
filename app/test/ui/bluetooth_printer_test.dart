@@ -40,6 +40,8 @@ void main() {
     await signIn(t, 'Ali', '1234');
     await openTab(t, 'settings', 'Settings');
     await t.scrollUntilVisible(find.byKey(const ValueKey('add-printer')), 300, scrollable: find.byType(Scrollable).last);
+    await t.drag(find.byType(Scrollable).last, const Offset(0, -160));
+    await t.pumpAndSettle();
     await tapKey(t, 'add-printer');
     await t.tap(find.text('Bluetooth'));
     await t.pumpAndSettle();
@@ -68,6 +70,8 @@ void main() {
     await signIn(t, 'Ali', '1234');
     await openTab(t, 'settings', 'Settings');
     await t.scrollUntilVisible(find.byKey(const ValueKey('add-printer')), 300, scrollable: find.byType(Scrollable).last);
+    await t.drag(find.byType(Scrollable).last, const Offset(0, -160));
+    await t.pumpAndSettle();
     await tapKey(t, 'add-printer');
     await t.tap(find.text('Bluetooth'));
     await t.pumpAndSettle();
