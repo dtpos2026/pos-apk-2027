@@ -113,6 +113,14 @@ select pg_temp.ok((select count(*) from dtfood.support_message) = 2, 'admin sees
 select pg_temp.as_user('00000000-0000-0000-0000-0000000000b1');
 select pg_temp.ok((select count(*) from dtfood.support_message) = 0, 'other tenant sees no messages');
 
+-- 8b. company settings: owner only
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000a1');
+insert into dtfood.company_setting(key, value) values ('company_name','Test Co');
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000a3');
+select pg_temp.expect_error($$insert into dtfood.company_setting(key, value) values ('x','y')$$, 'row-level security');
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000b1');
+select pg_temp.expect_error($$insert into dtfood.company_setting(key, value) values ('x','y')$$, 'row-level security');
+
 -- 9. admin dashboard
 select pg_temp.as_user('00000000-0000-0000-0000-0000000000a2');
 select pg_temp.ok((dtfood.admin_dashboard() -> 'businesses' ->> 'suspended')::int = 1, 'dashboard counts');

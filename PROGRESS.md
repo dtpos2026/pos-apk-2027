@@ -30,3 +30,10 @@ Super Admin web panel, licensing server and signed-licence issuing, platform inv
 ## Blocked
 - Anything needing a real device or printer.
 - Supabase project creation and keys: waiting for the owner (the Super Admin panel is being built to read them from a config file).
+
+## Backend and Super Admin panel (added)
+- **Done and tested:** `backend/supabase/migrations/0001_dtfood.sql` run against a local PostgreSQL 16 with `backend/tests/run.sh` (tenant isolation, admin-only functions, idempotent sync, licence gating, append-only audit/payments, owner-only company settings). Auth is stubbed in that test, so behaviour on real Supabase Auth is **not verified**.
+- **Done and tested (unit level):** `admin/` React panel – config-driven (`config.json`), "Setup needed" screen when unconfigured, login gate, dashboard, businesses approve/reject/suspend, licences, invoices/payments, support inbox, audit log, company details. 9 tests with a fake API; not run against a real Supabase project.
+- **Written, not run:** `issue-license` edge function (Ed25519 signing; payload fields mirror the app's `LicensePayload`).
+- **Not applied anywhere:** nothing has been applied to the existing Supabase project. Waiting for the user's config / go-ahead.
+- **Not done:** panel TOTP 2FA, announcements/devices/location/plan-editor screens, app-side sync/licence/support wiring to the server.

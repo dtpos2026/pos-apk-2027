@@ -1,0 +1,5 @@
+{
+  "supabaseUrl": "https://YOUR-PROJECT.supabase.co",
+  "supabaseAnonKey": "YOUR-ANON-PUBLIC-KEY",
+  "brandName": "Digital Target"
+}

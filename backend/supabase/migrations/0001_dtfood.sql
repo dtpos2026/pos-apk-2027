@@ -369,3 +369,6 @@ grant execute on function dtfood.register_business, dtfood.admin_set_business_st
   dtfood.admin_create_invoice, dtfood.admin_record_payment, dtfood.support_send, dtfood.sync_push, dtfood.my_license, dtfood.admin_dashboard,
   dtfood.current_business, dtfood.is_admin to authenticated;
 grant execute on function dtfood.store_license_token to service_role;
+-- Staff edit these through the panel; the row level security policies above restrict who may actually write.
+grant insert, update, delete on dtfood.company_setting, dtfood.plan, dtfood.announcement to authenticated;
+grant usage on schema dtfood to service_role;
