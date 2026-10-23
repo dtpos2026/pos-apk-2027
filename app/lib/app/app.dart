@@ -23,12 +23,11 @@ class DtFoodPosApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final locale = ref.watch(localeProvider);
     final preset = presetById(ref.watch(themeIdProvider));
-    final seed = preset.seed;
     return MaterialApp(
       title: 'DT Food POS',
       debugShowCheckedModeBanner: false,
-      theme: buildTheme(seed: seed, accent: preset.accent),
-      darkTheme: buildTheme(brightness: Brightness.dark, seed: seed, accent: preset.accent),
+      theme: buildTheme(spec: preset),
+      darkTheme: buildTheme(brightness: Brightness.dark, spec: preset),
       themeMode: ref.watch(themeModeProvider),
       locale: locale,
       supportedLocales: Strings.supported,

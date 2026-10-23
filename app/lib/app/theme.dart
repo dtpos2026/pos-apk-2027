@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'themes.dart';
+
 /// Digital Target brand purple, measured from the supplied logo.
 const brandPurple = Color(0xFF3C096C);
 const brandAmber = Color(0xFFFFB547);
@@ -33,13 +35,49 @@ extension BrandColorsX on BuildContext {
   Color get onAccent => Theme.of(this).extension<BrandColors>()?.onAccent ?? Colors.white;
 }
 
-ThemeData buildTheme({Brightness brightness = Brightness.light, Color seed = brandPurple, Color accent = brandOrange}) {
-  // fidelity keeps the seed (the logo purple) as the exact primary colour instead of a muted tonal variant
-  var scheme = ColorScheme.fromSeed(seedColor: seed, brightness: brightness, dynamicSchemeVariant: DynamicSchemeVariant.fidelity);
-  if (brightness == Brightness.light) {
-    // the brand colour itself (not a tonal variant of it) is the main colour, so the app matches the logo exactly
-    scheme = scheme.copyWith(primary: seed, onPrimary: _readableOn(seed));
+double contrastRatio(Color a, Color b) {
+  final l1 = a.computeLuminance(), l2 = b.computeLuminance();
+  return (l1 > l2 ? l1 + 0.05 : l2 + 0.05) / (l1 > l2 ? l2 + 0.05 : l1 + 0.05);
+}
+
+/// A darker shade of [c] that reads on [bg] (contrast >= 4.5), keeping its hue.
+Color readableShade(Color c, Color bg) {
+  var h = HSLColor.fromColor(c);
+  var out = c;
+  for (var i = 0; i < 20 && contrastRatio(out, bg) < 4.5; i++) {
+    h = h.withLightness((h.lightness - 0.04).clamp(0.0, 1.0));
+    out = h.toColor();
   }
+  return out;
+}
+
+/// Builds the whole Material theme from a theme spec ([spec]) or just a main and accent colour.
+ThemeData buildTheme({Brightness brightness = Brightness.light, Color seed = brandPurple, Color accent = brandOrange, ThemePreset? spec}) {
+  final p = spec ?? ThemePreset('_', seed, '', accent: accent);
+  final b = p.dark ? Brightness.dark : brightness;
+  final light = b == Brightness.light;
+  var scheme = ColorScheme.fromSeed(seedColor: p.seed, brightness: b, dynamicSchemeVariant: DynamicSchemeVariant.fidelity);
+  final surface = (light || p.dark) ? (p.surface ?? (light ? Colors.white : scheme.surface)) : scheme.surface;
+  // bright brand colours (yellow, gold) are used as fills; text and outlines get a darker shade that stays readable
+  final fill = (light || p.dark) ? p.seed : scheme.primary;
+  final textPrimary = contrastRatio(fill, surface) >= 4.5 ? fill : (light ? readableShade(fill, surface) : fill);
+  scheme = scheme.copyWith(
+    primary: textPrimary,
+    onPrimary: _readableOn(textPrimary),
+    primaryContainer: light ? Color.alphaBlend(fill.withValues(alpha: 0.16), Colors.white) : scheme.primaryContainer,
+    secondary: p.secondary ?? scheme.secondary,
+    surface: surface,
+    onSurface: _readableOn(surface) == Colors.white ? const Color(0xFFF1F1F1) : const Color(0xFF1B1B1F),
+  );
+  final background = light ? (p.background ?? Color.alphaBlend(p.seed.withValues(alpha: 0.04), const Color(0xFFF8F8FA))) : (p.dark ? (p.background ?? scheme.surface) : scheme.surface);
+  final header = light || p.dark ? p.headerColor : scheme.surfaceContainerHigh;
+  final onHeader = _readableOn(header);
+  final nav = p.nav ?? (light ? surface : scheme.surfaceContainer);
+  final r = p.radius;
+  final cardShape = RoundedRectangleBorder(
+    borderRadius: BorderRadius.circular(r + 2),
+    side: p.cardStyle == 'outline' ? BorderSide(color: scheme.outlineVariant) : BorderSide.none,
+  );
   final base = ThemeData(
     useMaterial3: true,
     colorScheme: scheme,
@@ -48,22 +86,53 @@ ThemeData buildTheme({Brightness brightness = Brightness.light, Color seed = bra
     visualDensity: VisualDensity.standard,
     materialTapTargetSize: MaterialTapTargetSize.padded,
   );
+  final buttonShape = RoundedRectangleBorder(borderRadius: BorderRadius.circular(r));
   return base.copyWith(
-    extensions: [BrandColors(accent: accent, onAccent: _readableOn(accent))],
+    extensions: [BrandColors(accent: p.accent, onAccent: _readableOn(p.accent))],
     // smooth page changes without heavy animations on low-end phones
     pageTransitionsTheme: const PageTransitionsTheme(builders: {TargetPlatform.android: FadeForwardsPageTransitionsBuilder()}),
-    scaffoldBackgroundColor: brightness == Brightness.light ? const Color(0xFFF6F3FA) : scheme.surface,
+    scaffoldBackgroundColor: background,
     appBarTheme: AppBarTheme(
-      backgroundColor: scheme.primary,
-      foregroundColor: scheme.onPrimary,
+      backgroundColor: header,
+      foregroundColor: onHeader,
       elevation: 0,
-      titleTextStyle: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w600, fontSize: 18, color: scheme.onPrimary),
+      titleTextStyle: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w600, fontSize: 18, color: onHeader),
     ),
-    floatingActionButtonTheme: FloatingActionButtonThemeData(backgroundColor: scheme.primary, foregroundColor: scheme.onPrimary),
-    cardTheme: CardThemeData(elevation: 0, color: scheme.surface, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: scheme.outlineVariant))),
-    filledButtonTheme: FilledButtonThemeData(style: FilledButton.styleFrom(minimumSize: const Size(64, 52), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), textStyle: base.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600, fontSize: 16))),
-    outlinedButtonTheme: OutlinedButtonThemeData(style: OutlinedButton.styleFrom(minimumSize: const Size(64, 48), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)))),
-    inputDecorationTheme: InputDecorationTheme(border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), filled: true, fillColor: scheme.surface),
-    chipTheme: base.chipTheme.copyWith(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
+    navigationBarTheme: NavigationBarThemeData(
+      backgroundColor: nav,
+      indicatorColor: fill.withValues(alpha: light ? 0.22 : 0.35),
+      iconTheme: WidgetStatePropertyAll(IconThemeData(color: _readableOn(nav) == Colors.white ? Colors.white : const Color(0xFF2A2A2E))),
+      labelTextStyle: WidgetStatePropertyAll(TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _readableOn(nav) == Colors.white ? Colors.white : const Color(0xFF2A2A2E))),
+    ),
+    navigationRailTheme: NavigationRailThemeData(
+      backgroundColor: nav,
+      indicatorColor: fill.withValues(alpha: light ? 0.22 : 0.35),
+      selectedIconTheme: IconThemeData(color: _readableOn(nav) == Colors.white ? Colors.white : const Color(0xFF2A2A2E)),
+      unselectedIconTheme: IconThemeData(color: _readableOn(nav) == Colors.white ? Colors.white70 : const Color(0xFF55555C)),
+      selectedLabelTextStyle: TextStyle(fontWeight: FontWeight.w700, color: _readableOn(nav) == Colors.white ? Colors.white : const Color(0xFF2A2A2E)),
+      unselectedLabelTextStyle: TextStyle(color: _readableOn(nav) == Colors.white ? Colors.white70 : const Color(0xFF55555C)),
+    ),
+    floatingActionButtonTheme: FloatingActionButtonThemeData(backgroundColor: fill, foregroundColor: _readableOn(fill), shape: buttonShape),
+    cardTheme: CardThemeData(
+      elevation: p.cardStyle == 'shadow' ? 2 : 0,
+      shadowColor: Colors.black26,
+      color: surface,
+      surfaceTintColor: Colors.transparent,
+      shape: cardShape,
+    ),
+    dialogTheme: DialogThemeData(backgroundColor: surface, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(r + 6))),
+    bottomSheetTheme: BottomSheetThemeData(backgroundColor: surface, surfaceTintColor: Colors.transparent),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        backgroundColor: fill,
+        foregroundColor: _readableOn(fill),
+        minimumSize: const Size(64, 52),
+        shape: buttonShape,
+        textStyle: base.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600, fontSize: 16),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(style: OutlinedButton.styleFrom(minimumSize: const Size(64, 48), shape: buttonShape)),
+    inputDecorationTheme: InputDecorationTheme(border: OutlineInputBorder(borderRadius: BorderRadius.circular((r - 2).clamp(4, 30).toDouble())), filled: true, fillColor: surface),
+    chipTheme: base.chipTheme.copyWith(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(r + 6))),
   );
 }

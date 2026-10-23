@@ -39,8 +39,8 @@ void main() {
         transport: (connection, address) => RecordingTransport(sent, '$connection|$address'));
     await signIn(t, 'Ali', '1234');
     await openTab(t, 'settings', 'Settings');
-    await t.scrollUntilVisible(find.byKey(const ValueKey('add-printer')), 300, scrollable: find.byType(Scrollable).last);
-    await t.drag(find.byType(Scrollable).last, const Offset(0, -160));
+    await t.scrollUntilVisible(find.byKey(const ValueKey('add-printer')), 300, scrollable: verticalScroll);
+    await t.drag(verticalScroll, const Offset(0, -160));
     await t.pumpAndSettle();
     await tapKey(t, 'add-printer');
     await t.tap(find.text('Bluetooth'));
@@ -69,8 +69,8 @@ void main() {
     await pumpApp(t, db: db, btScanner: FakeScanner(const [], error: 'Bluetooth is off. Turn it on and try again.'));
     await signIn(t, 'Ali', '1234');
     await openTab(t, 'settings', 'Settings');
-    await t.scrollUntilVisible(find.byKey(const ValueKey('add-printer')), 300, scrollable: find.byType(Scrollable).last);
-    await t.drag(find.byType(Scrollable).last, const Offset(0, -160));
+    await t.scrollUntilVisible(find.byKey(const ValueKey('add-printer')), 300, scrollable: verticalScroll);
+    await t.drag(verticalScroll, const Offset(0, -160));
     await t.pumpAndSettle();
     await tapKey(t, 'add-printer');
     await t.tap(find.text('Bluetooth'));

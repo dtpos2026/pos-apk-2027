@@ -14,7 +14,9 @@ Future<void> _settings(WidgetTester t) async {
 void main() {
   test('custom theme ids keep both colours; unknown ids fall back to Digital Target', () {
     final id = customThemeId(const Color(0xFF1E2A78), const Color(0xFFFF5A1F));
-    expect(id, 'custom:1E2A78,FF5A1F');
+    expect(id, 'custom:1E2A78,FF5A1F,,,outline,14');
+    expect(presetById('custom:1E2A78,FF5A1F').accent.toARGB32(), 0xFFFF5A1F, reason: 'older 2-colour ids still load');
+    expect(presetById('forest').id, 'green', reason: 'renamed themes keep working');
     final p = presetById(id);
     expect(p.seed.toARGB32(), 0xFF1E2A78);
     expect(p.accent.toARGB32(), 0xFFFF5A1F);
@@ -28,7 +30,7 @@ void main() {
     final h = await pumpApp(t, db: db);
     await signIn(t, 'Ali', '1234');
     await _settings(t);
-    await t.ensureVisible(find.byKey(const ValueKey('theme-custom')));
+    await showThemeCard(t, 'theme-custom');
     await tapKey(t, 'theme-custom');
     await tapKey(t, 'main-ff1e2a78');
     await tapKey(t, 'accent-ff2b8a3e');
@@ -36,7 +38,7 @@ void main() {
     final ctx = t.element(find.byType(Scaffold).first);
     expect(Theme.of(ctx).colorScheme.primary.toARGB32(), 0xFF1E2A78);
     expect(ctx.accent.toARGB32(), 0xFF2B8A3E);
-    expect(await t.runAsync(() => getSetting(db, 'theme')), 'custom:1E2A78,2B8A3E');
+    expect(await t.runAsync(() => getSetting(db, 'theme')), startsWith('custom:1E2A78,2B8A3E'));
     expect(h.container.read(themeIdProvider), startsWith('custom:'));
   });
 
@@ -47,6 +49,7 @@ void main() {
     await signIn(t, 'Ali', '1234');
     await _settings(t);
     await t.ensureVisible(find.byKey(const ValueKey('pos-layout')));
+    await t.pumpAndSettle();
     await t.tap(find.text('Compact (faster)'));
     await t.pumpAndSettle();
     expect(await t.runAsync(() => getSetting(db, 'pos_layout')), 'compact');

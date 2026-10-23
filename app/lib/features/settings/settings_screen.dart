@@ -5,6 +5,7 @@ import 'package:flutter/services.dart' show SystemNavigator;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../app/theme.dart' show buildTheme, contrastRatio;
 import '../../app/themes.dart';
 import 'receipt_design_screen.dart';
 
@@ -43,17 +44,20 @@ class SettingsScreen extends ConsumerWidget {
         ),
       ]),
       _Section(t['theme'], [
-        Wrap(spacing: 10, runSpacing: 10, children: [
+        SizedBox(
+          height: 178,
+          child: ListView(scrollDirection: Axis.horizontal, children: [
           for (final p in themePresets) _ThemeSwatch(key: ValueKey('theme-${p.id}'), preset: p, label: t[p.nameKey], selected: ref.watch(themeIdProvider) == p.id, onTap: () => ref.read(themeIdProvider.notifier).set(p.id)),
           _ThemeSwatch(
             key: const ValueKey('theme-custom'),
-            preset: ref.watch(themeIdProvider).startsWith('custom:') ? presetById(ref.watch(themeIdProvider)) : const ThemePreset('custom', Color(0xFF9E9E9E), 'theme_custom', accent: Color(0xFFBDBDBD)),
+            preset: ref.watch(themeIdProvider).startsWith('custom:') ? presetById(ref.watch(themeIdProvider)) : const ThemePreset('custom', Color(0xFF757575), 'theme_custom', accent: Color(0xFFBDBDBD)),
             label: t['theme_custom'],
             selected: ref.watch(themeIdProvider).startsWith('custom:'),
             icon: Icons.palette_outlined,
             onTap: () => _customTheme(context, ref),
           ),
         ]),
+        ),
         const SizedBox(height: 14),
         Text(t['menu_layout'], style: const TextStyle(fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
@@ -417,7 +421,7 @@ Future<void> _restore(BuildContext context, WidgetRef ref) async {
   );
 }
 
-/// A theme sample: main colour with the accent as a corner dot.
+/// A small live preview of a theme: header, a menu item with its Add button, and the bottom bar.
 class _ThemeSwatch extends StatelessWidget {
   const _ThemeSwatch({super.key, required this.preset, required this.label, required this.selected, required this.onTap, this.icon});
   final ThemePreset preset;
@@ -426,70 +430,139 @@ class _ThemeSwatch extends StatelessWidget {
   final VoidCallback onTap;
   final IconData? icon;
   @override
-  Widget build(BuildContext context) => InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: Container(
-          width: 80,
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), border: Border.all(width: 2, color: selected ? preset.seed : Colors.transparent)),
-          child: Column(children: [
-            SizedBox(
-              width: 40,
-              height: 40,
-              child: Stack(children: [
-                CircleAvatar(radius: 18, backgroundColor: preset.seed, child: selected ? const Icon(Icons.check, color: Colors.white, size: 20) : (icon == null ? null : Icon(icon, color: Colors.white, size: 20))),
-                Positioned(right: 0, bottom: 0, child: Container(width: 16, height: 16, decoration: BoxDecoration(color: preset.accent, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)))),
+  Widget build(BuildContext context) {
+    final th = buildTheme(spec: preset);
+    final cs = th.colorScheme;
+    final header = th.appBarTheme.backgroundColor!;
+    final onHeader = th.appBarTheme.foregroundColor!;
+    final nav = th.navigationBarTheme.backgroundColor!;
+    final bg = th.scaffoldBackgroundColor;
+    final r = preset.radius / 2;
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: onTap,
+      child: Container(
+        width: 104,
+        padding: const EdgeInsets.all(5),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), border: Border.all(width: 2.5, color: selected ? cs.primary : Colors.transparent)),
+        child: Column(children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              height: 112,
+              color: bg,
+              child: Column(children: [
+                Container(height: 20, color: header, padding: const EdgeInsets.symmetric(horizontal: 6), alignment: Alignment.centerLeft, child: Row(children: [
+                  Container(width: 26, height: 4, color: onHeader.withValues(alpha: 0.9)),
+                  const Spacer(),
+                  if (icon != null) Icon(icon, size: 12, color: onHeader),
+                ])),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: Row(children: [
+                      for (var i = 0; i < 2; i++) ...[
+                        if (i == 1) const SizedBox(width: 5),
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: cs.surface,
+                              borderRadius: BorderRadius.circular(r),
+                              border: preset.cardStyle == 'outline' ? Border.all(color: cs.outlineVariant, width: 0.6) : null,
+                              boxShadow: preset.cardStyle == 'shadow' ? const [BoxShadow(color: Colors.black12, blurRadius: 3, offset: Offset(0, 1))] : null,
+                            ),
+                            padding: const EdgeInsets.all(3),
+                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Expanded(child: Container(decoration: BoxDecoration(color: cs.primary.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(r / 2)))),
+                              const SizedBox(height: 3),
+                              Container(width: 18, height: 3, color: cs.primary),
+                              const SizedBox(height: 3),
+                              Container(height: 8, decoration: BoxDecoration(color: preset.accent, borderRadius: BorderRadius.circular(r / 2))),
+                            ]),
+                          ),
+                        ),
+                      ],
+                    ]),
+                  ),
+                ),
+                Container(height: 14, color: nav, child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+                  for (var i = 0; i < 4; i++) Container(width: 10, height: 4, decoration: BoxDecoration(color: i == 0 ? cs.primary : cs.outline, borderRadius: BorderRadius.circular(2))),
+                ])),
               ]),
             ),
-            const SizedBox(height: 6),
-            Text(label, textAlign: TextAlign.center, maxLines: 2, style: const TextStyle(fontSize: 12)),
+          ),
+          const SizedBox(height: 5),
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            if (selected) Icon(Icons.check_circle, size: 14, color: Theme.of(context).colorScheme.primary),
+            if (selected) const SizedBox(width: 3),
+            Flexible(child: Text(label, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, fontWeight: selected ? FontWeight.w700 : FontWeight.w500))),
           ]),
-        ),
-      );
+        ]),
+      ),
+    );
+  }
 }
 
-/// Owner picks a main colour and an accent colour; the whole app follows.
+/// Owner builds a theme: main colour, button colour, header, background, card style and roundness, with a live preview.
 Future<void> _customTheme(BuildContext context, WidgetRef ref) async {
   final t = Strings.of(context);
   final current = presetById(ref.read(themeIdProvider));
   var main = current.seed, accent = current.accent;
+  Color? header = current.header, background = current.background;
+  var card = current.cardStyle;
+  var radius = current.radius;
   await showDialog<void>(
     context: context,
     builder: (ctx) => StatefulBuilder(
       builder: (ctx, setState) {
-        Widget palette(Color selected, ValueChanged<Color> pick, String keyPrefix) => Wrap(spacing: 8, runSpacing: 8, children: [
-              for (final c in customPalette)
+        Widget palette(List<Color> colors, Color? selected, ValueChanged<Color> pick, String keyPrefix) => Wrap(spacing: 8, runSpacing: 8, children: [
+              for (final c in colors)
                 InkWell(
                   key: ValueKey('$keyPrefix-${c.toARGB32().toRadixString(16)}'),
                   onTap: () => setState(() => pick(c)),
                   customBorder: const CircleBorder(),
-                  child: CircleAvatar(radius: 16, backgroundColor: c, child: c == selected ? const Icon(Icons.check, size: 16, color: Colors.white) : null),
+                  child: Container(
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(color: c, shape: BoxShape.circle, border: Border.all(color: Colors.black12)),
+                    child: c == selected ? Icon(Icons.check, size: 16, color: contrastRatio(c, Colors.white) > 3 ? Colors.white : Colors.black) : null,
+                  ),
                 ),
             ]);
+        Widget label(String k) => Padding(padding: const EdgeInsets.only(top: 14, bottom: 8), child: Text(t[k], style: const TextStyle(fontWeight: FontWeight.w600)));
+        final preview = presetById(customThemeId(main, accent, header: header, background: background, cardStyle: card, radius: radius));
         return AlertDialog(
           title: Text(t['theme_custom']),
-          content: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(t['main_color'], style: const TextStyle(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              palette(main, (c) => main = c, 'main'),
-              const SizedBox(height: 16),
-              Text(t['accent_color'], style: const TextStyle(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              palette(accent, (c) => accent = c, 'accent'),
-              const SizedBox(height: 16),
-              Row(children: [
-                Expanded(child: Container(height: 40, alignment: Alignment.center, decoration: BoxDecoration(color: main, borderRadius: BorderRadius.circular(10)), child: Text(t['app_name'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)))),
-                const SizedBox(width: 8),
-                Container(height: 40, padding: const EdgeInsets.symmetric(horizontal: 14), alignment: Alignment.center, decoration: BoxDecoration(color: accent, borderRadius: BorderRadius.circular(10)), child: Text('+ ${t['add']}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700))),
+          content: SizedBox(
+            width: 420,
+            child: SingleChildScrollView(
+              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Center(child: _ThemeSwatch(preset: preview, label: t['preview'], selected: false, onTap: () {})),
+                label('main_color'),
+                palette(customPalette, main, (c) => main = c, 'main'),
+                label('accent_color'),
+                palette(customPalette, accent, (c) => accent = c, 'accent'),
+                label('header_color'),
+                palette(customPalette, header ?? main, (c) => header = c, 'header'),
+                label('background_color'),
+                palette(backgroundPalette, background, (c) => background = c, 'bg'),
+                label('card_style'),
+                SegmentedButton<String>(
+                  key: const ValueKey('card-style'),
+                  showSelectedIcon: false,
+                  segments: [ButtonSegment(value: 'outline', label: Text(t['card_outline'])), ButtonSegment(value: 'shadow', label: Text(t['card_shadow'])), ButtonSegment(value: 'flat', label: Text(t['card_flat']))],
+                  selected: {card},
+                  onSelectionChanged: (s) => setState(() => card = s.first),
+                ),
+                label('corner_round'),
+                Slider(key: const ValueKey('radius'), min: 4, max: 28, divisions: 6, value: radius, label: '${radius.round()}', onChanged: (v) => setState(() => radius = v)),
               ]),
-            ]),
+            ),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: Text(t['cancel'])),
             FilledButton(key: const ValueKey('custom-theme-save'), onPressed: () {
-              ref.read(themeIdProvider.notifier).setCustom(main, accent);
+              ref.read(themeIdProvider.notifier).set(customThemeId(main, accent, header: header, background: background, cardStyle: card, radius: radius));
               Navigator.pop(ctx);
             }, child: Text(t['save'])),
           ],

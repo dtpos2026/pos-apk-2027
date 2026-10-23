@@ -195,3 +195,18 @@ Future<void> tapProduct(WidgetTester t, String name) async {
 }
 
 Override menuImageDirOverride(Directory dir) => menuImageDirProvider.overrideWithValue(dir);
+
+/// Scrolls the horizontal theme row in Settings until [key] is visible.
+Future<void> showThemeCard(WidgetTester t, String key) async {
+  final vertical = find.byWidgetPredicate((w) => w is Scrollable && (w.axisDirection == AxisDirection.down || w.axisDirection == AxisDirection.up));
+  await t.scrollUntilVisible(find.byKey(const ValueKey('theme-dt')), 200, scrollable: vertical.last);
+  await t.pumpAndSettle();
+  final row = find.byWidgetPredicate((w) => w is Scrollable && (w.axisDirection == AxisDirection.right || w.axisDirection == AxisDirection.left));
+  await t.scrollUntilVisible(find.byKey(ValueKey(key)), 200, scrollable: row.first);
+  await t.pumpAndSettle();
+  await t.ensureVisible(find.byKey(ValueKey(key)));
+  await t.pumpAndSettle();
+}
+
+/// The innermost vertical scrolling list on screen (the settings page has a horizontal theme row inside it).
+Finder get verticalScroll => find.byWidgetPredicate((w) => w is Scrollable && w.axisDirection == AxisDirection.down).last;

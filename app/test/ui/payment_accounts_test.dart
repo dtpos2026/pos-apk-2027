@@ -8,8 +8,8 @@ Future<void> _openSettingsAt(WidgetTester t, String key) async {
   await openTab(t, 'settings', 'Settings');
   await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
   await t.pumpAndSettle();
-  await t.scrollUntilVisible(find.byKey(ValueKey(key)), 300, scrollable: find.byType(Scrollable).last);
-  await t.drag(find.byType(Scrollable).last, const Offset(0, -160)); // clear of the bottom navigation bar
+  await t.scrollUntilVisible(find.byKey(ValueKey(key)), 300, scrollable: verticalScroll);
+  await t.drag(verticalScroll, const Offset(0, -160)); // clear of the bottom navigation bar
   await t.pumpAndSettle();
 }
 
@@ -35,7 +35,7 @@ void main() {
     await t.tap(find.text('Cancel'));
     await t.pumpAndSettle();
 
-    await t.scrollUntilVisible(find.byKey(const ValueKey('pm-switch-JazzCash 0300-1234567')), 200, scrollable: find.byType(Scrollable).last);
+    await t.scrollUntilVisible(find.byKey(const ValueKey('pm-switch-JazzCash 0300-1234567')), 200, scrollable: verticalScroll);
     await tapKey(t, 'pm-switch-JazzCash 0300-1234567');
     h.container.invalidate(paymentMethodsProvider);
     names = (await t.runAsync(() => h.container.read(paymentMethodsProvider.future)))!.map((m) => m.name);

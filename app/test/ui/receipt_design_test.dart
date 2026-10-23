@@ -20,7 +20,7 @@ Uint8List logoPng() {
 
 Future<void> openDesigner(WidgetTester t) async {
   await openTab(t, 'settings', 'Settings');
-  await t.scrollUntilVisible(find.byKey(const ValueKey('receipt-design-tile')), 250, scrollable: find.byType(Scrollable).last);
+  await t.scrollUntilVisible(find.byKey(const ValueKey('receipt-design-tile')), 250, scrollable: verticalScroll);
   await t.ensureVisible(find.byKey(const ValueKey('receipt-design-tile')));
   await t.pumpAndSettle();
   await t.tap(find.byKey(const ValueKey('receipt-design-tile')));

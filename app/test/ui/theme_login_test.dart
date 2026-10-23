@@ -28,7 +28,7 @@ void main() {
     await pumpApp(t, db: db);
     await signIn(t, 'Ali', '1234');
     await openTab(t, 'settings', 'Settings');
-    await t.ensureVisible(find.byKey(const ValueKey('theme-ocean')));
+    await showThemeCard(t, 'theme-ocean');
     await t.tap(find.byKey(const ValueKey('theme-ocean')));
     await t.pumpAndSettle();
     expect(primary(t).toARGB32(), 0xFF0B5FA5);
@@ -44,9 +44,15 @@ void main() {
   });
 
   testWidgets('all themes build a readable scheme (text on primary has enough contrast)', (t) async {
-    for (final p in themePresets) {
+    for (final p in [...themePresets, presetById(customThemeId(const Color(0xFFFFC107), const Color(0xFF111111), background: const Color(0xFF121212)))]) {
       for (final b in Brightness.values) {
-        final s = buildTheme(seed: p.seed, brightness: b).colorScheme;
+        final th = buildTheme(spec: p, brightness: b);
+        final s = th.colorScheme;
+        final header = th.appBarTheme.backgroundColor!, onHeader = th.appBarTheme.foregroundColor!;
+        expect(contrastRatio(header, onHeader), greaterThan(4.5), reason: '${p.id} $b header text');
+        expect(contrastRatio(s.primary, s.surface), greaterThan(4.5), reason: '${p.id} $b primary text on cards');
+        final fb = th.filledButtonTheme.style!;
+        expect(contrastRatio(fb.backgroundColor!.resolve({})!, fb.foregroundColor!.resolve({})!), greaterThan(4.5), reason: '${p.id} $b buttons');
         double lum(Color c) => c.computeLuminance();
         double ratio(Color a, Color c) {
           final l1 = lum(a), l2 = lum(c);
