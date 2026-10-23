@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:flutter/material.dart' show Locale, ThemeMode;
+import 'package:flutter/material.dart' show Color, Locale, ThemeMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/auth_service.dart';
@@ -141,9 +141,29 @@ class ThemeIdNotifier extends Notifier<String> {
     final saved = await getSetting(ref.read(databaseProvider), 'theme');
     if (saved != null) state = presetById(saved).id;
   }
+
+  /// A theme the owner made from two colours.
+  Future<void> setCustom(Color main, Color accent) => set(customThemeId(main, accent));
 }
 
 final themeIdProvider = NotifierProvider<ThemeIdNotifier, String>(ThemeIdNotifier.new);
+
+/// Selling screen layout: 'photos' (pictures, default) or 'compact' (text tiles, more items on screen).
+class PosLayoutNotifier extends Notifier<String> {
+  @override
+  String build() => 'photos';
+  Future<void> set(String v) async {
+    state = v;
+    await setSetting(ref.read(databaseProvider), 'pos_layout', v, ref.read(clockProvider)().millisecondsSinceEpoch);
+  }
+
+  Future<void> restore() async {
+    final saved = await getSetting(ref.read(databaseProvider), 'pos_layout');
+    if (saved == 'compact' || saved == 'photos') state = saved!;
+  }
+}
+
+final posLayoutProvider = NotifierProvider<PosLayoutNotifier, String>(PosLayoutNotifier.new);
 
 class ThemeModeNotifier extends Notifier<ThemeMode> {
   @override
@@ -166,6 +186,7 @@ Future<void> restoreAppearance(WidgetRef ref) async {
   await ref.read(localeProvider.notifier).restore();
   await ref.read(themeIdProvider.notifier).restore();
   await ref.read(themeModeProvider.notifier).restore();
+  await ref.read(posLayoutProvider.notifier).restore();
 }
 
 class SessionNotifier extends Notifier<Session?> {

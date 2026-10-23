@@ -39,7 +39,7 @@ class MenuImage extends StatelessWidget {
     final p = path;
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
-      child: p == null || !File(p).existsSync()
+      child: p == null
           ? placeholder
           : Image.file(File(p), fit: BoxFit.cover, cacheWidth: 480, errorBuilder: (_, _, _) => placeholder, gaplessPlayback: true),
     );

@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/format.dart';
 import '../../app/providers.dart';
 import '../../app/strings.dart';
-import '../../app/theme.dart';
+import '../../app/theme.dart' show BrandColorsX;
 import '../common/menu_image.dart';
 import '../../data/menu_service.dart';
 import '../../data/queries.dart';
@@ -117,6 +117,7 @@ class _MenuPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final t = Strings.of(context);
     final cats = ref.watch(categoriesProvider).value ?? const [];
+    final compact = ref.watch(posLayoutProvider) == 'compact';
     final products = ref.watch(productsProvider(ProductFilter(categoryId: categoryId, search: search)));
     return Column(children: [
       Padding(
@@ -139,9 +140,11 @@ class _MenuPanel extends ConsumerWidget {
               ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(t['no_items'], textAlign: TextAlign.center)))
               : GridView.builder(
                   padding: const EdgeInsets.all(12),
-                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 200, mainAxisSpacing: 12, crossAxisSpacing: 12, mainAxisExtent: 220),
+                  gridDelegate: compact
+                      ? const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 170, mainAxisSpacing: 10, crossAxisSpacing: 10, mainAxisExtent: 112)
+                      : const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 200, mainAxisSpacing: 12, crossAxisSpacing: 12, mainAxisExtent: 220),
                   itemCount: list.length,
-                  itemBuilder: (_, i) => _ProductTile(list[i]),
+                  itemBuilder: (_, i) => _ProductTile(list[i], compact: compact),
                 ),
         ),
       ),
@@ -174,16 +177,16 @@ class _CategoryTile extends StatelessWidget {
               height: 58,
               padding: const EdgeInsets.all(2.5),
               decoration: BoxDecoration(
-                color: selected ? brandOrange : scheme.surface,
+                color: selected ? context.accent : scheme.surface,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: selected ? brandOrange : scheme.outlineVariant),
+                border: Border.all(color: selected ? context.accent : scheme.outlineVariant),
               ),
               child: icon != null
-                  ? Icon(icon, color: selected ? Colors.white : scheme.primary, size: 28)
+                  ? Icon(icon, color: selected ? context.onAccent : scheme.primary, size: 28)
                   : MenuImage(path: imagePath, name: label, radius: 13, iconSize: 26),
             ),
             const SizedBox(height: 5),
-            Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, fontWeight: selected ? FontWeight.w700 : FontWeight.w500, color: selected ? brandOrange : null)),
+            Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, fontWeight: selected ? FontWeight.w700 : FontWeight.w500, color: selected ? context.accent : null)),
           ]),
         ),
       ),
@@ -192,8 +195,11 @@ class _CategoryTile extends StatelessWidget {
 }
 
 class _ProductTile extends ConsumerWidget {
-  const _ProductTile(this.p);
+  const _ProductTile(this.p, {this.compact = false});
   final MenuProduct p;
+
+  /// Text-only tile: more items on screen and faster on old phones.
+  final bool compact;
 
   Future<void> _add(BuildContext context, WidgetRef ref) async {
     final opts = await ref.read(menuServiceProvider).optionsFor(p.id);
@@ -223,7 +229,24 @@ class _ProductTile extends ConsumerWidget {
           onTap: p.available ? () => _add(context, ref) : null,
           child: Padding(
             padding: const EdgeInsets.all(8),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            child: compact
+                ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [
+                      SizedBox(width: 28, height: 28, child: MenuImage(path: null, name: '${p.name} ${p.categoryName ?? ''}', radius: 8, iconSize: 16)),
+                      const Spacer(),
+                      if (inCart != null)
+                        Container(
+                          key: ValueKey('in-cart-${p.name}'),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(color: scheme.primary, borderRadius: BorderRadius.circular(999)),
+                          child: Text('× $inCart', style: TextStyle(color: scheme.onPrimary, fontWeight: FontWeight.w800, fontSize: 12)),
+                        ),
+                    ]),
+                    const SizedBox(height: 6),
+                    Expanded(child: Text(p.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, height: 1.2))),
+                    Text(ref.money(p.priceMinor), style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w800, fontSize: 14)),
+                  ])
+                : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Expanded(
                 child: Stack(fit: StackFit.expand, children: [
                   MenuImage(path: p.imagePath ?? p.categoryImagePath, name: p.categoryName == null ? p.name : '${p.name} ${p.categoryName}', radius: 12, iconSize: 40),
@@ -255,7 +278,7 @@ class _ProductTile extends ConsumerWidget {
                 height: 34,
                 child: FilledButton.icon(
                   key: ValueKey('add-${p.name}'),
-                  style: FilledButton.styleFrom(backgroundColor: brandOrange, foregroundColor: Colors.white, padding: EdgeInsets.zero, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                  style: FilledButton.styleFrom(backgroundColor: context.accent, foregroundColor: context.onAccent, padding: EdgeInsets.zero, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
                   onPressed: p.available ? () => _add(context, ref) : null,
                   icon: const Icon(Icons.add, size: 18),
                   label: Text(Strings.of(context)['add'], style: const TextStyle(fontWeight: FontWeight.w700)),

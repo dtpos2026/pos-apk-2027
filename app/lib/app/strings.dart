@@ -397,6 +397,15 @@ class Strings {
     'restore_ready_title': 'Backup is ready',
     'restore_ready_body': 'Close the app and open it again to finish restoring.',
     'close_app': 'Close app',
+    'theme_orange': 'Food Orange',
+    'theme_navy': 'Navy',
+    'theme_red': 'Chilli Red',
+    'theme_custom': 'Custom',
+    'main_color': 'Main colour',
+    'accent_color': 'Button colour',
+    'menu_layout': 'Selling screen',
+    'layout_photos': 'With pictures',
+    'layout_compact': 'Compact (faster)',
 };
 
   static const _ur = <String, String>{
@@ -776,6 +785,15 @@ class Strings {
     'restore_ready_title': 'بیک اپ تیار ہے',
     'restore_ready_body': 'بحالی مکمل کرنے کے لیے ایپ بند کر کے دوبارہ کھولیں۔',
     'close_app': 'ایپ بند کریں',
+    'theme_orange': 'فوڈ اورنج',
+    'theme_navy': 'نیوی',
+    'theme_red': 'چلی ریڈ',
+    'theme_custom': 'اپنا رنگ',
+    'main_color': 'بنیادی رنگ',
+    'accent_color': 'بٹن کا رنگ',
+    'menu_layout': 'سیل اسکرین',
+    'layout_photos': 'تصاویر کے ساتھ',
+    'layout_compact': 'مختصر (تیز)',
 };
 
   static const _ar = <String, String>{
@@ -1157,6 +1175,15 @@ class Strings {
     'restore_ready_title': 'النسخة جاهزة',
     'restore_ready_body': 'أغلق التطبيق وافتحه مرة أخرى لإكمال الاستعادة.',
     'close_app': 'إغلاق التطبيق',
+    'theme_orange': 'برتقالي',
+    'theme_navy': 'كحلي',
+    'theme_red': 'أحمر',
+    'theme_custom': 'مخصص',
+    'main_color': 'اللون الرئيسي',
+    'accent_color': 'لون الأزرار',
+    'menu_layout': 'شاشة البيع',
+    'layout_photos': 'مع الصور',
+    'layout_compact': 'مختصر (أسرع)',
 };
 
   static const _all = {'en': _en, 'ur': _ur, 'ar': _ar};
