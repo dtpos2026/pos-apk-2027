@@ -16,3 +16,14 @@ class SystemImportFilePicker implements ImportFilePicker {
     return (name: f.name, bytes: await f.readAsBytes());
   }
 }
+
+/// Any file (backups have the .dtbak extension, which Android pickers do not know as a type).
+class SystemBackupFilePicker implements ImportFilePicker {
+  const SystemBackupFilePicker();
+  @override
+  Future<({String name, Uint8List bytes})?> pick() async {
+    final f = await FilePicker.pickFile(type: FileType.any);
+    if (f == null) return null;
+    return (name: f.name, bytes: await f.readAsBytes());
+  }
+}

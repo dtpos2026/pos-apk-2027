@@ -182,3 +182,16 @@ Future<void> openTab(WidgetTester t, String key, String label) async {
   }
   await t.pumpAndSettle();
 }
+
+/// Scrolls the selling-screen grid until the item is on screen, then taps it once.
+Future<void> tapProduct(WidgetTester t, String name) async {
+  final f = find.byKey(ValueKey('product-$name'));
+  if (f.evaluate().isEmpty || !t.getRect(f).overlaps(Offset.zero & t.view.physicalSize / t.view.devicePixelRatio)) {
+    await t.scrollUntilVisible(f, 150, scrollable: find.descendant(of: find.byType(GridView), matching: find.byType(Scrollable)).first);
+  }
+  await t.ensureVisible(f);
+  await t.pump();
+  await t.tap(f);
+}
+
+Override menuImageDirOverride(Directory dir) => menuImageDirProvider.overrideWithValue(dir);

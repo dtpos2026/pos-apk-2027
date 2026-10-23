@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/format.dart';
 import '../../app/providers.dart';
 import '../../app/strings.dart';
+import '../../app/theme.dart';
+import '../common/menu_image.dart';
 import '../../data/menu_service.dart';
 import '../../data/queries.dart';
 import 'cart.dart';
@@ -122,10 +124,11 @@ class _MenuPanel extends ConsumerWidget {
         child: TextField(key: const ValueKey('search'), decoration: InputDecoration(prefixIcon: const Icon(Icons.search), hintText: t['search_items'], isDense: true), onChanged: onSearch),
       ),
       SizedBox(
-        height: 52,
-        child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 12), children: [
-          Padding(padding: const EdgeInsetsDirectional.only(end: 8), child: ChoiceChip(label: Text(t['all']), selected: categoryId == null, onSelected: (_) => onCategory(null))),
-          for (final c in cats) Padding(padding: const EdgeInsetsDirectional.only(end: 8), child: ChoiceChip(label: Text(c.name), selected: categoryId == c.id, onSelected: (_) => onCategory(c.id))),
+        height: 96,
+        child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.fromLTRB(12, 4, 12, 4), children: [
+          _CategoryTile(key: const ValueKey('cat-all'), label: t['all'], icon: Icons.grid_view_rounded, selected: categoryId == null, onTap: () => onCategory(null)),
+          for (final c in cats)
+            _CategoryTile(key: ValueKey('cat-${c.name}'), label: c.name, imagePath: c.imagePath, selected: categoryId == c.id, onTap: () => onCategory(c.id)),
         ]),
       ),
       Expanded(
@@ -136,7 +139,7 @@ class _MenuPanel extends ConsumerWidget {
               ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(t['no_items'], textAlign: TextAlign.center)))
               : GridView.builder(
                   padding: const EdgeInsets.all(12),
-                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 190, mainAxisSpacing: 10, crossAxisSpacing: 10, childAspectRatio: 1.35),
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 200, mainAxisSpacing: 12, crossAxisSpacing: 12, mainAxisExtent: 220),
                   itemCount: list.length,
                   itemBuilder: (_, i) => _ProductTile(list[i]),
                 ),
@@ -146,58 +149,118 @@ class _MenuPanel extends ConsumerWidget {
   }
 }
 
+class _CategoryTile extends StatelessWidget {
+  const _CategoryTile({super.key, required this.label, required this.selected, required this.onTap, this.imagePath, this.icon});
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final String? imagePath;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(end: 10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: SizedBox(
+          width: 70,
+          child: Column(children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              width: 58,
+              height: 58,
+              padding: const EdgeInsets.all(2.5),
+              decoration: BoxDecoration(
+                color: selected ? brandOrange : scheme.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: selected ? brandOrange : scheme.outlineVariant),
+              ),
+              child: icon != null
+                  ? Icon(icon, color: selected ? Colors.white : scheme.primary, size: 28)
+                  : MenuImage(path: imagePath, name: label, radius: 13, iconSize: 26),
+            ),
+            const SizedBox(height: 5),
+            Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, fontWeight: selected ? FontWeight.w700 : FontWeight.w500, color: selected ? brandOrange : null)),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
 class _ProductTile extends ConsumerWidget {
   const _ProductTile(this.p);
   final MenuProduct p;
+
+  Future<void> _add(BuildContext context, WidgetRef ref) async {
+    final opts = await ref.read(menuServiceProvider).optionsFor(p.id);
+    if (opts.isEmpty) {
+      ref.read(cartProvider.notifier).add(p);
+    } else if (context.mounted) {
+      final item = await showOptionsSheet(context, ref, p, opts);
+      if (item != null) ref.read(cartProvider.notifier).addConfigured(item);
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
     final inCartMilli = ref.watch(cartProvider.select((c) => c.items.where((i) => i.productId == p.id).fold<int>(0, (s, i) => s + i.qtyMilli)));
     final inCart = inCartMilli == 0 ? null : (inCartMilli % 1000 == 0 ? '${inCartMilli ~/ 1000}' : (inCartMilli / 1000).toStringAsFixed(2));
-    final initial = p.name.trim().isEmpty ? '?' : p.name.trim().characters.first.toUpperCase();
     return Opacity(
       opacity: p.available ? 1 : 0.45,
       child: Card(
+        margin: EdgeInsets.zero,
         clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: inCart != null ? scheme.primary : scheme.outlineVariant, width: inCart != null ? 2 : 1)),
+        elevation: 0,
+        color: scheme.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: inCart != null ? scheme.primary : scheme.outlineVariant, width: inCart != null ? 2 : 1)),
         child: InkWell(
           key: ValueKey('product-${p.name}'),
-          onTap: p.available
-              ? () async {
-                  final opts = await ref.read(menuServiceProvider).optionsFor(p.id);
-                  if (opts.isEmpty) {
-                    ref.read(cartProvider.notifier).add(p);
-                  } else if (context.mounted) {
-                    final item = await showOptionsSheet(context, ref, p, opts);
-                    if (item != null) ref.read(cartProvider.notifier).addConfigured(item);
-                  }
-                }
-              : null,
+          onTap: p.available ? () => _add(context, ref) : null,
           child: Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(8),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Container(
-                  width: 30, height: 30, alignment: Alignment.center,
-                  decoration: BoxDecoration(color: scheme.primaryContainer, borderRadius: BorderRadius.circular(8)),
-                  child: Text(initial, style: TextStyle(color: scheme.onPrimaryContainer, fontWeight: FontWeight.w800)),
-                ),
-                const Spacer(),
-                if (inCart != null)
-                  Container(
-                    key: ValueKey('in-cart-${p.name}'),
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(color: scheme.primary, borderRadius: BorderRadius.circular(999)),
-                    child: Text('× $inCart', style: TextStyle(color: scheme.onPrimary, fontWeight: FontWeight.w700, fontSize: 12)),
-                  ),
-              ]),
-              const SizedBox(height: 6),
-              Expanded(child: Text(p.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15))),
+              Expanded(
+                child: Stack(fit: StackFit.expand, children: [
+                  MenuImage(path: p.imagePath ?? p.categoryImagePath, name: p.categoryName == null ? p.name : '${p.name} ${p.categoryName}', radius: 12, iconSize: 40),
+                  if (inCart != null)
+                    PositionedDirectional(
+                      top: 6,
+                      end: 6,
+                      child: Container(
+                        key: ValueKey('in-cart-${p.name}'),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(color: scheme.primary, borderRadius: BorderRadius.circular(999)),
+                        child: Text('× $inCart', style: TextStyle(color: scheme.onPrimary, fontWeight: FontWeight.w800, fontSize: 12)),
+                      ),
+                    ),
+                  if (!p.available)
+                    Center(child: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3), color: Colors.black54, child: Text(Strings.of(context)['unavailable'], style: const TextStyle(color: Colors.white, fontSize: 12)))),
+                ]),
+              ),
+              const SizedBox(height: 8),
+              Text(p.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, height: 1.2)),
+              const SizedBox(height: 2),
               Wrap(crossAxisAlignment: WrapCrossAlignment.end, children: [
-                Text(ref.money(p.priceMinor, symbol: false), style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w800, fontSize: 16)),
+                Text(ref.money(p.priceMinor), style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w800, fontSize: 14)),
                 if (p.unit != 'pc') Text(' / ${p.unit}', style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
               ]),
+              const SizedBox(height: 6),
+              SizedBox(
+                width: double.infinity,
+                height: 34,
+                child: FilledButton.icon(
+                  key: ValueKey('add-${p.name}'),
+                  style: FilledButton.styleFrom(backgroundColor: brandOrange, foregroundColor: Colors.white, padding: EdgeInsets.zero, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                  onPressed: p.available ? () => _add(context, ref) : null,
+                  icon: const Icon(Icons.add, size: 18),
+                  label: Text(Strings.of(context)['add'], style: const TextStyle(fontWeight: FontWeight.w700)),
+                ),
+              ),
             ]),
           ),
         ),

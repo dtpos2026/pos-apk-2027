@@ -44,7 +44,7 @@ void main() {
     await openTab(t, 'pos', 'Sell');
     await tapKey(t, 'open-shift');
     await tapKey(t, 'amount-ok');
-    await t.tap(find.byKey(const ValueKey('product-Pizza')));
+    await tapProduct(t, 'Pizza');
     await t.pumpAndSettle();
     await shot(t, '51_options_sheet');
     await tapKey(t, 'opt-variant-Large');
@@ -64,7 +64,7 @@ void main() {
     expect(find.textContaining('Extra cheese, Olives'), findsOneWidget);
 
     // the same configuration merges into one line; a different one does not
-    await t.tap(find.byKey(const ValueKey('product-Pizza')));
+    await tapProduct(t, 'Pizza');
     await t.pumpAndSettle();
     await tapKey(t, 'opt-variant-Large');
     await tapKey(t, 'opt-Toppings-Extra cheese');
@@ -72,7 +72,7 @@ void main() {
     await typeInto(t, find.byKey(const ValueKey('opt-note')), 'well done');
     await tapKey(t, 'opt-add');
     expect(h.container.read(cartProvider).items.single.qtyMilli, 2000);
-    await t.tap(find.byKey(const ValueKey('product-Pizza')));
+    await tapProduct(t, 'Pizza');
     await t.pumpAndSettle();
     await tapKey(t, 'opt-add'); // Small with nothing extra: Large is not preselected... the cheapest size is
     expect(h.container.read(cartProvider).items.length, 2);
@@ -103,7 +103,7 @@ void main() {
     await signIn(t, 'Ali', '1234');
     await tapKey(t, 'open-shift');
     await tapKey(t, 'amount-ok');
-    await t.tap(find.byKey(const ValueKey('product-Shawarma')));
+    await tapProduct(t, 'Shawarma');
     await t.pumpAndSettle();
     expect(t.widget<FilledButton>(find.byKey(const ValueKey('opt-add'))).onPressed, isNull); // nothing chosen yet
     await tapKey(t, 'opt-Sauce-Garlic');

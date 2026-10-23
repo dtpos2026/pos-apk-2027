@@ -30,7 +30,7 @@ Future<Harness> start(WidgetTester t, {bool tablet = false, FakeShare? share}) a
 
 Future<void> add(WidgetTester t, String product, {int times = 1}) async {
   for (var i = 0; i < times; i++) {
-    await t.tap(find.byKey(ValueKey('product-$product')));
+    await tapProduct(t, product);
   }
   await t.pumpAndSettle();
 }

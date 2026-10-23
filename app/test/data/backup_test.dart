@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:dt_food_pos/data/backup_service.dart';
 import 'package:dt_food_pos/data/db/database.dart';
+import 'package:dt_food_pos/data/restore.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 
@@ -79,5 +80,38 @@ void main() {
     expect(BackupService.prune(tmp, keep: 2), 3);
     final left = tmp.listSync().map((e) => e.path.split('/').last).where((n) => n.endsWith('.dtbak')).toList()..sort();
     expect(left, ['dt-backup-20260112-040000.dtbak', 'dt-backup-20260112-050000.dtbak']);
+  });
+
+  test('pictures travel with the backup and a restore swaps the database on the next start', () async {
+    final docs = Directory('${tmp.path}/docs')..createSync();
+    final menu = Directory('${docs.path}/menu_images')..createSync();
+    final logo = Directory('${docs.path}/logo')..createSync();
+    File('${menu.path}/product-p1-1.jpg').writeAsBytesSync([0xFF, 0xD8, 1, 2, 3]);
+    File('${logo.path}/logo-1.png').writeAsBytesSync([0x89, 0x50, 9]);
+    // the backup came from another phone whose folders had a different path
+    await db.customStatement("UPDATE product SET image_path = '/old/phone/menu_images/product-p1-1.jpg' WHERE id = 'p1'");
+    final f = await svc.createBackup(passphrase: 'secret123', dir: tmp, media: {'menu_images': menu, 'logo': logo});
+    expect(String.fromCharCodes(f.readAsBytesSync().take(6)), 'DTBAK2');
+
+    // this phone: a different live database, and no pictures
+    File('${docs.path}/$dbFileName').writeAsStringSync('old live db');
+    menu.deleteSync(recursive: true);
+    logo.deleteSync(recursive: true);
+    final pending = pendingRestoreDir(docs)..createSync(recursive: true);
+    final n = await BackupService.decryptAndVerify(backup: f, passphrase: 'secret123', target: File('${pending.path}/$dbFileName'), mediaRoot: Directory('${pending.path}/media'));
+    expect(n, 2);
+
+    expect(applyPendingRestore(docs, media: {'menu_images': menu, 'logo': logo}), isTrue);
+    expect(File('${docs.path}/$dbFileName.before-restore').readAsStringSync(), 'old live db', reason: 'the replaced data is kept aside');
+    expect(File('${menu.path}/product-p1-1.jpg').readAsBytesSync(), [0xFF, 0xD8, 1, 2, 3]);
+    expect(File('${logo.path}/logo-1.png').existsSync(), isTrue);
+    expect(pending.existsSync(), isFalse);
+    expect(applyPendingRestore(docs, media: {'menu_images': menu, 'logo': logo}), isFalse, reason: 'applied only once');
+
+    final restored = AppDatabase(NativeDatabase(File('${docs.path}/$dbFileName')));
+    addTearDown(restored.close);
+    await repointPictures(restored, menuImages: menu, logo: logo);
+    final path = (await restored.customSelect("SELECT image_path FROM product WHERE id = 'p1'").getSingle()).data['image_path'];
+    expect(path, '${menu.path}/product-p1-1.jpg');
   });
 }

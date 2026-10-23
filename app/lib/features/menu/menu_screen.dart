@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/format.dart';
 import '../../app/providers.dart';
+import '../../data/menu_images.dart';
+import '../common/menu_image.dart';
 import '../../app/strings.dart';
 import '../../data/menu_import.dart';
 import '../../data/menu_service.dart';
@@ -43,6 +45,11 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
           child: Row(children: [
             Expanded(child: TextField(decoration: InputDecoration(prefixIcon: const Icon(Icons.search), hintText: t['search_items'], isDense: true), onChanged: (s) => setState(() => _search = s))),
             const SizedBox(width: 8),
+            OutlinedButton.icon(key: const ValueKey('categories'), onPressed: () async {
+              await showDialog<void>(context: context, builder: (_) => const _CategoriesDialog());
+              _refresh();
+            }, icon: const Icon(Icons.category_outlined), label: Text(t['categories'])),
+            const SizedBox(width: 8),
             OutlinedButton.icon(key: const ValueKey('import-csv'), onPressed: () async {
               await showDialog<void>(context: context, builder: (_) => const _ImportDialog());
               _refresh();
@@ -63,6 +70,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
                       return Card(
                         child: ListTile(
                           key: ValueKey('menu-${p.name}'),
+                          leading: SizedBox(width: 48, height: 48, child: MenuImage(path: p.imagePath ?? p.categoryImagePath, name: '${p.name} ${p.categoryName ?? ''}', radius: 10, iconSize: 24)),
                           title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.w600)),
                           subtitle: Text([if (p.categoryName != null) p.categoryName!, if (p.sku != null) p.sku!].join('  ·  ')),
                           trailing: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -92,6 +100,8 @@ Future<bool> _editDialog(BuildContext context, WidgetRef ref, MenuProduct? p) as
   final price = TextEditingController(text: p == null ? '' : formatMinor(p.priceMinor, currency: ref.currency, symbol: false).replaceAll(',', ''));
   final category = TextEditingController(text: p?.categoryName);
   String? error;
+  Uint8List? newPhoto; // picked but not saved yet
+  var removePhoto = false;
   final saved = await showDialog<bool>(
     context: context,
     builder: (ctx) => StatefulBuilder(
@@ -99,6 +109,38 @@ Future<bool> _editDialog(BuildContext context, WidgetRef ref, MenuProduct? p) as
         title: Text(p == null ? t['add_item'] : p.name),
         content: SingleChildScrollView(
           child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Row(children: [
+              SizedBox(
+                width: 84,
+                height: 84,
+                child: newPhoto != null
+                    ? ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.memory(newPhoto!, fit: BoxFit.cover))
+                    : MenuImage(path: removePhoto ? null : p?.imagePath, name: name.text, radius: 12),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  OutlinedButton.icon(
+                    key: const ValueKey('item-photo'),
+                    onPressed: () async {
+                      final b = await ref.read(logoPickerProvider).pick();
+                      if (b == null) return;
+                      try {
+                        final jpg = MenuImageStore.normalize(b);
+                        setState(() { newPhoto = jpg; removePhoto = false; error = null; });
+                      } on MenuImageException catch (e) {
+                        setState(() => error = e.message);
+                      }
+                    },
+                    icon: const Icon(Icons.photo_camera_outlined, size: 18),
+                    label: Text(t['choose_photo']),
+                  ),
+                  if (newPhoto != null || (p?.imagePath != null && !removePhoto))
+                    TextButton(key: const ValueKey('item-photo-remove'), onPressed: () => setState(() { newPhoto = null; removePhoto = true; }), child: Text(t['remove_photo'])),
+                ]),
+              ),
+            ]),
+            const SizedBox(height: 12),
             TextField(key: const ValueKey('item-name'), controller: name, decoration: InputDecoration(labelText: t['product_name'])),
             const SizedBox(height: 10),
             TextField(key: const ValueKey('item-price'), controller: price, keyboardType: const TextInputType.numberWithOptions(decimal: true), inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))], decoration: InputDecoration(labelText: t['price'])),
@@ -134,7 +176,13 @@ Future<bool> _editDialog(BuildContext context, WidgetRef ref, MenuProduct? p) as
                 return;
               }
               try {
-                await ref.read(menuServiceProvider).saveProduct(id: p?.id, name: name.text, priceMinor: minor, categoryName: category.text, sku: p?.sku, available: p?.available ?? true, staffId: ref.read(sessionProvider)!.staffId);
+                final id = await ref.read(menuServiceProvider).saveProduct(id: p?.id, name: name.text, priceMinor: minor, categoryName: category.text, sku: p?.sku, available: p?.available ?? true, staffId: ref.read(sessionProvider)!.staffId);
+                final images = ref.read(menuImageStoreProvider);
+                if (newPhoto != null) {
+                  await images.setProduct(id, newPhoto!);
+                } else if (removePhoto) {
+                  await images.removeProduct(id);
+                }
                 if (ctx.mounted) Navigator.pop(ctx, true);
               } on MenuException catch (e) {
                 setState(() => error = e.message);
@@ -319,4 +367,62 @@ Future<void> _addonsDialog(BuildContext context, WidgetRef ref, MenuProduct p) a
       ),
     ),
   );
+}
+
+/// Category pictures (shown on the selling screen and used for items without their own picture).
+class _CategoriesDialog extends ConsumerWidget {
+  const _CategoriesDialog();
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = Strings.of(context);
+    final cats = ref.watch(categoriesProvider).value ?? const <MenuCategory>[];
+    return AlertDialog(
+      title: Text(t['categories']),
+      content: SizedBox(
+        width: 380,
+        child: cats.isEmpty
+            ? Text(t['no_categories'])
+            : ListView(shrinkWrap: true, children: [
+                Text(t['category_photo_hint'], style: Theme.of(context).textTheme.bodySmall),
+                const SizedBox(height: 8),
+                for (final c in cats)
+                  ListTile(
+                    key: ValueKey('category-${c.name}'),
+                    contentPadding: EdgeInsets.zero,
+                    leading: SizedBox(width: 48, height: 48, child: MenuImage(path: c.imagePath, name: c.name, radius: 10, iconSize: 24)),
+                    title: Text(c.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                    trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                      IconButton(
+                        key: ValueKey('category-photo-${c.name}'),
+                        tooltip: t['choose_photo'],
+                        icon: const Icon(Icons.photo_camera_outlined),
+                        onPressed: () async {
+                          final b = await ref.read(logoPickerProvider).pick();
+                          if (b == null) return;
+                          try {
+                            await ref.read(menuImageStoreProvider).setCategory(c.id, b);
+                            ref.invalidate(categoriesProvider);
+                            ref.invalidate(productsProvider);
+                          } on MenuImageException catch (e) {
+                            if (context.mounted) showMessage(context, e.message);
+                          }
+                        },
+                      ),
+                      if (c.imagePath != null)
+                        IconButton(
+                          tooltip: t['remove_photo'],
+                          icon: const Icon(Icons.delete_outline),
+                          onPressed: () async {
+                            await ref.read(menuImageStoreProvider).removeCategory(c.id);
+                            ref.invalidate(categoriesProvider);
+                            ref.invalidate(productsProvider);
+                          },
+                        ),
+                    ]),
+                  ),
+              ]),
+      ),
+      actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(t['close']))],
+    );
+  }
 }

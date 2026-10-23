@@ -13,6 +13,7 @@ import '../data/staff_service.dart';
 import '../data/table_service.dart';
 import '../data/backup_service.dart';
 import '../data/db/database.dart';
+import '../data/menu_images.dart';
 import '../data/menu_import.dart';
 import '../data/menu_service.dart';
 import '../data/payment_method_service.dart';
@@ -74,6 +75,15 @@ final logoPickerProvider = Provider<LogoPicker>((ref) => const GalleryLogoPicker
 final receiptTemplateStoreProvider = Provider<ReceiptTemplateStore>((ref) => ReceiptTemplateStore(ref.watch(databaseProvider), now: ref.watch(clockProvider)));
 final billDesignProvider = FutureProvider<BillDesign>((ref) => ref.watch(receiptTemplateStoreProvider).load());
 
+/// The app's private documents folder (database, pictures, pending restore). Overridden in main() and tests.
+final docsDirProvider = Provider<Directory>((ref) => Directory.systemTemp);
+
+/// Lets the owner choose a backup file to restore. A seam for tests.
+final backupFilePickerProvider = Provider<ImportFilePicker>((ref) => const SystemBackupFilePicker());
+
+/// Folder for item/category pictures. Overridden in main() (app documents) and in tests (temp folder).
+final menuImageDirProvider = Provider<Directory>((ref) => Directory('${Directory.systemTemp.path}/dt_menu_images'));
+final menuImageStoreProvider = Provider<MenuImageStore>((ref) => MenuImageStore(ref.watch(databaseProvider), ref.watch(menuImageDirProvider), now: ref.watch(clockProvider)));
 final menuServiceProvider = Provider<MenuService>((ref) => MenuService(ref.watch(databaseProvider), now: ref.watch(clockProvider)));
 final menuImporterProvider = Provider<MenuImporter>((ref) => MenuImporter(ref.watch(databaseProvider), now: ref.watch(clockProvider)));
 final backupServiceProvider = Provider<BackupService>((ref) => BackupService(ref.watch(databaseProvider)));

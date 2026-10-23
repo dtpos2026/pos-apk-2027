@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show SystemNavigator;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
@@ -12,6 +15,7 @@ import '../../cloud/location_consent.dart';
 import '../common/dialogs.dart';
 import '../../app/strings.dart';
 import '../../data/backup_service.dart';
+import '../../data/restore.dart';
 import '../../data/payment_method_service.dart';
 import '../../data/pos_service.dart' show PosException;
 import '../../data/queries.dart';
@@ -114,7 +118,12 @@ class SettingsScreen extends ConsumerWidget {
           ),
         ]),
       _Section(t['backup'], [
-        FilledButton.tonalIcon(key: const ValueKey('backup-now'), onPressed: () => _backup(context, ref), icon: const Icon(Icons.backup_outlined), label: Text(t['backup_now'])),
+        Text(t['backup_hint'], style: Theme.of(context).textTheme.bodySmall),
+        const SizedBox(height: 8),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          FilledButton.tonalIcon(key: const ValueKey('backup-now'), onPressed: () => _backup(context, ref), icon: const Icon(Icons.backup_outlined), label: Text(t['backup_now'])),
+          OutlinedButton.icon(key: const ValueKey('restore'), onPressed: () => _restore(context, ref), icon: const Icon(Icons.settings_backup_restore), label: Text(t['restore'])),
+        ]),
       ]),
       _Section(t['about'], [
         const ListTile(dense: true, title: Text('DT Food POS'), subtitle: Text('Powered by Digital Target')),
@@ -317,13 +326,76 @@ class SettingsScreen extends ConsumerWidget {
     final messenger = ScaffoldMessenger.of(context);
     try {
       final dir = await ref.read(backupDirProvider.future);
-      final f = await ref.read(backupServiceProvider).createBackup(passphrase: pass.text, dir: dir);
+      final f = await ref.read(backupServiceProvider).createBackup(
+        passphrase: pass.text,
+        dir: dir,
+        media: {'menu_images': ref.read(menuImageDirProvider), 'logo': ref.read(logoDirProvider)},
+      );
       BackupService.prune(dir);
-      messenger.showSnackBar(SnackBar(content: Text(f.path.split('/').last)));
+      messenger.showSnackBar(SnackBar(content: Text(t['backup_saved_share'])));
+      // the copy inside the app disappears if the app is uninstalled: send it to Google Drive / WhatsApp / USB
+      await ref.read(shareServiceProvider).shareFile(f.path, mimeType: 'application/octet-stream', subject: f.path.split('/').last);
     } on BackupException catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
+}
+
+Future<void> _restore(BuildContext context, WidgetRef ref) async {
+  final t = Strings.of(context);
+  final picked = await ref.read(backupFilePickerProvider).pick();
+  if (picked == null || !context.mounted) return;
+  final pass = TextEditingController();
+  String? error;
+  final done = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setState) => AlertDialog(
+        title: Text(t['restore']),
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(picked.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 6),
+          Text(t['restore_warning']),
+          const SizedBox(height: 10),
+          TextField(key: const ValueKey('restore-pass'), controller: pass, obscureText: true, decoration: InputDecoration(labelText: t['backup_passphrase'])),
+          if (error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(error!, style: TextStyle(color: Theme.of(ctx).colorScheme.error))),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(t['cancel'])),
+          FilledButton(
+            key: const ValueKey('restore-go'),
+            onPressed: () async {
+              final docs = ref.read(docsDirProvider);
+              final pending = pendingRestoreDir(docs);
+              try {
+                if (pending.existsSync()) pending.deleteSync(recursive: true);
+                pending.createSync(recursive: true);
+                final file = File('${pending.path}/incoming.dtbak')..writeAsBytesSync(picked.bytes, flush: true);
+                await BackupService.decryptAndVerify(backup: file, passphrase: pass.text, target: File('${pending.path}/$dbFileName'), mediaRoot: Directory('${pending.path}/media'));
+                file.deleteSync();
+                if (ctx.mounted) Navigator.pop(ctx, true);
+              } on BackupException catch (e) {
+                if (pending.existsSync()) pending.deleteSync(recursive: true);
+                setState(() => error = e.message);
+              }
+            },
+            child: Text(t['restore']),
+          ),
+        ],
+      ),
+    ),
+  );
+  if (done != true || !context.mounted) return;
+  await showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) => AlertDialog(
+      icon: const Icon(Icons.check_circle_outline),
+      title: Text(t['restore_ready_title']),
+      content: Text(t['restore_ready_body']),
+      actions: [FilledButton(key: const ValueKey('restore-close-app'), onPressed: () => SystemNavigator.pop(), child: Text(t['close_app']))],
+    ),
+  );
 }
 
 class _Section extends StatelessWidget {

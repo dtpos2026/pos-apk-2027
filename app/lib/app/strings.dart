@@ -384,6 +384,19 @@ class Strings {
     'share_image': 'Image',
     'reminder': 'Reminder',
     'udhaar_reminder_text': 'Assalam o Alaikum {name}, this is a reminder from {business}: {amount} is due on your account. Thank you.',
+    'unavailable': 'Not available',
+    'choose_photo': 'Photo',
+    'remove_photo': 'Remove photo',
+    'categories': 'Categories',
+    'no_categories': 'No categories yet. Type a category when you add an item.',
+    'category_photo_hint': 'Category pictures appear on the selling screen and on items that have no picture of their own.',
+    'restore': 'Restore',
+    'backup_hint': 'A backup holds all sales, customers, menu, pictures and settings, locked with your passphrase. After making it, save it to Google Drive or send it to yourself on WhatsApp.',
+    'backup_saved_share': 'Backup made. Choose where to keep a copy (Google Drive, WhatsApp, USB).',
+    'restore_warning': 'Restoring replaces everything on this phone with the backup. The current data is kept aside as a safety copy.',
+    'restore_ready_title': 'Backup is ready',
+    'restore_ready_body': 'Close the app and open it again to finish restoring.',
+    'close_app': 'Close app',
 };
 
   static const _ur = <String, String>{
@@ -750,6 +763,19 @@ class Strings {
     'share_image': 'تصویر',
     'reminder': 'یاد دہانی',
     'udhaar_reminder_text': 'السلام علیکم {name}، {business} کی طرف سے یاد دہانی: آپ کے کھاتے میں {amount} باقی ہیں۔ شکریہ۔',
+    'unavailable': 'دستیاب نہیں',
+    'choose_photo': 'تصویر',
+    'remove_photo': 'تصویر ہٹائیں',
+    'categories': 'کیٹیگریز',
+    'no_categories': 'ابھی کوئی کیٹیگری نہیں۔ آئٹم شامل کرتے وقت کیٹیگری لکھیں۔',
+    'category_photo_hint': 'کیٹیگری کی تصویر سیل اسکرین پر اور ان آئٹمز پر نظر آتی ہے جن کی اپنی تصویر نہیں۔',
+    'restore': 'بحال کریں',
+    'backup_hint': 'بیک اپ میں تمام سیلز، گاہک، مینو، تصاویر اور سیٹنگز ہوتی ہیں، آپ کے پاس ورڈ سے محفوظ۔ بنانے کے بعد گوگل ڈرائیو میں رکھیں یا واٹس ایپ پر خود کو بھیجیں۔',
+    'backup_saved_share': 'بیک اپ بن گیا۔ کاپی کہاں رکھنی ہے منتخب کریں (گوگل ڈرائیو، واٹس ایپ، USB)۔',
+    'restore_warning': 'بحال کرنے سے اس فون کا سب کچھ بیک اپ سے بدل جائے گا۔ موجودہ ڈیٹا حفاظتی کاپی کے طور پر رکھا جائے گا۔',
+    'restore_ready_title': 'بیک اپ تیار ہے',
+    'restore_ready_body': 'بحالی مکمل کرنے کے لیے ایپ بند کر کے دوبارہ کھولیں۔',
+    'close_app': 'ایپ بند کریں',
 };
 
   static const _ar = <String, String>{
@@ -1118,6 +1144,19 @@ class Strings {
     'share_image': 'صورة',
     'reminder': 'تذكير',
     'udhaar_reminder_text': 'السلام عليكم {name}، تذكير من {business}: مبلغ {amount} مستحق على حسابك. شكرًا لك.',
+    'unavailable': 'غير متوفر',
+    'choose_photo': 'صورة',
+    'remove_photo': 'إزالة الصورة',
+    'categories': 'الفئات',
+    'no_categories': 'لا توجد فئات بعد. اكتب الفئة عند إضافة صنف.',
+    'category_photo_hint': 'تظهر صور الفئات في شاشة البيع وعلى الأصناف التي ليس لها صورة.',
+    'restore': 'استعادة',
+    'backup_hint': 'تحتوي النسخة الاحتياطية على كل المبيعات والعملاء والقائمة والصور والإعدادات، محمية بكلمة المرور. احفظها بعد إنشائها في Google Drive أو أرسلها لنفسك عبر واتساب.',
+    'backup_saved_share': 'تم إنشاء النسخة. اختر مكان حفظ نسخة (Google Drive، واتساب، USB).',
+    'restore_warning': 'الاستعادة تستبدل كل شيء على هذا الهاتف بالنسخة الاحتياطية. تُحفظ البيانات الحالية كنسخة أمان.',
+    'restore_ready_title': 'النسخة جاهزة',
+    'restore_ready_body': 'أغلق التطبيق وافتحه مرة أخرى لإكمال الاستعادة.',
+    'close_app': 'إغلاق التطبيق',
 };
 
   static const _all = {'en': _en, 'ur': _ur, 'ar': _ar};

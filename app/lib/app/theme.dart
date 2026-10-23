@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 const brandPurple = Color(0xFF3C096C);
 const brandAmber = Color(0xFFFFB547);
 
+/// Accent for "Add" actions on the selling screen (from the approved POS design references).
+const brandOrange = Color(0xFFF26A21);
+
 Color _readableOn(Color bg) {
   double ratio(Color a, Color b) {
     final l1 = a.computeLuminance(), l2 = b.computeLuminance();

@@ -63,12 +63,12 @@ void main() {
     await tapKey(t, 'open-shift');
     await typeInto(t, find.byKey(const ValueKey('amount-field')), '5000');
     await tapKey(t, 'amount-ok');
-    expect(find.text('Zinger Burger'), findsOneWidget);
+    expect(find.text('Beef Burger'), findsOneWidget);
     await shot(t, '05_pos_phone');
 
-    await t.tap(find.byKey(const ValueKey('product-Zinger Burger')));
-    await t.tap(find.byKey(const ValueKey('product-Zinger Burger')));
-    await t.tap(find.byKey(const ValueKey('product-Cola 500ml')));
+    await tapProduct(t, 'Zinger Burger');
+    await tapProduct(t, 'Zinger Burger');
+    await tapProduct(t, 'Cola 500ml');
     await t.pumpAndSettle();
     await tapKey(t, 'open-cart');
     expect(find.byKey(const ValueKey('qty-0')), findsOneWidget);
@@ -124,8 +124,8 @@ void main() {
     await signIn(t, 'Ali', '1234');
     await tapKey(t, 'open-shift');
     await tapKey(t, 'amount-ok');
-    await t.tap(find.byKey(const ValueKey('product-Fries')));
-    await t.tap(find.byKey(const ValueKey('product-Fries')));
+    await tapProduct(t, 'Fries');
+    await tapProduct(t, 'Fries');
     await t.pumpAndSettle();
     expect((await db.customSelect("SELECT COUNT(*) AS n FROM \"order\" WHERE status = 'draft'").getSingle()).data['n'], 1);
 
@@ -146,12 +146,12 @@ void main() {
     await tapKey(t, 'open-shift');
     await tapKey(t, 'amount-ok');
     expect(find.byKey(const ValueKey('charge')), findsOneWidget); // cart panel is visible without opening a sheet
-    await t.tap(find.byKey(const ValueKey('product-Chicken Karahi (kg)')));
+    await tapProduct(t, 'Chicken Karahi (kg)');
     await t.pumpAndSettle();
     expect(t.widget<Text>(find.byKey(const ValueKey('qty-0'))).data, '0.5');
     await tapKey(t, 'inc-0');
     expect(t.widget<Text>(find.byKey(const ValueKey('qty-0'))).data, '1');
-    await t.tap(find.byKey(const ValueKey('product-Zinger Burger')));
+    await tapProduct(t, 'Zinger Burger');
     await t.pumpAndSettle();
     await shot(t, '10_pos_tablet');
   });
@@ -171,7 +171,7 @@ void main() {
     expect(find.byKey(const ValueKey('nav-more')), findsNothing); // exactly five destinations fit on the bar
     await tapKey(t, 'open-shift');
     await tapKey(t, 'amount-ok');
-    await t.tap(find.byKey(const ValueKey('product-Fries')));
+    await tapProduct(t, 'Fries');
     await t.pumpAndSettle();
     await tapKey(t, 'open-cart');
     expect(find.byKey(const ValueKey('discount')), findsNothing);
