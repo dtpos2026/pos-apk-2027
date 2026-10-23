@@ -15,6 +15,7 @@ import '../data/backup_service.dart';
 import '../data/db/database.dart';
 import '../data/menu_import.dart';
 import '../data/menu_service.dart';
+import '../data/payment_method_service.dart';
 import '../data/pos_service.dart';
 import '../data/print_service.dart';
 import '../data/queries.dart';
@@ -83,6 +84,8 @@ final backupDirProvider = FutureProvider<Directory>((ref) => throw Unimplemented
 final businessProvider = FutureProvider<Business?>((ref) => loadBusiness(ref.watch(databaseProvider)));
 final staffListProvider = FutureProvider<List<StaffEntry>>((ref) => loadStaff(ref.watch(databaseProvider)));
 final categoriesProvider = FutureProvider<List<MenuCategory>>((ref) => loadCategories(ref.watch(databaseProvider)));
+final paymentMethodServiceProvider = Provider<PaymentMethodService>((ref) => PaymentMethodService(ref.watch(dbHelperProvider)));
+final allPaymentMethodsProvider = FutureProvider<List<PaymentMethodRow>>((ref) => ref.watch(paymentMethodServiceProvider).all());
 final paymentMethodsProvider = FutureProvider<List<PaymentMethodInfo>>((ref) => loadPaymentMethods(ref.watch(databaseProvider)));
 
 class ProductFilter {

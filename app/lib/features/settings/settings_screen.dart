@@ -12,6 +12,8 @@ import '../../cloud/location_consent.dart';
 import '../common/dialogs.dart';
 import '../../app/strings.dart';
 import '../../data/backup_service.dart';
+import '../../data/payment_method_service.dart';
+import '../../data/pos_service.dart' show PosException;
 import '../../data/queries.dart';
 
 final printersProvider = FutureProvider<List<Map<String, Object?>>>((ref) async =>
@@ -68,6 +70,28 @@ class SettingsScreen extends ConsumerWidget {
       _Section(t['business'], [
         ListTile(key: const ValueKey('business-tile'), title: Text(biz?.name ?? ''), subtitle: Text([biz?.phone, biz?.address].whereType<String>().join(' · ')), trailing: const Icon(Icons.edit_outlined), onTap: () => _editBusiness(context, ref, biz)),
         ListTile(key: const ValueKey('receipt-design-tile'), leading: const Icon(Icons.receipt_long_outlined), title: Text(t['receipt_design']), trailing: const Icon(Icons.chevron_right), onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const ReceiptDesignScreen()))),
+      ]),
+      _Section(t['payment_accounts'], [
+        for (final m in ref.watch(allPaymentMethodsProvider).value ?? const <PaymentMethodRow>[])
+          ListTile(
+            key: ValueKey('pm-${m.name}'),
+            dense: true,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 6),
+            leading: Icon(switch (m.kind) { 'cash' => Icons.payments_outlined, 'card' => Icons.credit_card, 'bank' => Icons.account_balance_outlined, 'wallet' => Icons.account_balance_wallet_outlined, 'credit' => Icons.menu_book_outlined, _ => Icons.more_horiz }),
+            title: Text(m.name),
+            subtitle: Text(t['pm_${m.kind}']),
+            onTap: m.kind == 'cash' ? null : () => _paymentMethodDialog(context, ref, existing: m),
+            trailing: Switch(
+              key: ValueKey('pm-switch-${m.name}'),
+              value: m.enabled,
+              onChanged: m.kind == 'cash' ? null : (v) async {
+                await ref.read(paymentMethodServiceProvider).setEnabled(m.id, v, staffId: ref.read(sessionProvider)!.staffId);
+                ref.invalidate(allPaymentMethodsProvider);
+                ref.invalidate(paymentMethodsProvider);
+              },
+            ),
+          ),
+        Align(alignment: AlignmentDirectional.centerStart, child: TextButton.icon(key: const ValueKey('add-payment-method'), onPressed: () => _paymentMethodDialog(context, ref), icon: const Icon(Icons.add), label: Text(t['add_payment_account']))),
       ]),
       _Section(t['printers'], [
         if (printers.isEmpty) Padding(padding: const EdgeInsets.all(8), child: Text(t['no_printer'])),
@@ -142,6 +166,53 @@ class SettingsScreen extends ConsumerWidget {
             child: Text(t['save']),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _paymentMethodDialog(BuildContext context, WidgetRef ref, {PaymentMethodRow? existing}) async {
+    final t = Strings.of(context);
+    final name = TextEditingController(text: existing?.name ?? '');
+    var kind = existing?.kind ?? 'wallet';
+    String? error;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          title: Text(existing == null ? t['add_payment_account'] : t['edit']),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(key: const ValueKey('pm-name'), controller: name, decoration: InputDecoration(labelText: t['pm_name_hint'])),
+            if (existing == null) ...[
+              const SizedBox(height: 10),
+              DropdownButtonFormField<String>(
+                initialValue: kind,
+                decoration: InputDecoration(labelText: t['pm_type']),
+                items: [for (final k in const ['wallet', 'bank', 'card', 'other']) DropdownMenuItem(value: k, child: Text(t['pm_$k']))],
+                onChanged: (v) => setState(() => kind = v ?? 'wallet'),
+              ),
+            ],
+            if (error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(error!, style: TextStyle(color: Theme.of(ctx).colorScheme.error))),
+          ]),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(t['cancel'])),
+            FilledButton(
+              key: const ValueKey('pm-save'),
+              onPressed: () async {
+                final svc = ref.read(paymentMethodServiceProvider);
+                final staff = ref.read(sessionProvider)!.staffId;
+                try {
+                  existing == null ? await svc.add(name: name.text, kind: kind, staffId: staff) : await svc.rename(existing.id, name.text, staffId: staff);
+                  ref.invalidate(allPaymentMethodsProvider);
+                  ref.invalidate(paymentMethodsProvider);
+                  if (ctx.mounted) Navigator.pop(ctx);
+                } on PosException catch (e) {
+                  setState(() => error = e.message);
+                }
+              },
+              child: Text(t['save']),
+            ),
+          ],
+        ),
       ),
     );
   }

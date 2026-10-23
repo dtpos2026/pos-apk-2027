@@ -369,6 +369,16 @@ class Strings {
     'print_slip': 'Print slip',
     'share_report': 'Share',
     'sent_to_printer': 'Sent to the printer',
+    'payment_accounts': 'Payment accounts',
+    'add_payment_account': 'Add payment account',
+    'pm_name_hint': 'Name (e.g. JazzCash 0300-…, Meezan Bank)',
+    'pm_type': 'Type',
+    'pm_cash': 'Cash',
+    'pm_card': 'Card machine',
+    'pm_bank': 'Bank transfer',
+    'pm_wallet': 'Mobile wallet',
+    'pm_credit': 'Udhaar (credit)',
+    'pm_other': 'Other',
 };
 
   static const _ur = <String, String>{
@@ -720,6 +730,16 @@ class Strings {
     'print_slip': 'پرچی پرنٹ کریں',
     'share_report': 'شیئر کریں',
     'sent_to_printer': 'پرنٹر کو بھیج دیا',
+    'payment_accounts': 'ادائیگی کے اکاؤنٹس',
+    'add_payment_account': 'ادائیگی کا اکاؤنٹ شامل کریں',
+    'pm_name_hint': 'نام (مثلاً JazzCash 0300-…، میزان بینک)',
+    'pm_type': 'قسم',
+    'pm_cash': 'نقد',
+    'pm_card': 'کارڈ مشین',
+    'pm_bank': 'بینک ٹرانسفر',
+    'pm_wallet': 'موبائل والٹ',
+    'pm_credit': 'ادھار',
+    'pm_other': 'دیگر',
 };
 
   static const _ar = <String, String>{
@@ -1073,6 +1093,16 @@ class Strings {
     'print_slip': 'طباعة الإيصال',
     'share_report': 'مشاركة',
     'sent_to_printer': 'أُرسل إلى الطابعة',
+    'payment_accounts': 'حسابات الدفع',
+    'add_payment_account': 'إضافة حساب دفع',
+    'pm_name_hint': 'الاسم (مثل محفظة أو بنك)',
+    'pm_type': 'النوع',
+    'pm_cash': 'نقدًا',
+    'pm_card': 'جهاز البطاقات',
+    'pm_bank': 'تحويل بنكي',
+    'pm_wallet': 'محفظة جوال',
+    'pm_credit': 'آجل',
+    'pm_other': 'أخرى',
 };
 
   static const _all = {'en': _en, 'ur': _ur, 'ar': _ar};
