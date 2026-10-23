@@ -41,7 +41,7 @@ Future<void> closeShiftDialog(BuildContext context, WidgetRef ref) async {
     builder: (ctx) => AlertDialog(
       title: Text(t['variance']),
       content: Text(ref.money(variance), key: const ValueKey('variance'), style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: variance == 0 ? Colors.green : Theme.of(ctx).colorScheme.error)),
-      actions: [FilledButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+      actions: [FilledButton(onPressed: () => Navigator.pop(ctx), child: Text(t['ok']))],
     ),
   );
 }

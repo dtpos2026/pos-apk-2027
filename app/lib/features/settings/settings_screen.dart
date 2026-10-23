@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
+import 'receipt_design_screen.dart';
+
 import '../../app/providers.dart';
 import '../../app/strings.dart';
 import '../../data/backup_service.dart';
@@ -30,6 +32,7 @@ class SettingsScreen extends ConsumerWidget {
       ]),
       _Section(t['business'], [
         ListTile(key: const ValueKey('business-tile'), title: Text(biz?.name ?? ''), subtitle: Text([biz?.phone, biz?.address].whereType<String>().join(' · ')), trailing: const Icon(Icons.edit_outlined), onTap: () => _editBusiness(context, ref, biz)),
+        ListTile(key: const ValueKey('receipt-design-tile'), leading: const Icon(Icons.receipt_long_outlined), title: Text(t['receipt_design']), trailing: const Icon(Icons.chevron_right), onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const ReceiptDesignScreen()))),
       ]),
       _Section(t['printers'], [
         if (printers.isEmpty) Padding(padding: const EdgeInsets.all(8), child: Text(t['no_printer'])),
@@ -68,7 +71,7 @@ class SettingsScreen extends ConsumerWidget {
             TextField(controller: address, decoration: InputDecoration(labelText: t['address'])),
             const SizedBox(height: 8),
             Row(children: [
-              SizedBox(width: 90, child: TextField(controller: taxLabel, decoration: const InputDecoration(labelText: 'NTN/STRN/TRN'))),
+              SizedBox(width: 90, child: TextField(controller: taxLabel, decoration: InputDecoration(labelText: t['tax_label']))),
               const SizedBox(width: 8),
               Expanded(child: TextField(controller: taxNo, decoration: InputDecoration(labelText: t['tax_number']))),
             ]),
@@ -112,7 +115,7 @@ class SettingsScreen extends ConsumerWidget {
               const SizedBox(height: 8),
               SegmentedButton<int>(showSelectedIcon: false, segments: const [ButtonSegment(value: 58, label: Text('58 mm')), ButtonSegment(value: 80, label: Text('80 mm'))], selected: {paper}, onSelectionChanged: (s) => setState(() => paper = s.first)),
               const SizedBox(height: 8),
-              SegmentedButton<String>(showSelectedIcon: false, segments: const [ButtonSegment(value: 'bill', label: Text('Bill')), ButtonSegment(value: 'kot', label: Text('KOT')), ButtonSegment(value: 'both', label: Text('Both'))], selected: {role}, onSelectionChanged: (s) => setState(() => role = s.first)),
+              SegmentedButton<String>(showSelectedIcon: false, segments: [ButtonSegment(value: 'bill', label: Text(t['bill'])), ButtonSegment(value: 'kot', label: Text(t['kot'])), ButtonSegment(value: 'both', label: Text(t['both']))], selected: {role}, onSelectionChanged: (s) => setState(() => role = s.first)),
             ]),
           ),
           actions: [

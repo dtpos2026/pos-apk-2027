@@ -110,7 +110,7 @@ Future<bool> _editDialog(BuildContext context, WidgetRef ref, MenuProduct? p) as
                 await ref.read(menuServiceProvider).deleteProduct(p.id, staffId: ref.read(sessionProvider)!.staffId);
                 if (ctx.mounted) Navigator.pop(ctx, true);
               },
-              child: Text('Delete', style: TextStyle(color: Theme.of(ctx).colorScheme.error)),
+              child: Text(t['delete'], style: TextStyle(color: Theme.of(ctx).colorScheme.error)),
             ),
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(t['cancel'])),
           FilledButton(
@@ -167,7 +167,7 @@ class _ImportDialogState extends ConsumerState<_ImportDialog> {
             Align(alignment: AlignmentDirectional.centerStart, child: TextButton.icon(key: const ValueKey('csv-template'), onPressed: () => setState(() => _text.text = menuCsvTemplate()), icon: const Icon(Icons.description_outlined), label: Text(t['template']))),
             if (r != null) ...[
               const Divider(),
-              Text(r.ok ? '${r.creates} new, ${r.updates} updated${r.committed ? '  ✓' : ''}' : '${r.issues.length} problem(s). Nothing was imported.', key: const ValueKey('csv-summary'), style: TextStyle(fontWeight: FontWeight.w700, color: r.ok ? Colors.green.shade700 : Theme.of(context).colorScheme.error)),
+              Text(r.ok ? '${r.creates} ${t['new_items']}, ${r.updates} ${t['updated_items']}${r.committed ? '  ✓' : ''}' : '${r.issues.length} ${t['problems']}', key: const ValueKey('csv-summary'), style: TextStyle(fontWeight: FontWeight.w700, color: r.ok ? Colors.green.shade700 : Theme.of(context).colorScheme.error)),
               for (final i in r.issues.take(12)) Text('• $i', style: const TextStyle(fontSize: 12.5)),
               if (r.issues.length > 12) Text('… and ${r.issues.length - 12} more', style: const TextStyle(fontSize: 12.5)),
             ],

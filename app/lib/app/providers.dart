@@ -11,6 +11,11 @@ import '../data/menu_service.dart';
 import '../data/pos_service.dart';
 import '../data/print_service.dart';
 import '../data/queries.dart';
+import '../data/receipt_settings.dart';
+import '../domain/receipt_doc.dart';
+import '../domain/receipt_template.dart';
+import 'logo_picker.dart';
+import 'text_rasterizer.dart';
 import '../data/shift_service.dart';
 
 /// Overridden in main() (file database) and in tests (in-memory database).
@@ -20,7 +25,15 @@ final clockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
 final posServiceProvider = Provider<PosService>((ref) => PosService(ref.watch(databaseProvider), now: ref.watch(clockProvider)));
 final authServiceProvider = Provider<AuthService>((ref) => AuthService(ref.watch(databaseProvider), now: ref.watch(clockProvider)));
 final shiftServiceProvider = Provider<ShiftService>((ref) => ShiftService(ref.watch(databaseProvider), ref.watch(posServiceProvider), now: ref.watch(clockProvider)));
-final printServiceProvider = Provider<PrintService>((ref) => PrintService(ref.watch(databaseProvider), now: ref.watch(clockProvider)));
+final textRasterizerProvider = Provider<TextRasterizer>((ref) => const FlutterTextRasterizer());
+final printServiceProvider = Provider<PrintService>((ref) => PrintService(ref.watch(databaseProvider), now: ref.watch(clockProvider), rasterizer: ref.watch(textRasterizerProvider)));
+
+/// Folder for the business logo file. Overridden in main() (and in tests).
+final logoDirProvider = Provider<Directory>((ref) => throw UnimplementedError('logoDirProvider must be overridden'));
+final logoStoreProvider = Provider<LogoStore>((ref) => LogoStore(ref.watch(databaseProvider), ref.watch(logoDirProvider), now: ref.watch(clockProvider)));
+final logoPickerProvider = Provider<LogoPicker>((ref) => const GalleryLogoPicker());
+final receiptTemplateStoreProvider = Provider<ReceiptTemplateStore>((ref) => ReceiptTemplateStore(ref.watch(databaseProvider), now: ref.watch(clockProvider)));
+final billDesignProvider = FutureProvider<BillDesign>((ref) => ref.watch(receiptTemplateStoreProvider).load());
 
 final menuServiceProvider = Provider<MenuService>((ref) => MenuService(ref.watch(databaseProvider), now: ref.watch(clockProvider)));
 final menuImporterProvider = Provider<MenuImporter>((ref) => MenuImporter(ref.watch(databaseProvider), now: ref.watch(clockProvider)));

@@ -2,7 +2,9 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:drift/native.dart';
+
 import 'package:dt_food_pos/app/app.dart';
+import 'package:dt_food_pos/app/logo_picker.dart';
 import 'package:dt_food_pos/app/providers.dart';
 import 'package:dt_food_pos/data/auth_service.dart';
 import 'package:dt_food_pos/data/db/database.dart';
@@ -57,7 +59,14 @@ void setSize(WidgetTester t, {bool tablet = false}) {
   addTearDown(t.view.reset);
 }
 
-Future<Harness> pumpApp(WidgetTester t, {AppDatabase? db, bool tablet = false, Locale? locale, Directory? backupDir}) async {
+class FakeLogoPicker implements LogoPicker {
+  FakeLogoPicker(this.bytes);
+  Uint8List? bytes;
+  @override
+  Future<Uint8List?> pick() async => bytes;
+}
+
+Future<Harness> pumpApp(WidgetTester t, {AppDatabase? db, bool tablet = false, Locale? locale, Directory? backupDir, LogoPicker? logoPicker, Directory? logoDir}) async {
   await t.runAsync(loadAppFonts);
   setSize(t, tablet: tablet);
   final database = db ?? newDb();
@@ -67,6 +76,8 @@ Future<Harness> pumpApp(WidgetTester t, {AppDatabase? db, bool tablet = false, L
     clockProvider.overrideWithValue(() => testNow),
     authServiceProvider.overrideWithValue(AuthService(database, now: () => testNow, iterations: 1000)),
     if (backupDir != null) backupDirProvider.overrideWith((ref) async => backupDir),
+    logoDirProvider.overrideWithValue(logoDir ?? Directory.systemTemp.createTempSync('dtlogo')),
+    if (logoPicker != null) logoPickerProvider.overrideWithValue(logoPicker),
   ]);
   addTearDown(container.dispose);
   if (locale != null) container.read(localeProvider.notifier).state = locale;
@@ -92,6 +103,7 @@ Future<String> seedBusiness(AppDatabase db, {String country = 'PK', bool menu = 
 }
 
 Future<void> typeInto(WidgetTester t, Finder f, String text) async {
+  if (f.evaluate().isNotEmpty) await t.ensureVisible(f);
   await t.enterText(f, text);
   await t.pump();
 }

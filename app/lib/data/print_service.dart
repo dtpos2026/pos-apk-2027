@@ -5,6 +5,9 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../domain/receipt.dart';
+import '../domain/receipt_doc.dart';
+import '../domain/receipt_template.dart';
+import 'receipt_settings.dart';
 import 'db/database.dart';
 import 'receipt_loader.dart';
 
@@ -63,10 +66,13 @@ class PrintStats {
 /// Print queue. Saving an order only ever INSERTs `print_job` rows; sending happens in [processQueue], so a
 /// missing or offline printer can never block or undo a sale. Failed jobs stay queued with the error for retry.
 class PrintService {
-  PrintService(this.db, {TransportFactory? transport, DateTime Function()? now, this.maxAttempts = 5})
+  PrintService(this.db, {TransportFactory? transport, DateTime Function()? now, this.maxAttempts = 5, this.rasterizer})
       : _transport = transport ?? defaultTransport,
         _now = now ?? DateTime.now;
   final AppDatabase db;
+
+  /// Prints Urdu/Arabic lines as bitmaps. null = such lines come out as '?' (the app supplies one).
+  final TextRasterizer? rasterizer;
   final TransportFactory _transport;
   final DateTime Function() _now;
   final int maxAttempts;
@@ -80,15 +86,31 @@ class PrintService {
   Future<List<String>> queueBill(String orderId, {bool duplicate = false, String? staffId}) async {
     final printers = await _select("SELECT * FROM printer WHERE enabled = 1 AND deleted_at IS NULL AND role IN ('bill','both') ORDER BY name");
     if (printers.isEmpty) return [];
-    final data = await loadReceipt(db, orderId, duplicate: duplicate);
+    final template = await ReceiptTemplateStore(db).load();
     final ids = <String>[];
     for (final p in printers) {
-      final bytes = buildBill(data, paperMm: p['paper_mm'] as int);
+      final paper = p['paper_mm'] as int;
+      // per printer: the logo bitmap and the text columns depend on the paper width
+      final data = await loadReceipt(db, orderId, duplicate: duplicate, paperMm: paper);
+      final bytes = await buildBillBytes(data, paperMm: paper, template: template, rasterizer: rasterizer);
       ids.add(await _enqueue(p['id'] as String, 'bill', orderId, bytes, duplicate));
     }
     if (duplicate) {
       await db.customStatement('INSERT INTO audit_log(id, at, staff_id, event, entity, entity_id, critical) VALUES (?,?,?,?,?,?,0)',
           [const Uuid().v4(), _ts, staffId, 'bill.reprint', 'order', orderId]);
+    }
+    return ids;
+  }
+
+  /// Queues a TEST bill built by [build] (called per printer, because the logo bitmap and columns depend on the paper
+  /// width) on every enabled bill printer. Used by the receipt designer so the owner can see the real print.
+  Future<List<String>> queueTestBill(ReceiptData Function(int paperMm) build, BillDesign template) async {
+    final printers = await _select("SELECT * FROM printer WHERE enabled = 1 AND deleted_at IS NULL AND role IN ('bill','both') ORDER BY name");
+    final ids = <String>[];
+    for (final p in printers) {
+      final paper = p['paper_mm'] as int;
+      final bytes = await buildBillBytes(build(paper), paperMm: paper, template: template, rasterizer: rasterizer);
+      ids.add(await _enqueue(p['id'] as String, 'bill', null, bytes, false));
     }
     return ids;
   }
@@ -132,7 +154,7 @@ class PrintService {
     return ids;
   }
 
-  Future<String> _enqueue(String printerId, String kind, String orderId, Uint8List bytes, bool dup) async {
+  Future<String> _enqueue(String printerId, String kind, String? orderId, Uint8List bytes, bool dup) async {
     final id = const Uuid().v4();
     await db.customStatement('INSERT INTO print_job(id, printer_id, kind, order_id, payload, is_duplicate, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)',
         [id, printerId, kind, orderId, bytes, dup ? 1 : 0, _ts, _ts]);

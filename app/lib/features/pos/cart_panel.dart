@@ -120,7 +120,7 @@ class CartPanel extends ConsumerWidget {
         builder: (ctx, setState) => AlertDialog(
           title: Text(t['discount']),
           content: Column(mainAxisSize: MainAxisSize.min, children: [
-            SegmentedButton<bool>(showSelectedIcon: false, segments: const [ButtonSegment(value: true, label: Text('%')), ButtonSegment(value: false, label: Text('Rs'))], selected: {percent}, onSelectionChanged: (s) => setState(() => percent = s.first)),
+            SegmentedButton<bool>(showSelectedIcon: false, segments: [const ButtonSegment(value: true, label: Text('%')), ButtonSegment(value: false, label: Text(ref.currency.code))], selected: {percent}, onSelectionChanged: (s) => setState(() => percent = s.first)),
             const SizedBox(height: 12),
             TextField(key: const ValueKey('discount-field'), controller: c, autofocus: true, keyboardType: const TextInputType.numberWithOptions(decimal: true), inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))], decoration: InputDecoration(errorText: error)),
           ]),

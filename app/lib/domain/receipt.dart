@@ -1,7 +1,10 @@
 import 'dart:typed_data';
 
+import 'bill_labels.dart';
 import 'escpos.dart';
 import 'money.dart';
+import 'receipt_doc.dart';
+import 'receipt_template.dart';
 
 class ReceiptLine {
   const ReceiptLine({required this.name, required this.qtyMilli, required this.unitPriceMinor, required this.totalMinor, this.modifiers = const [], this.note});
@@ -46,6 +49,7 @@ class ReceiptData {
     this.qrData,
     this.isDuplicate = false,
     this.currency = Currency.pkr,
+    this.logo,
   });
   final String businessName;
   final String? address;
@@ -72,63 +76,97 @@ class ReceiptData {
   final String? qrData;
   final bool isDuplicate;
   final Currency currency;
+
+  /// Logo already converted to a 1-bit bitmap for this paper width (see logo.dart). null = no logo.
+  final RasterImage? logo;
 }
 
 String _m(int minor, Currency c) => formatMinor(minor, currency: c, symbol: false);
 
-/// Customer bill. Text is ASCII-only; if [ReceiptData] contains Arabic-script text, the caller must render those
-/// lines to bitmaps (see [needsRaster]) instead; this builder reports which fields need it via [rasterFields].
-Uint8List buildBill(ReceiptData d, {int paperMm = 58, int copies = 1}) => _bill(d, paperMm, copies).toBytes();
+/// Builds the customer bill as a [ReceiptDoc]: logo, name, address, phone and tax number centred by default,
+/// then the invoice details, items, totals, payments and footer. Which blocks appear is up to the [template].
+ReceiptDoc buildBillDoc(ReceiptData d, {BillDesign template = BillDesign.defaults}) {
+  final t = template;
+  final L = BillLabels.of(t.language);
+  final h = t.headerAlign;
+  final body = L.rtl ? PrintAlign.right : PrintAlign.left;
+  final lines = <RLine>[];
+  // label on the reading-start side, value on the other: flipped for right-to-left bills
+  RLine row(String label, String value, {bool bold = false, int height = 1}) => L.rtl ? RRow(value, label, bold: bold, height: height) : RRow(label, value, bold: bold, height: height);
+  String typeLabel(String code) => switch (code) { 'Dine-in' => L['dine_in'], 'Takeaway' => L['takeaway'], 'Delivery' => L['delivery_type'], 'Counter' => L['counter'], _ => code };
 
-/// The exact text that [buildBill] prints (without control codes): used for the on-screen print preview.
-String previewBill(ReceiptData d, {int paperMm = 58}) => _bill(d, paperMm, 1).previewText;
-
-EscPosBuilder _bill(ReceiptData d, int paperMm, int copies) {
-  final b = EscPosBuilder(paperMm: paperMm);
-  for (var copy = 0; copy < copies; copy++) {
-    b.init().codePage(0);
-    if (d.isDuplicate) {
-      b.align(PrintAlign.center).bold(true).line('*** DUPLICATE ***').bold(false);
-    }
-    b.align(PrintAlign.center).bold(true).size(width: 2, height: 2).wrapped(d.businessName).size().bold(false);
-    if (d.address != null) b.wrapped(d.address!);
-    if (d.phone != null) b.line('Tel: ${d.phone}');
-    if (d.taxNumber != null) b.line('${d.taxLabel ?? 'Tax no'}: ${d.taxNumber}');
-    b.align(PrintAlign.left).divider();
-    b.row('Invoice', d.invoiceNo);
-    b.row('Date', d.dateTime);
-    b.row('Type', d.tableLabel == null ? d.orderTypeLabel : '${d.orderTypeLabel} ${d.tableLabel}');
-    if (d.cashier != null) b.row('Cashier', d.cashier!);
-    b.divider();
-    for (final l in d.lines) {
-      b.row('${formatQty(l.qtyMilli)} x ${l.name}', _m(l.totalMinor, d.currency));
-      for (final m in l.modifiers) {
-        b.line('   + $m');
-      }
-      if (l.note != null) b.line('   * ${l.note}');
-    }
-    b.divider();
-    b.row('Subtotal', _m(d.subtotalMinor, d.currency));
-    if (d.discountMinor > 0) b.row('Discount', '-${_m(d.discountMinor, d.currency)}');
-    if (d.serviceChargeMinor > 0) b.row('Service charge', _m(d.serviceChargeMinor, d.currency));
-    if (d.deliveryChargeMinor > 0) b.row('Delivery', _m(d.deliveryChargeMinor, d.currency));
-    if (d.taxMinor > 0) b.row('Tax', _m(d.taxMinor, d.currency));
-    if (d.tipMinor > 0) b.row('Tip', _m(d.tipMinor, d.currency));
-    if (d.roundingMinor != 0) b.row('Rounding', _m(d.roundingMinor, d.currency));
-    b.bold(true).size(height: 2).row('TOTAL ${d.currency.code}', _m(d.totalMinor, d.currency)).size().bold(false);
-    for (final p in d.payments) {
-      b.row(p.label, _m(p.amountMinor, d.currency));
-    }
-    if (d.changeMinor > 0) b.row('Change', _m(d.changeMinor, d.currency));
-    b.divider();
-    b.align(PrintAlign.center);
-    if (d.footer != null) b.wrapped(d.footer!);
-    if (d.qrData != null) b.feed(1).qr(d.qrData!);
-    b.line('Powered by Digital Target');
-    b.cut();
+  if (d.isDuplicate) lines.add(RText(L['duplicate'], align: PrintAlign.center, bold: true));
+  if (t.showLogo && d.logo != null) lines.add(RImage(d.logo!, align: h));
+  lines.add(RText(d.businessName, align: h, bold: true, width: t.nameSize, height: t.nameSize));
+  for (final l in t.headerLines.where((l) => l.trim().isNotEmpty)) {
+    lines.add(RText(l, align: h));
   }
-  return b;
+  if (t.showAddress && (d.address?.trim().isNotEmpty ?? false)) lines.add(RText(d.address!, align: h));
+  // numbers inside a right-to-left line are wrapped in a left-to-right isolate so 0300-1234567 never comes out reversed
+  String ltr(String s) => L.rtl ? '\u2066$s\u2069' : s;
+  if (t.showPhone && (d.phone?.trim().isNotEmpty ?? false)) lines.add(RText('${L['tel']}: ${ltr(d.phone!)}', align: h));
+  if (t.showTaxNumber && (d.taxNumber?.trim().isNotEmpty ?? false)) lines.add(RText('${d.taxLabel ?? 'Tax no'}: ${ltr(d.taxNumber!)}', align: h));
+  lines.add(const RRule());
+  lines.add(row(L['invoice'], d.invoiceNo));
+  lines.add(row(L['date'], d.dateTime));
+  if (t.showOrderType) {
+    final type = typeLabel(d.orderTypeLabel);
+    lines.add(row(L['type'], t.showTable && d.tableLabel != null ? '$type ${d.tableLabel}' : type));
+  }
+  if (t.showCashier && d.cashier != null) lines.add(row(L['cashier'], d.cashier!));
+  lines.add(const RRule());
+  for (final l in d.lines) {
+    // reading order: left-to-right bills say "2 x Burger", right-to-left bills say "Burger x 2" (name first, from the right)
+    lines.add(row(L.rtl ? '${l.name} x ${formatQty(l.qtyMilli)}' : '${formatQty(l.qtyMilli)} x ${l.name}', _m(l.totalMinor, d.currency)));
+    for (final m in l.modifiers) {
+      lines.add(RText('   + $m', align: body));
+    }
+    if (l.note != null) lines.add(RText('   * ${l.note}', align: body));
+  }
+  lines.add(const RRule());
+  lines.add(row(L['subtotal'], _m(d.subtotalMinor, d.currency)));
+  if (d.discountMinor > 0) lines.add(row(L['discount'], '-${_m(d.discountMinor, d.currency)}'));
+  if (d.serviceChargeMinor > 0) lines.add(row(L['service'], _m(d.serviceChargeMinor, d.currency)));
+  if (d.deliveryChargeMinor > 0) lines.add(row(L['delivery'], _m(d.deliveryChargeMinor, d.currency)));
+  if (d.taxMinor > 0) lines.add(row(L['tax'], _m(d.taxMinor, d.currency)));
+  if (d.tipMinor > 0) lines.add(row(L['tip'], _m(d.tipMinor, d.currency)));
+  if (d.roundingMinor != 0) lines.add(row(L['rounding'], _m(d.roundingMinor, d.currency)));
+  lines.add(row('${L['total']} ${d.currency.code}', _m(d.totalMinor, d.currency), bold: true, height: 2));
+  for (final p in d.payments) {
+    final label = switch (p.label) { 'Cash' => L['cash'], 'Card' => L['card'], _ => p.label };
+    lines.add(row(label, _m(p.amountMinor, d.currency)));
+  }
+  if (d.changeMinor > 0) lines.add(row(L['change'], _m(d.changeMinor, d.currency)));
+  lines.add(const RRule());
+  final footers = t.footerLines.map((l) => l == BillDesign.defaultFooter ? L['thanks'] : l).where((l) => l.trim().isNotEmpty);
+  for (final l in footers) {
+    lines.add(RText(l, align: PrintAlign.center));
+  }
+  final qr = t.qrText ?? d.qrData;
+  if (qr != null && qr.isNotEmpty) {
+    lines.add(const RFeed());
+    lines.add(RQr(qr));
+  }
+  if (t.showPoweredBy) lines.add(const RText('Powered by Digital Target', align: PrintAlign.center));
+  return ReceiptDoc(lines, copies: t.copies);
 }
+
+/// Customer bill as ESC/POS bytes (synchronous: Arabic-script text prints as '?'; use [buildBillBytes] for that).
+Uint8List buildBill(ReceiptData d, {int paperMm = 58, int? copies, BillDesign template = BillDesign.defaults}) {
+  final t = copies == null ? template : template.copyWith(copies: copies);
+  final b = EscPosRenderer(paperMm: paperMm).renderSync(buildBillDoc(d, template: t));
+  return (b..cut()).toBytes();
+}
+
+/// Full render: Urdu/Arabic lines are printed as bitmaps when a [rasterizer] is given.
+Future<Uint8List> buildBillBytes(ReceiptData d, {int paperMm = 58, BillDesign template = BillDesign.defaults, TextRasterizer? rasterizer}) async {
+  final b = await EscPosRenderer(paperMm: paperMm, rasterizer: rasterizer).render(buildBillDoc(d, template: template));
+  return (b..cut()).toBytes();
+}
+
+/// The text the printer prints (alignment applied, without control codes): fallback preview and tests.
+String previewBill(ReceiptData d, {int paperMm = 58, BillDesign template = BillDesign.defaults}) =>
+    docToText(buildBillDoc(d, template: template), paperMm);
 
 /// Names of fields in [d] that contain Arabic-script text and therefore need bitmap rendering.
 List<String> rasterFields(ReceiptData d) {

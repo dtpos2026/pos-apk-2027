@@ -1,7 +1,11 @@
+import 'dart:io';
+
 import 'package:drift/drift.dart';
 
+import '../domain/logo.dart';
 import '../domain/money.dart';
 import '../domain/receipt.dart';
+import '../domain/receipt_doc.dart';
 import 'db/database.dart';
 
 const orderTypeLabels = {'dine_in': 'Dine-in', 'takeaway': 'Takeaway', 'delivery': 'Delivery', 'counter': 'Counter'};
@@ -11,7 +15,7 @@ String formatDateTime(DateTime t) => '${t.year}-${two(t.month)}-${two(t.day)} ${
 
 /// Builds the receipt for a settled order from what is stored in the database (item names and prices are the
 /// snapshot taken at sale time, so later menu edits never change an old receipt).
-Future<ReceiptData> loadReceipt(AppDatabase db, String orderId, {bool duplicate = false, String? footer}) async {
+Future<ReceiptData> loadReceipt(AppDatabase db, String orderId, {bool duplicate = false, String? footer, int paperMm = 58}) async {
   Future<List<Map<String, Object?>>> q(String sql, [List<String> args = const []]) async =>
       (await db.customSelect(sql, variables: args.map(Variable.withString).toList()).get()).map((r) => r.data).toList();
 
@@ -37,7 +41,19 @@ Future<ReceiptData> loadReceipt(AppDatabase db, String orderId, {bool duplicate 
   final table = o['table_id'] == null ? null : (await q('SELECT label FROM dining_table WHERE id = ?', [o['table_id'] as String])).firstOrNull?['label'] as String?;
   final when = DateTime.fromMillisecondsSinceEpoch((o['settled_at'] ?? o['created_at']) as int);
 
+  // The logo is optional: a missing or unreadable file must never stop a bill from printing.
+  RasterImage? logo;
+  final logoPath = biz?['logo_path'] as String?;
+  if (logoPath != null && File(logoPath).existsSync()) {
+    try {
+      logo = prepareLogo(File(logoPath).readAsBytesSync(), paperMm: paperMm);
+    } catch (_) {
+      logo = null;
+    }
+  }
+
   return ReceiptData(
+    logo: logo,
     businessName: biz?['name'] as String? ?? 'DT Food POS',
     address: biz?['address'] as String?,
     phone: biz?['phone'] as String?,

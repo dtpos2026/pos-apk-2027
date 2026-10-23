@@ -20,6 +20,7 @@ Future<void> main() async {
     overrides: [
       databaseProvider.overrideWithValue(db),
       backupDirProvider.overrideWith((ref) async => Directory(p.join(dir.path, 'backups'))),
+      logoDirProvider.overrideWithValue(Directory(p.join(dir.path, 'logo'))),
     ],
     child: const _Root(),
   ));

@@ -5,6 +5,11 @@ on:
     branches: [ccr-94f149fe-qradju, main]
     paths: ['app/**', '.github/workflows/build-apk.yml', 'docs/schema/**', 'tool/**']
   workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Commit the APK to releases/ in the repository (every publish adds ~60 MB to git history)'
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -72,12 +77,12 @@ jobs:
             app/build/app/outputs/flutter-apk/app-release.apk
             app/build/app/outputs/bundle/release/app-release.aab
 
-      - name: Keep the APK in the repository (releases/)
+      - name: Keep the APK in the repository (releases/), manual publish runs only
+        if: github.event_name == 'workflow_dispatch' && inputs.publish
         working-directory: .
         run: |
           VERSION=$(grep '^version:' app/pubspec.yaml | sed 's/version: *//; s/+.*//')
           mkdir -p releases
-          cp app/build/app/outputs/flutter-apk/app-release.apk "releases/dt-food-pos-${VERSION}.apk"
           cp app/build/app/outputs/flutter-apk/app-release.apk releases/dt-food-pos-latest.apk
           (cd releases && sha256sum dt-food-pos-latest.apk > dt-food-pos-latest.apk.sha256)
           git config user.name "github-actions[bot]"
