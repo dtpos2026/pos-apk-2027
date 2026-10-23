@@ -349,6 +349,18 @@ void reportUiTests() {
     expect(csv, contains('Item,Quantity,Bills,Amount'));
     expect(csv, contains('Zinger Burger,2,1,900.00'));
 
+    await t.runAsync(() async {
+      await t.tap(find.byKey(const ValueKey('export-pdf')));
+      for (var i = 0; i < 50 && share.files.length < 2; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        await t.pump();
+      }
+    });
+    final pdf = File(share.files.last).readAsBytesSync();
+    expect(share.files.last, endsWith('.pdf'));
+    expect(String.fromCharCodes(pdf.take(5)), '%PDF-');
+    expect(pdf.length, greaterThan(2000));
+
     await t.tap(find.text('Categories'));
     await t.pumpAndSettle();
     expect(find.text('Burgers'), findsOneWidget);

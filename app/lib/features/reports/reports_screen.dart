@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:pdf/widgets.dart' as pw;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/format.dart';
@@ -9,7 +11,9 @@ import '../../app/strings.dart';
 import '../../data/pos_service.dart';
 import '../../data/receipt_loader.dart';
 import '../../data/report_service.dart';
+import '../../data/queries.dart';
 import '../../domain/money.dart';
+import '../../domain/report_pdf.dart';
 import '../common/dialogs.dart';
 
 String _key(DateTime d) => '${d.year}-${two(d.month)}-${two(d.day)}';
@@ -61,6 +65,36 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
     if (mounted) showMessage(context, Strings.of(context)['exported']);
   }
 
+  Future<void> _exportPdf(_RangeData d) async {
+    final db = ref.read(databaseProvider);
+    final business = await loadBusiness(db);
+    final single = _key(_from) == _key(_to);
+    final day = single ? await ref.read(posServiceProvider).salesReport(_key(_from)) : null;
+    final font = pw.Font.ttf(await rootBundle.load('assets/fonts/NotoNaskhArabic.ttf'));
+    final bytes = await buildReportPdf(
+      ReportPdfData(
+        businessName: business?.name ?? '',
+        from: _key(_from),
+        to: _key(_to),
+        currency: business?.currency ?? Currency.pkr,
+        salesMinor: d.totals.sales,
+        refundsMinor: d.totals.refunds,
+        taxMinor: d.totals.tax,
+        expensesMinor: d.totals.expenses,
+        bills: day?.bills,
+        byMethod: day?.byMethod ?? const {},
+        items: d.items,
+        categories: d.categories,
+        cashiers: d.cashiers,
+        generatedAt: ref.read(clockProvider)(),
+      ),
+      script: font,
+    );
+    final f = File('${ref.read(exportDirProvider).path}/sales-report-${_key(_from)}_${_key(_to)}.pdf')..writeAsBytesSync(bytes);
+    await ref.read(shareServiceProvider).shareFile(f.path, mimeType: 'application/pdf', subject: 'Sales report');
+    if (mounted) showMessage(context, Strings.of(context)['exported']);
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = Strings.of(context);
@@ -74,10 +108,13 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
           _to = _from;
         }) : null, icon: const Icon(Icons.chevron_left)),
         title: InkWell(key: const ValueKey('range-pick'), onTap: _pickRange, child: Text(single ? _key(_from) : '${_key(_from)}  →  ${_key(_to)}', key: const ValueKey('report-date'), textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700))),
-        trailing: IconButton(onPressed: single ? () => setState(() {
-          _from = _from.add(const Duration(days: 1));
-          _to = _from;
-        }) : null, icon: const Icon(Icons.chevron_right)),
+        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+          IconButton(onPressed: single ? () => setState(() {
+            _from = _from.add(const Duration(days: 1));
+            _to = _from;
+          }) : null, icon: const Icon(Icons.chevron_right)),
+          IconButton(key: const ValueKey('export-pdf'), tooltip: t['export_pdf'], onPressed: range.value == null ? null : () => _exportPdf(range.value!), icon: const Icon(Icons.picture_as_pdf_outlined)),
+        ]),
       ),
       TabBar(controller: _tabs, isScrollable: true, tabAlignment: TabAlignment.start, tabs: [Tab(text: t['summary']), Tab(text: t['items_report']), Tab(text: t['categories_report']), Tab(text: t['cashiers_report'])]),
       Expanded(

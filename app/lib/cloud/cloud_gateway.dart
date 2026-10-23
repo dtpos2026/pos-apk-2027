@@ -87,6 +87,10 @@ abstract class CloudGateway {
   Future<void> reportDevice(String uid, DeviceInfoReport device);
   Future<void> reportSales(String uid, DayTotals today, String appVersion);
 
+  /// Re-sends earlier days (one document per date, so repeating it never double-counts). Covers days the phone
+  /// was offline and refunds made after the day ended.
+  Future<void> reportPastDays(String uid, List<DayTotals> days);
+
   Stream<List<SupportMessage>> watchSupport(String uid);
   Future<void> sendSupport(String uid, String businessName, String text);
 

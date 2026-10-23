@@ -70,9 +70,20 @@ class FakeCloud implements CloudGateway {
   @override
   Future<void> requestPhone(String uid, String phoneId) async => requestedPhones.add(phoneId);
   @override
-  Future<void> reportDevice(String uid, DeviceInfoReport device) async => devices.add(device);
+  Future<void> reportDevice(String uid, DeviceInfoReport device) async {
+    if (offline) throw const CloudException('No internet connection.');
+    devices.add(device);
+  }
   @override
   Future<void> reportSales(String uid, DayTotals today, String appVersion) async => sales.add(today);
+
+  final pastDays = <DayTotals>[];
+  bool offline = false;
+  @override
+  Future<void> reportPastDays(String uid, List<DayTotals> days) async {
+    if (offline) throw const CloudException('No internet connection.');
+    pastDays.addAll(days);
+  }
 
   @override
   Stream<List<SupportMessage>> watchSupport(String uid) async* {

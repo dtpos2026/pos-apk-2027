@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import '../../app/themes.dart';
 import 'receipt_design_screen.dart';
 
+import '../../app/bluetooth_printing.dart' show PairedPrinter;
 import '../../app/providers.dart';
 import '../../app/strings.dart';
 import '../../data/backup_service.dart';
@@ -133,6 +134,10 @@ class SettingsScreen extends ConsumerWidget {
     final addr = TextEditingController();
     var role = 'both';
     var paper = 58;
+    var connection = 'lan';
+    PairedPrinter? bt;
+    String? btError;
+    final scanner = ref.read(bluetoothScannerProvider);
     await showDialog<void>(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -142,7 +147,45 @@ class SettingsScreen extends ConsumerWidget {
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               TextField(controller: name, decoration: InputDecoration(labelText: t['product_name'])),
               const SizedBox(height: 8),
-              TextField(key: const ValueKey('printer-address'), controller: addr, decoration: InputDecoration(labelText: t['printer_address'], hintText: '192.168.1.50:9100')),
+              if (scanner != null) ...[
+                SegmentedButton<String>(
+                  key: const ValueKey('printer-connection'),
+                  showSelectedIcon: false,
+                  segments: [ButtonSegment(value: 'lan', icon: const Icon(Icons.wifi), label: Text(t['printer_lan'])), ButtonSegment(value: 'bluetooth', icon: const Icon(Icons.bluetooth), label: Text(t['printer_bluetooth']))],
+                  selected: {connection},
+                  onSelectionChanged: (s) => setState(() => connection = s.first),
+                ),
+                const SizedBox(height: 8),
+              ],
+              if (connection == 'lan')
+                TextField(key: const ValueKey('printer-address'), controller: addr, decoration: InputDecoration(labelText: t['printer_address'], hintText: '192.168.1.50:9100'))
+              else ...[
+                OutlinedButton.icon(
+                  key: const ValueKey('printer-choose-bt'),
+                  icon: const Icon(Icons.bluetooth_searching),
+                  label: Text(bt == null ? t['choose_paired'] : '${bt!.name} (${bt!.address})'),
+                  onPressed: () async {
+                    try {
+                      final list = await scanner!.paired();
+                      if (!ctx.mounted) return;
+                      if (list.isEmpty) {
+                        setState(() => btError = t['no_paired']);
+                        return;
+                      }
+                      final pick = await showDialog<PairedPrinter>(
+                        context: ctx,
+                        builder: (c2) => SimpleDialog(title: Text(t['choose_paired']), children: [
+                          for (final p in list) SimpleDialogOption(key: ValueKey('bt-${p.address}'), onPressed: () => Navigator.pop(c2, p), child: Text('${p.name}\n${p.address}')),
+                        ]),
+                      );
+                      if (pick != null) setState(() { bt = pick; btError = null; });
+                    } catch (e) {
+                      setState(() => btError = '$e');
+                    }
+                  },
+                ),
+                if (btError != null) Padding(padding: const EdgeInsets.only(top: 6), child: Text(btError!, style: TextStyle(color: Theme.of(ctx).colorScheme.error))),
+              ],
               const SizedBox(height: 8),
               SegmentedButton<int>(showSelectedIcon: false, segments: const [ButtonSegment(value: 58, label: Text('58 mm')), ButtonSegment(value: 80, label: Text('80 mm'))], selected: {paper}, onSelectionChanged: (s) => setState(() => paper = s.first)),
               const SizedBox(height: 8),
@@ -154,10 +197,11 @@ class SettingsScreen extends ConsumerWidget {
             FilledButton(
               key: const ValueKey('printer-save'),
               onPressed: () async {
-                if (addr.text.trim().isEmpty) return;
+                final address = connection == 'lan' ? addr.text.trim() : (bt?.address ?? '');
+                if (address.isEmpty) return;
                 await ref.read(databaseProvider).customStatement(
-                    "INSERT INTO printer(id, name, connection, address, paper_mm, role, updated_at) VALUES (?,?,'lan',?,?,?,?)",
-                    [const Uuid().v4(), name.text.trim(), addr.text.trim(), paper, role, ref.read(clockProvider)().millisecondsSinceEpoch]);
+                    "INSERT INTO printer(id, name, connection, address, paper_mm, role, updated_at) VALUES (?,?,?,?,?,?,?)",
+                    [const Uuid().v4(), name.text.trim(), connection, address, paper, role, ref.read(clockProvider)().millisecondsSinceEpoch]);
                 ref.invalidate(printersProvider);
                 if (ctx.mounted) Navigator.pop(ctx);
               },

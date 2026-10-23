@@ -95,7 +95,7 @@ class Strings {
     'add_item': 'Add item',
     'no_items': 'No items yet. Add one, or import a CSV.',
     'printers': 'Printers',
-    'add_printer': 'Add LAN printer',
+    'add_printer': 'Add printer',
     'printer_address': 'IP address (host:port)',
     'backup': 'Backup',
     'backup_now': 'Back up now',
@@ -335,7 +335,15 @@ class Strings {
     'support': 'Support',
     'account_section': 'Account',
     'signed_in_as': 'Signed in as',
-  };
+      'sync_waiting': 'Connecting to Digital Target…',
+    'sync_ok': 'Synced with Digital Target {m} min ago',
+    'sync_offline': 'Offline: sales are saved on this phone and will be reported when online',
+    'printer_lan': 'Wi-Fi / LAN',
+    'printer_bluetooth': 'Bluetooth',
+    'choose_paired': 'Choose paired printer',
+    'no_paired': 'No paired Bluetooth device. Pair the printer in Android Bluetooth settings first.',
+    'export_pdf': 'Export PDF',
+};
 
   static const _ur = <String, String>{
     'setup_title': 'اپنا کاروبار ترتیب دیں',
@@ -413,7 +421,7 @@ class Strings {
     'add_item': 'آئٹم شامل کریں',
     'no_items': 'ابھی کوئی آئٹم نہیں۔ ایک شامل کریں یا CSV درآمد کریں۔',
     'printers': 'پرنٹرز',
-    'add_printer': 'LAN پرنٹر شامل کریں',
+    'add_printer': 'پرنٹر شامل کریں',
     'printer_address': 'آئی پی ایڈریس (host:port)',
     'backup': 'بیک اپ',
     'backup_now': 'ابھی بیک اپ لیں',
@@ -652,7 +660,15 @@ class Strings {
     'support': 'سپورٹ',
     'account_section': 'اکاؤنٹ',
     'signed_in_as': 'لاگ اِن بطور',
-  };
+      'sync_waiting': 'ڈیجیٹل ٹارگٹ سے رابطہ ہو رہا ہے…',
+    'sync_ok': '{m} منٹ پہلے ڈیجیٹل ٹارگٹ سے سنک ہوا',
+    'sync_offline': 'آف لائن: فروخت اس فون میں محفوظ ہے اور انٹرنیٹ آنے پر رپورٹ ہو جائے گی',
+    'printer_lan': 'وائی فائی / LAN',
+    'printer_bluetooth': 'بلوٹوتھ',
+    'choose_paired': 'جوڑا ہوا پرنٹر منتخب کریں',
+    'no_paired': 'کوئی جوڑا ہوا بلوٹوتھ ڈیوائس نہیں۔ پہلے اینڈرائیڈ کی بلوٹوتھ سیٹنگ میں پرنٹر جوڑیں۔',
+    'export_pdf': 'پی ڈی ایف بنائیں',
+};
 
   static const _ar = <String, String>{
     'setup_title': 'إعداد نشاطك التجاري',
@@ -730,7 +746,7 @@ class Strings {
     'add_item': 'إضافة عنصر',
     'no_items': 'لا توجد عناصر بعد. أضف عنصرًا أو استورد ملف CSV.',
     'printers': 'الطابعات',
-    'add_printer': 'إضافة طابعة LAN',
+    'add_printer': 'إضافة طابعة',
     'printer_address': 'عنوان IP (host:port)',
     'backup': 'النسخ الاحتياطي',
     'backup_now': 'نسخ احتياطي الآن',
@@ -971,7 +987,15 @@ class Strings {
     'support': 'الدعم',
     'account_section': 'الحساب',
     'signed_in_as': 'تم تسجيل الدخول باسم',
-  };
+      'sync_waiting': 'جارٍ الاتصال بديجيتال تارجت…',
+    'sync_ok': 'تمت المزامنة مع ديجيتال تارجت قبل {m} دقيقة',
+    'sync_offline': 'غير متصل: المبيعات محفوظة على هذا الهاتف وسيتم إرسالها عند الاتصال',
+    'printer_lan': 'واي فاي / LAN',
+    'printer_bluetooth': 'بلوتوث',
+    'choose_paired': 'اختر الطابعة المقترنة',
+    'no_paired': 'لا يوجد جهاز بلوتوث مقترن. اقرن الطابعة أولًا من إعدادات البلوتوث في أندرويد.',
+    'export_pdf': 'تصدير PDF',
+};
 
   static const _all = {'en': _en, 'ur': _ur, 'ar': _ar};
 

@@ -9,6 +9,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'app/app.dart';
+import 'app/bluetooth_printing.dart';
 import 'app/providers.dart';
 import 'cloud/access_controller.dart';
 import 'cloud/cloud_gateway.dart';
@@ -35,6 +36,8 @@ Future<void> main() async {
       cloudGatewayProvider.overrideWithValue(cloud),
       cloudInitErrorProvider.overrideWithValue(cloudError),
       appVersionProvider.overrideWithValue(info.version),
+      printerTransportProvider.overrideWithValue(appTransport),
+      bluetoothScannerProvider.overrideWithValue(const SystemBluetoothScanner()),
       deviceDescriptionProvider.overrideWith((ref) async {
         try {
           final a = await DeviceInfoPlugin().androidInfo;

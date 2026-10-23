@@ -1,4 +1,5 @@
 import 'package:dt_food_pos/cloud/access_controller.dart';
+import 'package:dt_food_pos/data/pos_service.dart';
 import 'package:dt_food_pos/features/cloud/cloud_reporter.dart';
 import 'package:dt_food_pos/domain/account_gate.dart';
 import 'package:flutter/material.dart';
@@ -152,6 +153,40 @@ void main() {
     await settle(t);
     expect(find.text('Check the Wi-Fi'), findsOneWidget);
     expect(cloud.support.first.fromAdmin, isFalse);
+    await t.pumpWidget(const SizedBox());
+    h.container.dispose();
+  });
+
+  testWidgets('days spent offline are re-sent later, and the app bar shows offline/synced', (t) async {
+    final cloud = FakeCloud();
+    final db = newDb();
+    final owner = await seedBusiness(db);
+    // a sale two days ago, while the phone was offline
+    final past = PosService(db, now: () => testNow.subtract(const Duration(days: 2)));
+    final pid = (await db.customSelect("SELECT id FROM product WHERE sku = 'BRG-1'").getSingle()).data['id'] as String;
+    final cash = (await db.customSelect("SELECT id FROM payment_method WHERE kind = 'cash'").getSingle()).data['id'] as String;
+    final o = await past.saveDraft(DraftOrder(orderType: 'counter', items: [CartItem(productId: pid, name: 'Zinger', qtyMilli: 1000, unitPriceMinor: 45000)]), staffId: owner);
+    await past.settleOrder(orderId: o, payments: [SettlePayment(methodId: cash, amountMinor: 45000)], staffId: owner);
+
+    final h = await pumpApp(t, db: db, cloud: cloud);
+    await cloud.signInDirect('owner@cafe.pk');
+    final phoneId = await h.container.read(accessProvider.notifier).phoneId();
+    cloud.serverAccount(account(ok: [phoneId]));
+    cloud.offline = true;
+    await settle(t);
+    await signIn(t, 'Ali', '1234');
+    await t.runAsync(() => h.container.read(cloudReporterProvider).reportNow());
+    await t.pump();
+    expect(find.byIcon(Icons.cloud_off_outlined), findsOneWidget);
+    expect(cloud.pastDays, isEmpty);
+
+    cloud.offline = false;
+    await t.runAsync(() => h.container.read(cloudReporterProvider).reportNow());
+    await t.pump();
+    expect(find.byIcon(Icons.cloud_done_outlined), findsOneWidget);
+    final d = cloud.pastDays.singleWhere((x) => x.date == '2026-01-10');
+    expect(d.bills, 1);
+    expect(d.netMinor, greaterThanOrEqualTo(45000));
     await t.pumpWidget(const SizedBox());
     h.container.dispose();
   });

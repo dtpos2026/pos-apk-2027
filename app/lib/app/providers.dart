@@ -21,6 +21,7 @@ import '../data/queries.dart';
 import '../data/receipt_settings.dart';
 import '../domain/receipt_doc.dart';
 import '../domain/receipt_template.dart';
+import 'bluetooth_printing.dart' show BluetoothPrinterScanner;
 import 'import_picker.dart';
 import 'logo_picker.dart';
 import 'share_service.dart';
@@ -60,7 +61,10 @@ class ShellTabNotifier extends Notifier<String> {
 final shellTabProvider = NotifierProvider<ShellTabNotifier, String>(ShellTabNotifier.new);
 
 final textRasterizerProvider = Provider<TextRasterizer>((ref) => const FlutterTextRasterizer());
-final printServiceProvider = Provider<PrintService>((ref) => PrintService(ref.watch(databaseProvider), now: ref.watch(clockProvider), rasterizer: ref.watch(textRasterizerProvider)));
+/// How print jobs reach printers. main() supplies Bluetooth + LAN; the default (and tests) use LAN only.
+final printerTransportProvider = Provider<TransportFactory>((ref) => defaultTransport);
+final bluetoothScannerProvider = Provider<BluetoothPrinterScanner?>((ref) => null);
+final printServiceProvider = Provider<PrintService>((ref) => PrintService(ref.watch(databaseProvider), now: ref.watch(clockProvider), rasterizer: ref.watch(textRasterizerProvider), transport: ref.watch(printerTransportProvider)));
 
 /// Folder for the business logo file. Overridden in main() (and in tests).
 final logoDirProvider = Provider<Directory>((ref) => throw UnimplementedError('logoDirProvider must be overridden'));

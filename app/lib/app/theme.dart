@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// Digital Target brand purple, measured from the supplied logo.
-const brandPurple = Color(0xFF3D096D);
+const brandPurple = Color(0xFF3C096C);
 const brandAmber = Color(0xFFFFB547);
 
 Color _readableOn(Color bg) {
