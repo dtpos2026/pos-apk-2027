@@ -28,10 +28,10 @@ class _TablesScreenState extends ConsumerState<TablesScreen> {
   }
 
   Color _color(BuildContext c, String status) => switch (status) {
-        'occupied' => Colors.orange.shade700,
-        'reserved' => Colors.blue.shade600,
-        'cleaning' => Colors.grey.shade600,
-        _ => Colors.green.shade600,
+        'occupied' => const Color(0xFFE8590C),
+        'reserved' => const Color(0xFF5B3CC4),
+        'cleaning' => const Color(0xFFC28A00),
+        _ => const Color(0xFF2B8A3E),
       };
 
   Future<void> _open(TableInfo t) async {
@@ -133,6 +133,29 @@ class _TablesScreenState extends ConsumerState<TablesScreen> {
             if (canManage) ActionChip(key: const ValueKey('add-area'), avatar: const Icon(Icons.add, size: 18), label: Text(s['add_area']), onPressed: _addArea),
           ]),
         ),
+        if (tables.value != null && tables.value!.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 2, 12, 8),
+            child: Row(children: [
+              for (final st in const ['occupied', 'free', 'cleaning', 'reserved'])
+                Expanded(
+                  child: Container(
+                    key: ValueKey('count-$st'),
+                    margin: const EdgeInsetsDirectional.only(end: 6),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(color: _color(context, st).withValues(alpha: 0.10), borderRadius: BorderRadius.circular(12)),
+                    child: Column(children: [
+                      Text('${tables.value!.where((x) => x.status == st).length}', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: _color(context, st))),
+                      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                        Icon(Icons.circle, size: 8, color: _color(context, st)),
+                        const SizedBox(width: 4),
+                        Flexible(child: Text(s[st], overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600))),
+                      ]),
+                    ]),
+                  ),
+                ),
+            ]),
+          ),
         Expanded(
           child: tables.when(
             loading: () => const Center(child: CircularProgressIndicator()),
@@ -141,27 +164,41 @@ class _TablesScreenState extends ConsumerState<TablesScreen> {
                 ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(s['no_tables'], textAlign: TextAlign.center)))
                 : GridView.builder(
                     padding: const EdgeInsets.fromLTRB(12, 4, 12, 90),
-                    gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 170, mainAxisSpacing: 10, crossAxisSpacing: 10, childAspectRatio: 1.05),
+                    gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 150, mainAxisSpacing: 10, crossAxisSpacing: 10, mainAxisExtent: 150),
                     itemCount: list.length,
                     itemBuilder: (_, i) {
                       final t = list[i];
                       final c = _color(context, t.status);
-                      return Card(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: c, width: 2)),
+                      return Material(
+                        color: c.withValues(alpha: 0.08),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: c.withValues(alpha: 0.6), width: 1.5)),
                         child: InkWell(
                           key: ValueKey('table-${t.label}'),
                           borderRadius: BorderRadius.circular(16),
                           onTap: t.status == 'free' || t.status == 'occupied' ? () => _open(t) : () => _menu(t),
                           onLongPress: () => _menu(t),
                           child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Row(children: [Expanded(child: Text(t.label, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18))), Icon(Icons.circle, size: 12, color: c)]),
-                              Text('${t.seats} ${s['seats']}', style: TextStyle(fontSize: 12.5, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                            padding: const EdgeInsets.all(10),
+                            child: Column(children: [
+                              Container(
+                                width: 34,
+                                height: 34,
+                                decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(10)),
+                                child: const Icon(Icons.table_restaurant, color: Colors.white, size: 20),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(t.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 20)),
+                              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                                Icon(Icons.circle, size: 8, color: c),
+                                const SizedBox(width: 4),
+                                Text(s[t.status], style: TextStyle(color: c, fontWeight: FontWeight.w700, fontSize: 12.5)),
+                              ]),
                               const Spacer(),
-                              Text(s[t.status], style: TextStyle(color: c, fontWeight: FontWeight.w700)),
-                              if (t.orderTotalMinor != null) Text(ref.money(t.orderTotalMinor!), key: ValueKey('table-total-${t.label}'), style: const TextStyle(fontWeight: FontWeight.w800)),
-                              if (t.waiterName != null) Text(t.waiterName!, style: const TextStyle(fontSize: 12)),
+                              if (t.orderTotalMinor != null)
+                                Text(ref.money(t.orderTotalMinor!), key: ValueKey('table-total-${t.label}'), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13))
+                              else
+                                Text('${t.seats} ${s['seats']}', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                              if (t.waiterName != null) Text(t.waiterName!, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5)),
                             ]),
                           ),
                         ),

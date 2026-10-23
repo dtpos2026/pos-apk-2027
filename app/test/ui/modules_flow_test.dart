@@ -87,7 +87,8 @@ void main() {
     expect(h.container.read(cartProvider).orderType, 'dine_in');
     await openTab(t, 'tables', 'Tables');
     expect(text(t, 'table-total-T1').data, 'PKR 900.00');
-    expect(find.text('Occupied'), findsOneWidget);
+    expect(find.descendant(of: find.byKey(const ValueKey('table-T1')), matching: find.text('Occupied')), findsOneWidget);
+    expect(find.descendant(of: find.byKey(const ValueKey('count-occupied')), matching: find.text('1')), findsOneWidget);
 
     // restart from the table: the order is still there
     await tapKey(t, 'table-T1');
@@ -95,7 +96,7 @@ void main() {
     await pay(t, 'Cash', amount: '900');
     await openTab(t, 'tables', 'Tables');
     expect(find.byKey(const ValueKey('table-total-T1')), findsNothing);
-    expect(find.text('Occupied'), findsNothing);
+    expect(find.descendant(of: find.byKey(const ValueKey('table-T1')), matching: find.text('Occupied')), findsNothing);
   });
 
   testWidgets('hold an order, serve someone else, resume the held one', (t) async {
