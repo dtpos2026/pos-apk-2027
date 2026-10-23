@@ -2,72 +2,82 @@ import { render, screen, waitFor, fireEvent, cleanup } from '@testing-library/re
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App, SetupNeeded } from './App';
 import { validateConfig, loadConfig } from './config';
-import type { AdminApi, Business } from './api';
+import type { Account, AdminApi } from './api';
 
 afterEach(cleanup);
 
-const pending: Business = { id: 'b1', name: 'Biz One', owner_name: 'O', phone: '1', email: null, country: 'PK', currency: 'PKR', status: 'pending', status_note: null, created_at: '2026-01-01' };
+const pending: Account = {
+  uid: 'u1', businessName: 'Cafe One', ownerName: 'Ali', phone: '0300', city: 'Lahore', country: 'PK', email: 'a@x.pk', status: 'pending', plan: null, feeMinor: 0, currency: 'PKR',
+  expiresAt: null, customerId: null, businessId: null, licenseId: null, approvedPhones: [], phoneRequests: ['p1'], blockedPhones: [], maxPhones: 1, adminMessage: '', createdAt: new Date('2026-10-01'), appVersion: '0.1.0', todayNetMinor: 0, todayAt: null,
+};
 
 function fake(over: Partial<AdminApi> = {}): AdminApi {
   const nope = async () => { throw new Error('unused'); };
   return {
-    signIn: async () => {}, signOut: async () => {}, myRole: async () => 'owner',
-    dashboard: async () => ({ businesses: { pending: 1 }, licenses: {}, devices: 0, sales_today: 0, unpaid_invoices: 2 }),
-    businesses: async () => [pending], setBusinessStatus: vi.fn(async () => {}), plans: async () => [], licenses: async () => [],
-    issueLicense: nope, setLicenseStatus: nope, invoices: async () => [], createInvoice: nope, recordPayment: nope,
-    threads: async () => [], messages: async () => [], sendSupport: nope, audit: async () => [], company: async () => ({}), setCompany: nope,
+    onAuth: cb => { cb({ uid: 'adm', email: 'a@dt.test' }); return () => {}; },
+    signIn: async () => {}, signOut: async () => {}, resetPassword: async () => {}, isAdmin: async () => true, ownerClaimed: async () => true, claimSuperAdmin: vi.fn(async () => {}),
+    accounts: async () => [pending], account: async () => pending, approve: vi.fn(async () => {}), patchAccount: nope, setStatus: vi.fn(async () => {}), approvePhone: nope, removePhone: nope,
+    notes: async () => '', setNotes: nope, days: async () => [], devices: async () => [], setDeviceBlocked: nope, deleteDevice: nope, invoices: async () => [], invoice: async () => null,
+    createInvoice: nope, recordPayment: nope, voidInvoice: nope, verifyInvoice: async () => null, threads: async () => [], messages: async () => [], sendMessage: nope, markRead: async () => {},
+    clearChat: nope, deleteChat: nope,
+    getBranding: async () => ({ appName: '', contact: '', whatsapp: '', email: '', supportMessage: '' }), setBranding: nope,
+    getAppControl: async () => ({ offlineDays: 7, notice: '', latestVersion: '', minVersion: '', updateLink: '' }), setAppControl: nope,
+    getBilling: async () => ({ company: '', address: '', bank: '', accountTitle: '', accountNo: '', terms: '', paymentQr: '', signature: '', reminderTemplate: '' }), setBilling: nope,
+    admins: async () => [{ uid: 'adm' }], addAdmin: nope, removeAdmin: nope,
     ...over,
   };
 }
 
 describe('config', () => {
-  it('rejects empty, example and malformed values', () => {
+  it('rejects empty and example values', () => {
     expect(validateConfig(null).problem).toBeTruthy();
-    expect(validateConfig({ supabaseUrl: 'https://YOUR-PROJECT.supabase.co', supabaseAnonKey: 'x'.repeat(40) }).problem).toMatch(/supabaseUrl/);
-    expect(validateConfig({ supabaseUrl: 'https://abc.supabase.co', supabaseAnonKey: 'short' }).problem).toMatch(/supabaseAnonKey/);
+    expect(validateConfig({ apiKey: 'YOUR-WEB-API-KEY', authDomain: 'a', projectId: 'p', appId: 'x' }).problem).toMatch(/apiKey/);
+    expect(validateConfig({ apiKey: 'k', authDomain: 'a.firebaseapp.com', projectId: 'p', appId: 'x' }).config?.projectId).toBe('p');
   });
-  it('accepts a real-looking config and defaults the brand', () => {
-    const r = validateConfig({ supabaseUrl: 'https://abc.supabase.co', supabaseAnonKey: 'k'.repeat(40) });
-    expect(r.config?.brandName).toBe('Digital Target');
-  });
-  it('reports a missing config.json instead of crashing', async () => {
+  it('reports missing config instead of crashing', async () => {
     const r = await loadConfig((async () => new Response('', { status: 404 })) as typeof fetch);
-    expect(r.problem).toMatch(/config.json/);
+    expect(r.problem).toMatch(/No Firebase config/);
   });
 });
 
 describe('panel', () => {
-  it('shows a setup screen with no data when unconfigured', () => {
-    render(<SetupNeeded problem="missing" />);
-    expect(screen.getByText('Setup needed')).toBeTruthy();
+  it('shows setup screen when unconfigured', () => { render(<SetupNeeded problem="missing" />); expect(screen.getByText('Setup needed')).toBeTruthy(); });
+  it('offers "Become Super Admin" only while nobody has claimed the project', async () => {
+    const api = fake({ isAdmin: async () => false, ownerClaimed: async () => false });
+    render(<App api={api} />);
+    fireEvent.click(await screen.findByText('Become Super Admin'));
+    await waitFor(() => expect(api.claimSuperAdmin).toHaveBeenCalledWith('adm'));
   });
-  it('keeps non-staff accounts on the login screen', async () => {
-    render(<App api={fake({ myRole: async () => null })} brand="DT" />);
-    expect(await screen.findByText(/Super Admin/)).toBeTruthy();
-    expect(screen.queryByText('Businesses')).toBeNull();
+  it('shows the uid, not the claim button, once claimed', async () => {
+    render(<App api={fake({ isAdmin: async () => false })} />);
+    expect(await screen.findByText('adm')).toBeTruthy();
+    expect(screen.queryByText('Become Super Admin')).toBeNull();
   });
-  it('shows an error when sign in fails', async () => {
-    render(<App api={fake({ myRole: async () => null, signIn: async () => { throw new Error('bad password'); } })} brand="DT" />);
+  it('shows the sign-in form when signed out and surfaces errors', async () => {
+    const api = fake({ onAuth: cb => { cb(null); return () => {}; }, signIn: async () => { throw new Error('wrong password'); } });
+    render(<App api={api} />);
     fireEvent.click(await screen.findByText('Sign in'));
-    expect((await screen.findByRole('alert')).textContent).toBe('bad password');
+    expect((await screen.findByRole('alert')).textContent).toBe('wrong password');
   });
-  it('approves a pending business through the API', async () => {
+  it('approves a pending restaurant with the chosen plan and fee', async () => {
     const api = fake();
-    render(<App api={api} brand="DT" />);
-    fireEvent.click(await screen.findByText('Businesses'));
-    fireEvent.click(await screen.findByText('Approve'));
-    await waitFor(() => expect(api.setBusinessStatus).toHaveBeenCalledWith('b1', 'approved', ''));
+    render(<App api={api} />);
+    fireEvent.click(await screen.findByText('Restaurants'));
+    fireEvent.click(await screen.findByText('Cafe One'));
+    fireEvent.change(await screen.findByLabelText('Fee'), { target: { value: '1,500' } });
+    fireEvent.click(screen.getByText('Approve'));
+    await waitFor(() => expect(api.approve).toHaveBeenCalled());
+    const [uid, plan, fee, exp] = (api.approve as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect([uid, plan, fee]).toEqual(['u1', 'monthly', 150000]);
+    expect(exp).toBeInstanceOf(Date);
   });
-  it('surfaces a backend refusal (e.g. missing note on reject)', async () => {
-    const api = fake({ setBusinessStatus: async () => { throw new Error('a note is required'); } });
-    render(<App api={api} brand="DT" />);
-    fireEvent.click(await screen.findByText('Businesses'));
-    fireEvent.click(await screen.findByText('Reject'));
-    expect((await screen.findByRole('alert')).textContent).toBe('a note is required');
-  });
-  it('lets only the owner edit company details', async () => {
-    render(<App api={fake({ myRole: async () => 'viewer' })} brand="DT" />);
-    fireEvent.click(await screen.findByText('Settings'));
-    expect((await screen.findByLabelText('phone') as HTMLInputElement).disabled).toBe(true);
+  it('requires a message to suspend', async () => {
+    const api = fake({ account: async () => ({ ...pending, status: 'active', phoneRequests: [] }) });
+    render(<App api={api} />);
+    fireEvent.click(await screen.findByText('Restaurants'));
+    fireEvent.click(await screen.findByText('Cafe One'));
+    fireEvent.click(await screen.findByText('Suspend'));
+    expect((await screen.findByRole('alert')).textContent).toMatch(/message/);
+    expect(api.setStatus).not.toHaveBeenCalled();
   });
 });

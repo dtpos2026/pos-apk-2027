@@ -1,33 +1,61 @@
-// The panel talks to the backend only through this interface. SupabaseApi is the real one;
-// tests inject a hand-written fake (never shipped in the production bundle path).
-export interface Business { id: string; name: string; owner_name: string; phone: string; email: string | null; country: string; currency: string; status: string; status_note: string | null; created_at: string }
-export interface Plan { id: string; name: string; billing: string; price_minor: number; currency: string; modules: string[]; max_devices: number; offline_grace_days: number }
-export interface License { id: string; business_id: string; plan_id: string; status: string; modules: string[]; starts_at: string; expires_at: string | null; offline_grace_days: number; version: number; token: string | null }
-export interface Invoice { id: string; number: string; business_id: string; kind: string; amount_minor: number; discount_minor: number; currency: string; due_at: string; status: string }
-export interface SupportMessage { id: string; thread_id: string; sender: string; body: string; created_at: string }
-export interface SupportThread { id: string; business_id: string; last_message_at: string | null }
-export interface AuditRow { id: number; at: string; actor_kind: string; action: string; entity: string | null; entity_id: string | null; business_id: string | null }
-export interface Dashboard { businesses: Record<string, number>; licenses: Record<string, number>; devices: number; sales_today: number; unpaid_invoices: number }
+import type { PlanId, Status } from './domain';
 
+export interface Account {
+  uid: string; businessName: string; ownerName: string; phone: string; city: string; country: string; email: string;
+  status: Status; plan: PlanId | null; feeMinor: number; currency: string; expiresAt: Date | null;
+  customerId: string | null; businessId: string | null; licenseId: string | null;
+  approvedPhones: string[]; phoneRequests: string[]; blockedPhones: string[]; maxPhones: number;
+  adminMessage: string; createdAt: Date | null; appVersion: string; todayNetMinor: number; todayAt: Date | null;
+}
+export interface Device { id: string; uid: string; phoneId: string; model: string; android: string; appVersion: string; lastSeenAt: Date | null; locationAllowed: boolean; lat?: number; lng?: number; accuracyM?: number; locationAt?: Date | null }
+export interface DayTotal { date: string; netMinor: number; bills: number; customers: number }
+export interface Invoice { id: string; accountUid: string; number: string; businessName: string; amountMinor: number; discountMinor: number; currency: string; issuedAt: Date; dueAt: Date; status: 'unpaid' | 'paid' | 'void'; plan: PlanId | null; verifyToken: string; paidAt: Date | null }
+export interface Thread { uid: string; businessName: string; lastMessage: string; lastAt: Date | null; unreadForAdmin: boolean }
+export interface Message { id: string; sender: 'business' | 'admin'; text: string; at: Date | null }
+export interface Branding { appName: string; contact: string; whatsapp: string; email: string; supportMessage: string }
+export interface AppControl { offlineDays: number; notice: string; latestVersion: string; minVersion: string; updateLink: string }
+export interface Billing { company: string; address: string; bank: string; accountTitle: string; accountNo: string; terms: string; paymentQr: string; signature: string; reminderTemplate: string }
+export interface AdminUser { uid: string }
+
+export type AccountPatch = Partial<Omit<Account, 'uid'>>;
+
+/** Everything the panel does goes through this interface. FirebaseApi is the real one; tests use a fake. */
 export interface AdminApi {
+  onAuth(cb: (u: { uid: string; email: string } | null) => void): () => void;
   signIn(email: string, password: string): Promise<void>;
   signOut(): Promise<void>;
-  /** Role in dtfood.platform_admin, or null when the signed-in user is not Digital Target staff. */
-  myRole(): Promise<string | null>;
-  dashboard(): Promise<Dashboard>;
-  businesses(): Promise<Business[]>;
-  setBusinessStatus(id: string, status: string, note: string): Promise<void>;
-  plans(): Promise<Plan[]>;
-  licenses(): Promise<License[]>;
-  issueLicense(businessId: string, planId: string, startsAt: string, expiresAt: string | null): Promise<void>;
-  setLicenseStatus(id: string, status: string, note: string): Promise<void>;
+  resetPassword(email: string): Promise<void>;
+  isAdmin(uid: string): Promise<boolean>;
+  ownerClaimed(): Promise<boolean>;
+  claimSuperAdmin(uid: string): Promise<void>;
+  accounts(): Promise<Account[]>;
+  account(uid: string): Promise<Account | null>;
+  /** Approve a pending registration: assigns IDs, moves requested phones into approved ones, sets plan/fee/expiry. */
+  approve(uid: string, plan: PlanId, feeMinor: number, expiresAt: Date | null): Promise<void>;
+  patchAccount(uid: string, patch: AccountPatch): Promise<void>;
+  setStatus(uid: string, status: Status, message: string): Promise<void>;
+  approvePhone(uid: string, phoneId: string): Promise<void>;
+  removePhone(uid: string, phoneId: string): Promise<void>;
+  notes(uid: string): Promise<string>;
+  setNotes(uid: string, text: string): Promise<void>;
+  days(uid: string): Promise<DayTotal[]>;
+  devices(): Promise<Device[]>;
+  setDeviceBlocked(uid: string, phoneId: string, blocked: boolean): Promise<void>;
+  deleteDevice(id: string): Promise<void>;
   invoices(): Promise<Invoice[]>;
-  createInvoice(businessId: string, kind: string, amountMinor: number, discountMinor: number, due: string, instructions: string): Promise<void>;
-  recordPayment(invoiceId: string, amountMinor: number, method: string, reference: string): Promise<void>;
-  threads(): Promise<SupportThread[]>;
-  messages(threadId: string): Promise<SupportMessage[]>;
-  sendSupport(businessId: string, body: string): Promise<void>;
-  audit(): Promise<AuditRow[]>;
-  company(): Promise<Record<string, string>>;
-  setCompany(key: string, value: string): Promise<void>;
+  invoice(id: string): Promise<Invoice | null>;
+  createInvoice(uid: string, amountMinor: number, discountMinor: number, dueAt: Date, plan: PlanId | null): Promise<Invoice>;
+  recordPayment(invoiceId: string): Promise<void>;
+  voidInvoice(invoiceId: string): Promise<void>;
+  verifyInvoice(token: string): Promise<{ number: string; businessName: string; amountMinor: number; currency: string; status: string; issuedAt: Date } | null>;
+  threads(): Promise<Thread[]>;
+  messages(uid: string): Promise<Message[]>;
+  sendMessage(uid: string, text: string): Promise<void>;
+  markRead(uid: string): Promise<void>;
+  clearChat(uid: string): Promise<void>;
+  deleteChat(uid: string): Promise<void>;
+  getBranding(): Promise<Branding>; setBranding(b: Branding): Promise<void>;
+  getAppControl(): Promise<AppControl>; setAppControl(a: AppControl): Promise<void>;
+  getBilling(): Promise<Billing>; setBilling(b: Billing): Promise<void>;
+  admins(): Promise<AdminUser[]>; addAdmin(uid: string): Promise<void>; removeAdmin(uid: string): Promise<void>;
 }

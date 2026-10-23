@@ -1,0 +1,92 @@
+rules_version = '2';
+// DT Food POS. Business data stays on the phone; only account state, daily sales totals, device state,
+// support chat and DT invoices live here. See docs/FIREBASE_SETUP.md.
+service cloud.firestore {
+  match /databases/{db}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isAdmin() { return signedIn() && exists(/databases/$(db)/documents/admins/$(request.auth.uid)); }
+    function me() { return request.auth.uid; }
+    function onlyKeys(allowed) { return request.resource.data.keys().hasOnly(allowed); }
+    function changedOnly(allowed) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowed); }
+    function isNum(v) { return v is int || v is float; }
+
+    // ---- admins ----
+    // The very first admin claims the project by writing config/owner and admins/{uid} in one batch.
+    match /admins/{uid} {
+      allow read: if signedIn() && (uid == me() || isAdmin());
+      allow create: if signedIn() && uid == me() && !exists(/databases/$(db)/documents/config/owner)
+                    && getAfter(/databases/$(db)/documents/config/owner).data.uid == me();
+      allow create, update, delete: if isAdmin();
+    }
+    match /config/owner {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.uid == me() && onlyKeys(['uid', 'at']);
+    }
+    match /config/branding { allow read: if true; allow write: if isAdmin(); }
+    match /config/app      { allow read: if true; allow write: if isAdmin(); }
+    match /config/billing  { allow read, write: if isAdmin(); }
+
+    // ---- restaurant accounts ----
+    match /accounts/{uid} {
+      allow read: if signedIn() && (uid == me() || isAdmin());
+      // A new account always starts pending with no plan, no approved phones and no IDs.
+      allow create: if signedIn() && uid == me()
+        && onlyKeys(['businessName', 'ownerName', 'phone', 'city', 'country', 'email', 'status', 'phoneRequests', 'createdAt', 'appVersion'])
+        && request.resource.data.status == 'pending'
+        && request.resource.data.phoneRequests.size() == 1
+        && request.resource.data.businessName is string && request.resource.data.businessName.size() > 0
+        && request.resource.data.ownerName is string && request.resource.data.ownerName.size() > 0;
+      // The owner may only report the app version and ask for another phone to be approved.
+      allow update: if signedIn() && uid == me()
+        && changedOnly(['appVersion', 'lastSeenAt', 'phoneRequests'])
+        && request.resource.data.phoneRequests.size() <= 6;
+      allow create, update, delete: if isAdmin();
+    }
+    match /adminNotes/{uid} { allow read, write: if isAdmin(); }
+
+    // ---- daily sales totals (numbers only) ----
+    match /stats/{uid} {
+      allow read: if isAdmin() || (signedIn() && uid == me());
+      allow write: if signedIn() && uid == me() && isNum(request.resource.data.get('todayNetMinor', 0))
+        && request.resource.data.keys().hasOnly(['updatedAt', 'todayNetMinor', 'todayBills', 'currency', 'appVersion']);
+      match /days/{date} {
+        allow read: if isAdmin() || (signedIn() && uid == me());
+        allow write: if signedIn() && uid == me()
+          && request.resource.data.keys().hasOnly(['date', 'netMinor', 'grossMinor', 'refundsMinor', 'bills', 'customers', 'cashMinor', 'onlineMinor', 'creditMinor', 'updatedAt'])
+          && request.resource.data.keys().hasAll(['date', 'netMinor', 'bills'])
+          && isNum(request.resource.data.netMinor) && isNum(request.resource.data.bills);
+      }
+    }
+
+    // ---- phones ----
+    match /devices/{id} {
+      allow read: if isAdmin() || (signedIn() && resource.data.uid == me());
+      allow create, update: if signedIn() && request.resource.data.uid == me() && id == me() + '__' + request.resource.data.phoneId
+        && request.resource.data.keys().hasOnly(['uid', 'phoneId', 'model', 'android', 'appVersion', 'lastSeenAt', 'locationAllowed', 'lat', 'lng', 'accuracyM', 'locationAt']);
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ---- support chat ----
+    match /support/{uid} {
+      allow read: if isAdmin() || (signedIn() && uid == me());
+      allow create, update: if signedIn() && uid == me() && onlyKeys(['businessName', 'lastMessage', 'lastAt', 'unreadForAdmin']);
+      allow create, update, delete: if isAdmin();
+      match /messages/{mid} {
+        allow read: if isAdmin() || (signedIn() && uid == me());
+        allow create: if signedIn() && uid == me() && request.resource.data.sender == 'business'
+          && request.resource.data.keys().hasOnly(['sender', 'text', 'at'])
+          && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 2000;
+        allow create, update, delete: if isAdmin();
+      }
+    }
+
+    // ---- DT invoices ----
+    match /invoices/{id} {
+      allow read: if isAdmin() || (signedIn() && resource.data.accountUid == me());
+      allow write: if isAdmin();
+    }
+    match /invoiceVerify/{token} { allow get: if true; allow list: if isAdmin(); allow write: if isAdmin(); }
+    match /counters/{id} { allow read, write: if isAdmin(); }
+  }
+}

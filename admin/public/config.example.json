@@ -1,5 +1,6 @@
 {
-  "supabaseUrl": "https://YOUR-PROJECT.supabase.co",
-  "supabaseAnonKey": "YOUR-ANON-PUBLIC-KEY",
-  "brandName": "Digital Target"
+  "apiKey": "YOUR-WEB-API-KEY",
+  "authDomain": "YOUR-PROJECT.firebaseapp.com",
+  "projectId": "YOUR-PROJECT",
+  "appId": "YOUR-WEB-APP-ID"
 }

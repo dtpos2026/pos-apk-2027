@@ -1,0 +1,9 @@
+{
+  "indexes": [
+    { "collectionGroup": "accounts", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "accounts", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "expiresAt", "order": "ASCENDING" }] },
+    { "collectionGroup": "invoices", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "accountUid", "order": "ASCENDING" }, { "fieldPath": "issuedAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "invoices", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "issuedAt", "order": "DESCENDING" }] }
+  ],
+  "fieldOverrides": []
+}
