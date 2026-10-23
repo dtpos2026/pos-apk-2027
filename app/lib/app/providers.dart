@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart' show Color, Locale, ThemeMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,6 +22,7 @@ import '../data/pos_service.dart';
 import '../data/print_service.dart';
 import '../data/queries.dart';
 import '../data/receipt_settings.dart';
+import '../domain/modules.dart';
 import '../domain/receipt_doc.dart';
 import '../domain/receipt_template.dart';
 import 'device_channel.dart' show BluetoothPrinterScanner;
@@ -165,6 +167,29 @@ class PosLayoutNotifier extends Notifier<String> {
 
 final posLayoutProvider = NotifierProvider<PosLayoutNotifier, String>(PosLayoutNotifier.new);
 
+/// Modules the owner has switched on (saved on the phone). Existing installs keep everything on.
+class ModulesNotifier extends Notifier<Set<String>> {
+  @override
+  Set<String> build() => allModules.toSet();
+
+  Future<void> setAll(Iterable<String> on) async {
+    state = on.where(allModules.contains).toSet();
+    await setSetting(ref.read(databaseProvider), 'modules', jsonEncode(state.toList()..sort()), ref.read(clockProvider)().millisecondsSinceEpoch);
+  }
+
+  Future<void> toggle(String m, bool on) => setAll(on ? {...state, m} : (state.toSet()..remove(m)));
+
+  Future<void> restore() async {
+    final saved = await getSetting(ref.read(databaseProvider), 'modules');
+    if (saved == null) return;
+    try {
+      state = (jsonDecode(saved) as List).cast<String>().where(allModules.contains).toSet();
+    } catch (_) {}
+  }
+}
+
+final modulesProvider = NotifierProvider<ModulesNotifier, Set<String>>(ModulesNotifier.new);
+
 class ThemeModeNotifier extends Notifier<ThemeMode> {
   @override
   ThemeMode build() => ThemeMode.system;
@@ -187,6 +212,7 @@ Future<void> restoreAppearance(WidgetRef ref) async {
   await ref.read(themeIdProvider.notifier).restore();
   await ref.read(themeModeProvider.notifier).restore();
   await ref.read(posLayoutProvider.notifier).restore();
+  await ref.read(modulesProvider.notifier).restore();
 }
 
 class SessionNotifier extends Notifier<Session?> {

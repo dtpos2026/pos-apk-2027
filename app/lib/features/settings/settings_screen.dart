@@ -15,6 +15,7 @@ import '../../cloud/location_consent.dart';
 import '../common/dialogs.dart';
 import '../../app/strings.dart';
 import '../../data/backup_service.dart';
+import '../../domain/modules.dart';
 import '../../data/restore.dart';
 import '../../data/payment_method_service.dart';
 import '../../data/pos_service.dart' show PosException;
@@ -74,6 +75,21 @@ class SettingsScreen extends ConsumerWidget {
           onSelectionChanged: (s) => ref.read(themeModeProvider.notifier).set(s.first),
         ),
       ]),
+      if (ref.watch(sessionProvider)?.can('settings.manage') ?? false)
+        _Section(t['modules'], [
+          Text(t['modules_hint'], style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: 6),
+          for (final m in allModules)
+            SwitchListTile(
+              key: ValueKey('module-$m'),
+              dense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 6),
+              title: Text(t['module_$m']),
+              subtitle: ref.watch(adminDisabledModulesProvider).contains(m) ? Text(t['module_off_by_admin'], style: TextStyle(color: Theme.of(context).colorScheme.error)) : null,
+              value: ref.watch(activeModulesProvider).contains(m),
+              onChanged: ref.watch(adminDisabledModulesProvider).contains(m) ? null : (v) => ref.read(modulesProvider.notifier).toggle(m, v),
+            ),
+        ]),
       _Section(t['business'], [
         ListTile(key: const ValueKey('business-tile'), title: Text(biz?.name ?? ''), subtitle: Text([biz?.phone, biz?.address].whereType<String>().join(' · ')), trailing: const Icon(Icons.edit_outlined), onTap: () => _editBusiness(context, ref, biz)),
         ListTile(key: const ValueKey('receipt-design-tile'), leading: const Icon(Icons.receipt_long_outlined), title: Text(t['receipt_design']), trailing: const Icon(Icons.chevron_right), onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const ReceiptDesignScreen()))),

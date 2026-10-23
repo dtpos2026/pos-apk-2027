@@ -19,25 +19,28 @@ import '../staff/staff_screen.dart';
 import '../tables/tables_screen.dart';
 
 class _Dest {
-  const _Dest(this.key, this.label, this.icon, this.permission, this.builder);
+  const _Dest(this.key, this.label, this.icon, this.permission, this.builder, {this.module});
   final String key;
   final String label;
   final IconData icon;
   final String permission;
   final Widget Function() builder;
+
+  /// null = always on; otherwise shown only while this module is on.
+  final String? module;
 }
 
 /// In priority order: the first four are always on the bottom bar of a phone; the rest live under "More".
 final _destinations = <_Dest>[
   _Dest('pos', 'pos', Icons.point_of_sale, 'pos.sell', () => const PosScreen()),
-  _Dest('tables', 'tables', Icons.table_restaurant_outlined, 'pos.sell', () => const TablesScreen()),
+  _Dest('tables', 'tables', Icons.table_restaurant_outlined, 'pos.sell', () => const TablesScreen(), module: 'tables'),
   _Dest('bills', 'bills_title', Icons.receipt_long_outlined, 'pos.sell', () => const BillsScreen()),
   _Dest('reports', 'reports', Icons.bar_chart_rounded, 'reports.view', () => const ReportsScreen()),
-  _Dest('customers', 'customers', Icons.people_alt_outlined, 'pos.sell', () => const CustomersScreen()),
-  _Dest('expenses', 'expenses', Icons.payments_outlined, 'pos.sell', () => const ExpensesScreen()),
-  _Dest('inventory', 'inventory', Icons.inventory_2_outlined, 'inventory.manage', () => const InventoryScreen()),
+  _Dest('customers', 'customers', Icons.people_alt_outlined, 'pos.sell', () => const CustomersScreen(), module: 'customers'),
+  _Dest('expenses', 'expenses', Icons.payments_outlined, 'pos.sell', () => const ExpensesScreen(), module: 'expenses'),
+  _Dest('inventory', 'inventory', Icons.inventory_2_outlined, 'inventory.manage', () => const InventoryScreen(), module: 'inventory'),
   _Dest('menu', 'menu', Icons.restaurant_menu, 'menu.manage', () => const MenuScreen()),
-  _Dest('staff', 'staff', Icons.badge_outlined, 'staff.manage', () => const StaffScreen()),
+  _Dest('staff', 'staff', Icons.badge_outlined, 'staff.manage', () => const StaffScreen(), module: 'staff'),
   _Dest('settings', 'settings', Icons.settings_outlined, 'settings.manage', () => const SettingsScreen()),
 ];
 
@@ -48,7 +51,8 @@ class HomeShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final t = Strings.of(context);
     final session = ref.watch(sessionProvider)!;
-    final dests = _destinations.where((d) => session.can(d.permission)).toList();
+    final modules = ref.watch(activeModulesProvider);
+    final dests = _destinations.where((d) => session.can(d.permission) && (d.module == null || modules.contains(d.module))).toList();
     final tab = ref.watch(shellTabProvider);
     final current = dests.firstWhere((d) => d.key == tab, orElse: () => dests.first);
     final index = dests.indexOf(current);

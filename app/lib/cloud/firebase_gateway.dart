@@ -73,6 +73,7 @@ class FirebaseGateway implements CloudGateway {
             phoneRequests: _list(d['phoneRequests']),
             customerId: d['customerId'] as String?,
             businessName: (d['businessName'] as String?) ?? '',
+            disabledModules: _list(d['disabledModules']),
             checkedAt: DateTime.now(),
           ),
           fromServer: !s.metadata.isFromCache,

@@ -13,6 +13,7 @@ class AccountSnapshot {
     this.phoneRequests = const [],
     this.customerId,
     this.businessName = '',
+    this.disabledModules = const [],
     required this.checkedAt,
   });
 
@@ -27,17 +28,20 @@ class AccountSnapshot {
   final String? customerId;
   final String businessName;
 
+  /// Modules Digital Target switched off for this restaurant (see domain/modules.dart).
+  final List<String> disabledModules;
+
   /// When the server last confirmed this copy (never the time of an offline cache read).
   final DateTime checkedAt;
 
   AccountSnapshot copyWith({DateTime? checkedAt}) => AccountSnapshot(
         status: status, plan: plan, expiresAt: expiresAt, adminMessage: adminMessage, approvedPhones: approvedPhones,
-        blockedPhones: blockedPhones, phoneRequests: phoneRequests, customerId: customerId, businessName: businessName, checkedAt: checkedAt ?? this.checkedAt,
+        blockedPhones: blockedPhones, phoneRequests: phoneRequests, customerId: customerId, businessName: businessName, disabledModules: disabledModules, checkedAt: checkedAt ?? this.checkedAt,
       );
 
   String toJson() => jsonEncode({
         'status': status, 'plan': plan, 'exp': expiresAt?.millisecondsSinceEpoch, 'msg': adminMessage, 'ok': approvedPhones, 'bl': blockedPhones,
-        'rq': phoneRequests, 'cid': customerId, 'name': businessName, 'chk': checkedAt.millisecondsSinceEpoch,
+        'rq': phoneRequests, 'cid': customerId, 'name': businessName, 'off': disabledModules, 'chk': checkedAt.millisecondsSinceEpoch,
       });
 
   static AccountSnapshot? tryParse(String? raw) {
@@ -54,6 +58,7 @@ class AccountSnapshot {
         phoneRequests: (j['rq'] as List).cast<String>(),
         customerId: j['cid'] as String?,
         businessName: j['name'] as String? ?? '',
+        disabledModules: ((j['off'] as List?) ?? const []).cast<String>(),
         checkedAt: DateTime.fromMillisecondsSinceEpoch(j['chk'] as int),
       );
     } catch (_) {

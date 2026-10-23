@@ -9,9 +9,12 @@ void main() {
   testWidgets('first run: setup form validates, then lands on the app', (t) async {
     final h = await pumpApp(t);
     expect(find.text('Set up your business'), findsOneWidget);
-    expect(find.text('Powered by Digital Target'), findsOneWidget);
+    expect(find.byKey(const ValueKey('btype-fastfood')), findsOneWidget);
     await shot(t, '01_setup');
+    await t.scrollUntilVisible(find.text('Powered by Digital Target'), 250, scrollable: find.byType(Scrollable).first);
+    expect(find.text('Powered by Digital Target'), findsOneWidget);
 
+    await t.ensureVisible(find.text('Finish setup'));
     await t.tap(find.text('Finish setup'));
     await t.pumpAndSettle();
     expect(find.text('Required'), findsNWidgets(2));
@@ -21,6 +24,8 @@ void main() {
     await typeInto(t, fields.at(0), 'Burger Point');
     await typeInto(t, fields.at(1), 'Ali');
     await typeInto(t, fields.at(2), '1234');
+    await t.ensureVisible(find.text('Finish setup'));
+    await t.pumpAndSettle();
     await t.tap(find.text('Finish setup'));
     await t.pumpAndSettle();
 

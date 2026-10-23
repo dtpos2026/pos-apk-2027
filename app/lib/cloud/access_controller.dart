@@ -8,6 +8,7 @@ import '../app/providers.dart';
 import '../data/db/database.dart';
 import '../data/queries.dart';
 import '../domain/account_gate.dart';
+import '../domain/modules.dart';
 import 'cloud_gateway.dart';
 
 /// null = cloud is off (tests and local development). main() supplies the Firebase gateway.
@@ -228,3 +229,13 @@ AppControl? _parseControl(String? raw) {
 }
 
 final accessProvider = NotifierProvider<AccessController, AccessState>(AccessController.new);
+
+/// Modules switched off for this restaurant from the Super Admin panel (kept from the last server answer, so it
+/// also applies offline). Empty when the cloud is off.
+final adminDisabledModulesProvider = Provider<Set<String>>((ref) {
+  final s = ref.watch(accessProvider);
+  return s is AccessDecided ? (s.account?.disabledModules.toSet() ?? const {}) : const {};
+});
+
+/// The modules the app shows right now.
+final activeModulesProvider = Provider<Set<String>>((ref) => effectiveModules(ref.watch(modulesProvider), ref.watch(adminDisabledModulesProvider)));

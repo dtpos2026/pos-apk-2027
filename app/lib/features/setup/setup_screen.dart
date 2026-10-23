@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
 import '../../app/strings.dart';
+import '../../data/queries.dart' show setSetting;
 import '../../data/setup_service.dart';
+import '../../domain/modules.dart';
 import '../login/brand_footer.dart';
 
 class SetupScreen extends ConsumerStatefulWidget {
@@ -19,6 +21,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   final _owner = TextEditingController();
   final _pin = TextEditingController();
   String _country = 'PK';
+  String _type = 'fastfood';
   bool _busy = false;
 
   @override
@@ -35,6 +38,8 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     try {
       final ownerId = await SetupService(ref.read(databaseProvider), ref.read(authServiceProvider))
           .completeSetup(businessName: _business.text, ownerName: _owner.text, pin: _pin.text, country: _country);
+      await ref.read(modulesProvider.notifier).setAll(businessTypeById(_type).modules);
+      await setSetting(ref.read(databaseProvider), 'business_type', _type, DateTime.now().millisecondsSinceEpoch);
       ref.invalidate(businessProvider);
       ref.invalidate(staffListProvider);
       ref.invalidate(paymentMethodsProvider);
@@ -83,6 +88,10 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(8)],
                     validator: (v) => RegExp(r'^\d{4,8}$').hasMatch(v ?? '') ? null : t['pin_invalid'],
                   ),
+                  const SizedBox(height: 18),
+                  Align(alignment: AlignmentDirectional.centerStart, child: Text(t['business_type'], style: const TextStyle(fontWeight: FontWeight.w700))),
+                  const SizedBox(height: 8),
+                  BusinessTypePicker(selected: _type, onSelected: (id) => setState(() => _type = id)),
                   const SizedBox(height: 14),
                   DropdownButtonFormField<String>(
                     initialValue: _country,
@@ -100,6 +109,46 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Business type cards. Each one only pre-selects modules; the owner can change them later in Settings.
+class BusinessTypePicker extends StatelessWidget {
+  const BusinessTypePicker({super.key, required this.selected, required this.onSelected});
+  final String selected;
+  final ValueChanged<String> onSelected;
+  @override
+  Widget build(BuildContext context) {
+    final t = Strings.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    return LayoutBuilder(
+      builder: (context, c) {
+        final w = (c.maxWidth - 16) / 3;
+        return Wrap(spacing: 8, runSpacing: 8, children: [
+          for (final b in businessTypes)
+            InkWell(
+              key: ValueKey('btype-${b.id}'),
+              borderRadius: BorderRadius.circular(14),
+              onTap: () => onSelected(b.id),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                width: w,
+                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+                decoration: BoxDecoration(
+                  color: selected == b.id ? scheme.primary.withValues(alpha: 0.08) : scheme.surface,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: selected == b.id ? scheme.primary : scheme.outlineVariant, width: selected == b.id ? 2 : 1),
+                ),
+                child: Column(children: [
+                  Icon(b.icon, color: scheme.primary, size: 26),
+                  const SizedBox(height: 4),
+                  Text(t['btype_${b.id}'], textAlign: TextAlign.center, maxLines: 2, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                ]),
+              ),
+            ),
+        ]);
+      },
     );
   }
 }
