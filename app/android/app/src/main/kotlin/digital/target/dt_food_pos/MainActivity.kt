@@ -3,6 +3,9 @@ package digital.target.dt_food_pos
 import android.Manifest
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothManager
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.net.Uri
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
@@ -42,6 +45,7 @@ class MainActivity : FlutterActivity() {
                     "bluetoothPaired" -> bluetoothPaired(result)
                     "bluetoothPrint" -> bluetoothPrint(call, result)
                     "location" -> location(result)
+                    "openWhatsApp" -> result.success(openWhatsApp(call.argument<String>("phone") ?: "", call.argument<String>("text") ?: ""))
                     else -> result.notImplemented()
                 }
             } catch (e: Exception) {
@@ -151,6 +155,22 @@ class MainActivity : FlutterActivity() {
         }
         main.postDelayed({ signal.cancel(); done(null) }, 15000)
         lm.getCurrentLocation(provider, signal, mainExecutor) { done(it) }
+    }
+
+    /** Opens a WhatsApp chat with the message typed in; the user presses Send. WhatsApp, then WhatsApp Business, then the browser. */
+    private fun openWhatsApp(phone: String, text: String): Boolean {
+        val uri = Uri.parse("https://wa.me/$phone?text=" + Uri.encode(text))
+        for (pkg in listOf("com.whatsapp", "com.whatsapp.w4b", null)) {
+            try {
+                val intent = Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                if (pkg != null) intent.setPackage(pkg)
+                startActivity(intent)
+                return true
+            } catch (_: ActivityNotFoundException) {
+                // try the next app
+            }
+        }
+        return false
     }
 
     private fun toMap(l: Location) = mapOf("lat" to l.latitude, "lng" to l.longitude, "accuracy" to l.accuracy.toDouble(), "time" to l.time)

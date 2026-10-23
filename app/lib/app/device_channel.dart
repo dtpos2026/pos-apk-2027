@@ -65,6 +65,15 @@ class DeviceChannel {
     await _call<bool>('bluetoothPrint', {'address': address, 'bytes': bytes});
   }
 
+  /// Opens WhatsApp with [text] ready to send to [phoneIntl] (digits with country code). false = no app could open it.
+  Future<bool> openWhatsApp(String phoneIntl, String text) async {
+    try {
+      return await _c.invokeMethod<bool>('openWhatsApp', {'phone': phoneIntl, 'text': text}) ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// null when permission is missing or no fix arrived in time.
   Future<PhoneLocation?> location() async {
     final m = await _call<Map<Object?, Object?>>('location');

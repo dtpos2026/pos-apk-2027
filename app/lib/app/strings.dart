@@ -379,6 +379,11 @@ class Strings {
     'pm_wallet': 'Mobile wallet',
     'pm_credit': 'Udhaar (credit)',
     'pm_other': 'Other',
+    'customer_phone': 'Customer phone',
+    'send': 'Send',
+    'share_image': 'Image',
+    'reminder': 'Reminder',
+    'udhaar_reminder_text': 'Assalam o Alaikum {name}, this is a reminder from {business}: {amount} is due on your account. Thank you.',
 };
 
   static const _ur = <String, String>{
@@ -740,6 +745,11 @@ class Strings {
     'pm_wallet': 'موبائل والٹ',
     'pm_credit': 'ادھار',
     'pm_other': 'دیگر',
+    'customer_phone': 'گاہک کا فون',
+    'send': 'بھیجیں',
+    'share_image': 'تصویر',
+    'reminder': 'یاد دہانی',
+    'udhaar_reminder_text': 'السلام علیکم {name}، {business} کی طرف سے یاد دہانی: آپ کے کھاتے میں {amount} باقی ہیں۔ شکریہ۔',
 };
 
   static const _ar = <String, String>{
@@ -1103,6 +1113,11 @@ class Strings {
     'pm_wallet': 'محفظة جوال',
     'pm_credit': 'آجل',
     'pm_other': 'أخرى',
+    'customer_phone': 'هاتف العميل',
+    'send': 'إرسال',
+    'share_image': 'صورة',
+    'reminder': 'تذكير',
+    'udhaar_reminder_text': 'السلام عليكم {name}، تذكير من {business}: مبلغ {amount} مستحق على حسابك. شكرًا لك.',
 };
 
   static const _all = {'en': _en, 'ur': _ur, 'ar': _ar};

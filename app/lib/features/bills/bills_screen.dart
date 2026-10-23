@@ -1,8 +1,14 @@
+import 'dart:io';
+import 'dart:ui' as ui;
+
+import 'package:drift/drift.dart' show Variable;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/format.dart';
 import '../../app/providers.dart';
+import '../../app/whatsapp.dart';
 import '../../app/strings.dart';
 import '../../data/bill_history.dart';
 import '../../data/pos_service.dart';
@@ -87,6 +93,8 @@ class _BillDialog extends ConsumerStatefulWidget {
 
 class _BillDialogState extends ConsumerState<_BillDialog> {
   String? _preview;
+  String? _customerPhone;
+  final _paperKey = GlobalKey();
 
   @override
   void initState() {
@@ -97,7 +105,31 @@ class _BillDialogState extends ConsumerState<_BillDialog> {
   Future<void> _load() async {
     final design = await ref.read(receiptTemplateStoreProvider).load();
     final data = await loadReceipt(ref.read(databaseProvider), widget.bill.id);
-    if (mounted) setState(() => _preview = previewBill(data, template: design));
+    final phone = await ref.read(databaseProvider).customSelect('SELECT c.phone AS p FROM "order" o JOIN customer c ON c.id = o.customer_id WHERE o.id = ?', variables: [Variable.withString(widget.bill.id)]).get();
+    if (mounted) {
+      setState(() {
+        _preview = previewBill(data, template: design);
+        _customerPhone = phone.isEmpty ? null : phone.first.data['p'] as String?;
+      });
+    }
+  }
+
+  Future<void> _whatsApp() async {
+    final s = Strings.of(context);
+    final phone = await askPhone(context, initial: _customerPhone, title: s['send_whatsapp'], label: s['customer_phone'], ok: s['send'], cancel: s['cancel']);
+    if (phone == null || !mounted) return;
+    await sendViaWhatsApp(ref, phone, _preview!);
+  }
+
+  /// The receipt as a PNG picture (what is on screen), shared through the share sheet (e.g. WhatsApp).
+  Future<void> _shareImage() async {
+    final boundary = _paperKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+    if (boundary == null) return;
+    final image = await boundary.toImage(pixelRatio: 3);
+    final png = await image.toByteData(format: ui.ImageByteFormat.png);
+    if (png == null) return;
+    final f = File('${ref.read(exportDirProvider).path}/${widget.bill.invoiceNo.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_')}.png')..writeAsBytesSync(png.buffer.asUint8List());
+    await ref.read(shareServiceProvider).shareFile(f.path, mimeType: 'image/png', subject: widget.bill.invoiceNo);
   }
 
   Future<void> _refund({required bool full}) async {
@@ -144,11 +176,14 @@ class _BillDialogState extends ConsumerState<_BillDialog> {
     return AlertDialog(
       title: Text(b.invoiceNo),
       content: SingleChildScrollView(
-        child: Container(
+        child: RepaintBoundary(
+          key: _paperKey,
+          child: Container(
           width: 340,
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.black12)),
           child: _preview == null ? const Center(child: CircularProgressIndicator()) : Text(_preview!, key: const ValueKey('bill-preview'), style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 11, height: 1.25, color: Colors.black87)),
+        ),
         ),
       ),
       actionsOverflowButtonSpacing: 6,
@@ -157,6 +192,10 @@ class _BillDialogState extends ConsumerState<_BillDialog> {
         TextButton(onPressed: () => Navigator.pop(context), child: Text(s['close'])),
         if (_preview != null)
           TextButton.icon(key: const ValueKey('bill-share'), onPressed: () => ref.read(shareServiceProvider).shareText(_preview!, subject: b.invoiceNo), icon: const Icon(Icons.share_outlined, size: 18), label: Text(s['share'])),
+        if (_preview != null)
+          TextButton.icon(key: const ValueKey('bill-whatsapp'), onPressed: _whatsApp, icon: const Icon(Icons.chat_outlined, size: 18), label: const Text('WhatsApp')),
+        if (_preview != null)
+          TextButton.icon(key: const ValueKey('bill-image'), onPressed: _shareImage, icon: const Icon(Icons.image_outlined, size: 18), label: Text(s['share_image'])),
         TextButton.icon(
           key: const ValueKey('bill-reprint'),
           onPressed: () async {

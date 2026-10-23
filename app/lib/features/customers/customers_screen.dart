@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/format.dart';
 import '../../app/providers.dart';
+import '../../app/whatsapp.dart';
 import '../../app/strings.dart';
 import '../../data/customer_service.dart';
 import '../../data/pos_service.dart';
@@ -170,6 +171,19 @@ class _CustomerDialogState extends ConsumerState<_CustomerDialog> {
         TextButton(onPressed: c == null ? null : () async {
           if (await addCustomerDialog(context, ref, existing: c) != null) _load();
         }, child: Text(s['edit'])),
+        if (c != null && c.balanceMinor > 0)
+          TextButton.icon(
+            key: const ValueKey('udhaar-reminder'),
+            icon: const Icon(Icons.chat_outlined, size: 18),
+            label: Text(s['reminder']),
+            onPressed: () async {
+              final biz = ref.read(businessProvider).value?.name ?? '';
+              final text = s['udhaar_reminder_text'].replaceAll('{name}', c.name).replaceAll('{business}', biz).replaceAll('{amount}', ref.money(c.balanceMinor));
+              final phone = c.phone ?? await askPhone(context, title: s['reminder'], label: s['customer_phone'], ok: s['send'], cancel: s['cancel']);
+              if (phone == null || !context.mounted) return;
+              await sendViaWhatsApp(ref, phone, text);
+            },
+          ),
         if (c != null && c.balanceMinor > 0) FilledButton(key: const ValueKey('receive-payment'), onPressed: _receive, child: Text(s['receive_payment'])),
       ],
     );

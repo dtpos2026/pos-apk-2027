@@ -4,15 +4,24 @@ import 'dart:typed_data';
 
 import 'package:dt_food_pos/app/providers.dart';
 import 'package:dt_food_pos/features/pos/cart.dart';
+import 'package:dt_food_pos/app/whatsapp.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers/harness.dart';
 
+final waSent = <(String, String)>[];
+
 Future<Harness> start(WidgetTester t, {bool tablet = false, FakeShare? share}) async {
   final db = newDb();
   await seedBusiness(db);
-  final h = await pumpApp(t, db: db, tablet: tablet, share: share);
+  waSent.clear();
+  final h = await pumpApp(t, db: db, tablet: tablet, share: share, extra: [
+    whatsAppOpenerProvider.overrideWithValue((phone, text) async {
+      waSent.add((phone, text));
+      return true;
+    }),
+  ]);
   await signIn(t, 'Ali', '1234');
   await tapKey(t, 'open-shift');
   await tapKey(t, 'amount-ok');
@@ -142,6 +151,24 @@ void main() {
     await tapKey(t, 'bill-share');
     expect(share.shared.single, contains('INV-20260112-0001'));
 
+    // WhatsApp: number typed as a local number goes out in international form, message = the receipt
+    await tapKey(t, 'bill-whatsapp');
+    await t.enterText(find.byKey(const ValueKey('wa-phone')), '0300-1234567');
+    await tapKey(t, 'wa-phone-ok');
+    expect(waSent.single.$1, '923001234567');
+    expect(waSent.single.$2, contains('2 x Zinger Burger'));
+
+    // the receipt as a picture
+    await t.runAsync(() async {
+      await t.tap(find.byKey(const ValueKey('bill-image')));
+      for (var i = 0; i < 40 && share.files.isEmpty; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        await t.pump();
+      }
+    });
+    expect(share.files.single, endsWith('.png'));
+    expect(File(share.files.single).readAsBytesSync().take(4), [0x89, 0x50, 0x4E, 0x47]);
+
     got.clear(); // the two sales above were also printed automatically; only look at the reprint
     await tapKey(t, 'bill-reprint');
     bool hasDuplicate() => got.any((b) => latin1.decode(b, allowInvalid: true).contains('*** DUPLICATE ***'));
@@ -206,6 +233,13 @@ void main() {
     await tapKey(t, 'form-ok');
     expect(text(t, 'cust-balance').data, contains('PKR 250.00'));
     await shot(t, '44_udhaar');
+    await tapKey(t, 'udhaar-reminder');
+    if (find.byKey(const ValueKey('wa-phone')).evaluate().isNotEmpty) {
+      await t.enterText(find.byKey(const ValueKey('wa-phone')), '03001112223');
+      await tapKey(t, 'wa-phone-ok');
+    }
+    expect(waSent.last.$1, startsWith('92'));
+    expect(waSent.last.$2, allOf(contains('Ahmed'), contains('PKR 250.00'), contains('Burger Point')));
     // paying more than owed is refused
     await tapKey(t, 'receive-payment');
     await form(t, {'amount': '999'});

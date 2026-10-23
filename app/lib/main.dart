@@ -11,6 +11,7 @@ import 'package:path_provider/path_provider.dart';
 import 'app/app.dart';
 import 'app/device_channel.dart';
 import 'app/providers.dart';
+import 'app/whatsapp.dart';
 import 'cloud/access_controller.dart';
 import 'cloud/cloud_gateway.dart';
 import 'cloud/firebase_gateway.dart';
@@ -40,6 +41,7 @@ Future<void> main() async {
       printerTransportProvider.overrideWithValue(appTransport),
       bluetoothScannerProvider.overrideWithValue(const SystemBluetoothScanner()),
       platformPhoneIdProvider.overrideWithValue(const DeviceChannel().phoneId),
+      whatsAppOpenerProvider.overrideWithValue(const DeviceChannel().openWhatsApp),
       locationSourceProvider.overrideWithValue(const DeviceChannel().location),
       locationPermissionProvider.overrideWithValue(() => const DeviceChannel().requestPermissions(DeviceChannel.locationPermissions)),
       deviceDescriptionProvider.overrideWith((ref) async {
