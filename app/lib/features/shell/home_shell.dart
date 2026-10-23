@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
 import '../../app/strings.dart';
+import '../../cloud/access_controller.dart';
 import '../bills/bills_screen.dart';
+import '../cloud/cloud_screens.dart';
+import '../cloud/support_screen.dart';
 import '../customers/customers_screen.dart';
 import '../expenses/expenses_screen.dart';
 import '../inventory/inventory_screen.dart';
@@ -56,8 +59,12 @@ class HomeShell extends ConsumerWidget {
       const SizedBox(width: 12),
       Flexible(child: Text(session.name, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500))),
     ]);
-    final actions = [IconButton(key: const ValueKey('sign-out'), tooltip: t['sign_out'], icon: const Icon(Icons.logout), onPressed: () => ref.read(sessionProvider.notifier).signOut())];
-    final body = KeyedSubtree(key: ValueKey(current.key), child: current.builder());
+    final actions = [
+      if (ref.watch(cloudGatewayProvider) != null)
+        IconButton(key: const ValueKey('support'), tooltip: t['support'], icon: const Icon(Icons.support_agent), onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SupportScreen()))),
+      IconButton(key: const ValueKey('sign-out'), tooltip: t['sign_out'], icon: const Icon(Icons.logout), onPressed: () => ref.read(sessionProvider.notifier).signOut())
+    ];
+    final body = Column(children: [const AccessBanner(), Expanded(child: KeyedSubtree(key: ValueKey(current.key), child: current.builder()))]);
 
     if (wide) {
       return Scaffold(

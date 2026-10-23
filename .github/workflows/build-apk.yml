@@ -3,7 +3,7 @@ name: Build APK
 on:
   push:
     branches: [ccr-94f149fe-qradju, main]
-    paths: ['app/**', '.github/workflows/build-apk.yml', 'docs/schema/**', 'tool/**']
+    paths: ['app/**', 'firebase/**', 'admin/**', '.github/workflows/build-apk.yml', 'docs/schema/**', 'tool/**']
   workflow_dispatch:
     inputs:
       publish:
@@ -19,6 +19,30 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  firebase:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Firestore rules tests (emulator)
+        working-directory: firebase
+        run: |
+          npm install
+          npm test
+      - name: Admin panel tests (unit, UI, and the real Firebase API on the emulators) and build
+        working-directory: admin
+        run: |
+          npm install
+          npm run test:emulator
+          npm run build
+
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 45

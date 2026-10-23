@@ -31,9 +31,11 @@ Super Admin web panel, licensing server and signed-licence issuing, platform inv
 - Anything needing a real device or printer.
 - Supabase project creation and keys: waiting for the owner (the Super Admin panel is being built to read them from a config file).
 
-## Backend and Super Admin panel (added)
-- **Done and tested:** `backend/supabase/migrations/0001_dtfood.sql` run against a local PostgreSQL 16 with `backend/tests/run.sh` (tenant isolation, admin-only functions, idempotent sync, licence gating, append-only audit/payments, owner-only company settings). Auth is stubbed in that test, so behaviour on real Supabase Auth is **not verified**.
-- **Done and tested (unit level):** `admin/` React panel – config-driven (`config.json`), "Setup needed" screen when unconfigured, login gate, dashboard, businesses approve/reject/suspend, licences, invoices/payments, support inbox, audit log, company details. 9 tests with a fake API; not run against a real Supabase project.
-- **Written, not run:** `issue-license` edge function (Ed25519 signing; payload fields mirror the app's `LicensePayload`).
-- **Not applied anywhere:** nothing has been applied to the existing Supabase project. Waiting for the user's config / go-ahead.
-- **Not done:** panel TOTP 2FA, announcements/devices/location/plan-editor screens, app-side sync/licence/support wiring to the server.
+## Cloud: Firebase + Super Admin panel (replaces the earlier Supabase draft, which was removed)
+Modelled on the owner's DT Salon Management guide (account approval, plans, phones, invoices, support, reminders, settings).
+- **Done and tested:**
+  - `firebase/firestore.rules` + 11 emulator tests (a restaurant cannot approve itself, read others, forge admin/chat/invoices; first-admin claim works once).
+  - `admin/` panel: 12 domain tests, 8 UI tests with a fake API, and one end-to-end test of the real `FirebaseApi` against the Auth+Firestore emulators with the real rules (register → approve → phones → sales → invoice → payment extends expiry → suspend → support chat → settings → admins).
+  - App: account gate (`decideAccess`, 11 unit tests), sign-in / register / waiting / blocked screens, offline grace and clock-rollback rules, expiry banner and notice, support chat, totals + phone reporting; 6 widget flow tests with a fake cloud. Whole app: 212 tests pass.
+- **Not verified:** nothing has run against the real `dt-food-app` Firebase project, on a real phone, or with real Android Auth (the app uses the Web app's public identifiers; if sign-in fails on a device, register an Android app and pass `--dart-define=FIREBASE_APP_ID`). Deploy and console steps are in `docs/FIREBASE_SETUP.md`.
+- **Not done:** location sharing with consent (panel shows "not allowed"), AI assistant, announcements, panel PNG/WhatsApp-image invoices (print/PDF and WhatsApp link only), a live map (links to OpenStreetMap), sync of business data (by design it stays on the phone), TOTP 2FA.

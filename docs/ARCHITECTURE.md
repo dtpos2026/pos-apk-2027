@@ -9,8 +9,8 @@ Powered by Digital Target. This document records decisions and the honest limits
 | Mobile app | **Flutter (Dart), Android first** | One codebase, good performance on 2 GB RAM phones, strong RTL/Urdu/Arabic support, rich printing/PDF packages. Native Kotlin would cost more with no benefit for this UI. iOS is a later, separate decision (see 8). |
 | Local DB | **SQLite via Drift, encrypted with SQLCipher** | Local DB is the source of truth. Drift gives typed queries, migrations and transactions. |
 | State | Riverpod | Testable, small. |
-| Backend | **Supabase (PostgreSQL + Auth + Edge Functions + Realtime)** | One operator can run it: managed Postgres, row level security for tenant isolation, built-in auth and 2FA, realtime channel for instant licence commands. Pick a region close to PK/UAE (Mumbai or Singapore) at project creation. |
-| Super Admin | **React (Vite) + Supabase JS**, English UI | Thin client over RLS and RPC functions. Admin 2FA via Supabase MFA (TOTP). |
+| Backend | **Firebase (Auth + Firestore + Hosting, Spark plan)** (replaced the earlier Supabase plan) | One operator can run it: managed Postgres, row level security for tenant isolation, built-in auth and 2FA, realtime channel for instant licence commands. Pick a region close to PK/UAE (Mumbai or Singapore) at project creation. |
+| Super Admin | **React (Vite) + Firebase JS SDK**, English UI | Thin client; access is enforced by `firebase/firestore.rules`, not by the client. |
 | Push | FCM, sent from an Edge Function | Wake devices for licence/support/announcements. |
 
 Money is always integer minor units; quantities are integer thousandths. No floats near money.
@@ -35,14 +35,16 @@ data         (Drift DB, repositories, outbox, network)
 - **Multi-device in one business:** cloud sync is eventual (seconds when both online). LAN sync is a later optional module; until then "real time" across devices means "when both are online".
 - **Crash safety:** drafts are persisted on every cart change; settlement (bill + payments + stock + ledger + outbox + invoice number) is a single SQLite transaction.
 
-## 4. Licensing
+## 4. Licensing (account-based, as in the Digital Target salon system)
 
-- Server issues a **signed licence token** (Ed25519): business id, device ids, modules, plan, `expires_at`, `offline_grace_days`, `version`, `issued_at`. The private key lives only on the server; the app bundles the public key.
-- Online: a realtime channel plus FCM carries suspend/block/reactivate/module commands. Suspend takes effect immediately on a connected device.
-- Offline: a device cannot receive commands. It keeps working until `last_validated_at + offline_grace_days` (and never past `expires_at`), shows warnings before that, and enforces on reconnect. The UI never claims an offline device received a command.
-- Clock rollback: the app stores the highest wall clock and monotonic offset seen; if the clock moves backwards the licence is treated as needing online validation.
-- Expiry never deletes data. Export and backup stay available.
-- Honest limit: client-side protection is not unbreakable; root detection, obfuscation and pinning raise the cost only.
+- Each restaurant signs in with email + password. Its account document (`accounts/{uid}`) holds status (pending, active, payment_pending, suspended, blocked, expired, rejected), plan, expiry, approved phones, blocked phones and an admin message. Only admins can change those fields (enforced by Firestore rules, tested on the emulator).
+- The app watches its account document. A change made in the panel reaches an online phone within seconds; any status other than `active` stops selling and shows the admin's message. Local data is never touched.
+- Offline: the app keeps the last server-confirmed copy. It keeps working until `offlineDays` (panel setting, default 7) after the last confirmation and never past the expiry date (checked against the phone clock). The UI never claims an offline phone received a change.
+- Phones: a phone id is generated on first run. One phone is allowed by default; a new phone is put in `phoneRequests` and needs approval in the panel.
+- Clock rollback: the highest clock value seen is stored; moving the clock back asks for internet.
+- Expiry never deletes data.
+- Honest limit: this is account-based checking on the phone; a rooted phone with a modified app could bypass it. The server rules still stop it from reading other restaurants' data or approving itself.
+- Replaced the earlier Ed25519 signed-token design because there are no Cloud Functions on the Spark plan.
 
 ## 5. Printing
 
@@ -74,7 +76,8 @@ Registration queue, approve/reject, licence and plan management, device list wit
 ```
 app/        Flutter mobile app
 admin/      Super Admin web panel (planned)
-backend/    Supabase migrations and edge functions (planned)
+firebase/   Firestore rules, indexes, emulator tests
+admin/      Super Admin panel (React + Firebase)
 branding/   icon, splash, vector masters
 docs/       architecture, schemas (local.sql, server.sql), roadmap
 ```

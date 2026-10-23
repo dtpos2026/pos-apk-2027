@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../cloud/access_controller.dart';
+import '../features/cloud/cloud_reporter.dart';
+import '../features/cloud/cloud_screens.dart';
 import '../features/login/login_screen.dart';
 import '../features/setup/setup_screen.dart';
 import '../features/shell/home_shell.dart';
@@ -37,6 +40,32 @@ class DtFoodPosApp extends ConsumerWidget {
 /// Decides what to show: first-run setup, sign-in, or the app.
 class Gate extends ConsumerWidget {
   const Gate({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final access = ref.watch(accessProvider);
+    switch (access) {
+      case AccessSetupIncomplete(:final problem):
+        return SetupIncompleteScreen(problem: problem);
+      case AccessChecking():
+        return const CheckingScreen();
+      case AccessSignedOut():
+        return const CloudAuthScreen();
+      case AccessNeedsRegistration(:final user):
+        return RegisterBusinessScreen(user: user);
+      case AccessDecided d when !d.decision.allowed:
+        return AccessBlockedScreen(state: d);
+      case AccessDecided():
+        return const CloudReporterHost(child: _LocalGate());
+      case AccessOff():
+        return const _LocalGate();
+    }
+  }
+}
+
+/// The restaurant's own data: first-run setup, staff PIN sign-in, then the app.
+class _LocalGate extends ConsumerWidget {
+  const _LocalGate();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

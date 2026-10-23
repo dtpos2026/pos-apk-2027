@@ -4,6 +4,8 @@ import 'dart:ui' as ui;
 import 'package:drift/native.dart';
 
 import 'package:dt_food_pos/app/app.dart';
+import 'package:dt_food_pos/cloud/access_controller.dart';
+import 'package:dt_food_pos/cloud/cloud_gateway.dart';
 import 'package:dt_food_pos/app/import_picker.dart';
 import 'package:dt_food_pos/app/logo_picker.dart';
 import 'package:dt_food_pos/app/share_service.dart';
@@ -85,7 +87,7 @@ class FakeLogoPicker implements LogoPicker {
   Future<Uint8List?> pick() async => bytes;
 }
 
-Future<Harness> pumpApp(WidgetTester t, {AppDatabase? db, bool tablet = false, Locale? locale, Directory? backupDir, LogoPicker? logoPicker, Directory? logoDir, ShareService? share, ImportFilePicker? importPicker}) async {
+Future<Harness> pumpApp(WidgetTester t, {AppDatabase? db, bool tablet = false, Locale? locale, Directory? backupDir, LogoPicker? logoPicker, Directory? logoDir, ShareService? share, ImportFilePicker? importPicker, CloudGateway? cloud}) async {
   await t.runAsync(loadAppFonts);
   setSize(t, tablet: tablet);
   final database = db ?? newDb();
@@ -99,6 +101,8 @@ Future<Harness> pumpApp(WidgetTester t, {AppDatabase? db, bool tablet = false, L
     if (logoPicker != null) logoPickerProvider.overrideWithValue(logoPicker),
     if (share != null) shareServiceProvider.overrideWithValue(share),
     if (importPicker != null) importFilePickerProvider.overrideWithValue(importPicker),
+    if (cloud != null) cloudGatewayProvider.overrideWithValue(cloud),
+    appVersionProvider.overrideWithValue('1.0.0'),
   ]);
   addTearDown(container.dispose);
   if (locale != null) container.read(localeProvider.notifier).state = locale;

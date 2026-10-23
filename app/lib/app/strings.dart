@@ -8,11 +8,14 @@ class Strings {
 
   static const supported = [Locale('en'), Locale('ur'), Locale('ar')];
   static const languageNames = {'en': 'English', 'ur': 'اردو', 'ar': 'العربية'};
-  static bool isRtl(Locale l) => l.languageCode == 'ur' || l.languageCode == 'ar';
+  static bool isRtl(Locale l) =>
+      l.languageCode == 'ur' || l.languageCode == 'ar';
 
-  static Strings of(BuildContext context) => Strings(Localizations.localeOf(context));
+  static Strings of(BuildContext context) =>
+      Strings(Localizations.localeOf(context));
 
-  String operator [](String key) => (_all[locale.languageCode] ?? _en)[key] ?? _en[key] ?? key;
+  String operator [](String key) =>
+      (_all[locale.languageCode] ?? _en)[key] ?? _en[key] ?? key;
 
   static const _en = <String, String>{
     'app_name': 'DT Food POS',
@@ -278,6 +281,60 @@ class Strings {
     'add_to_order': 'Add to order',
     'choose_between': 'Choose',
     'invalid_lines': 'Check the lines: each needs a name and a number',
+    'setup_incomplete_title': 'App setup incomplete',
+    'setup_incomplete_body': 'The app could not connect to its Digital Target account service. Install the latest version of the app or contact Digital Target.',
+    'auth_check_fields':
+        'Enter a valid email and a password of at least 6 characters.',
+    'auth_type_email': 'Type your email first.',
+    'reset_sent': 'Password reset email sent. Check your inbox.',
+    'create_account': 'Create account',
+    'email': 'Email',
+    'password': 'Password',
+    'have_account': 'I already have an account',
+    'no_account': 'Create a new account',
+    'forgot_password': 'Forgot password?',
+    'register_title': 'Register your restaurant',
+    'city': 'City',
+    'country': 'Country',
+    'pakistan': 'Pakistan',
+    'uae': 'United Arab Emirates',
+    'fill_required': 'Fill in the business name, owner name and phone.',
+    'submit_approval': 'Submit for approval',
+    'blk_waiting_t': 'Waiting for approval',
+    'blk_waiting_b': 'Digital Target is reviewing your registration. This screen opens the app by itself as soon as you are approved.',
+    'blk_rejected_t': 'Registration not approved',
+    'blk_rejected_b': 'Your registration was not approved. Contact Digital Target for details.',
+    'blk_suspended_t': 'Account suspended',
+    'blk_suspended_b':
+        'Your account is suspended for now. Contact Digital Target.',
+    'blk_blocked_t': 'Account blocked',
+    'blk_blocked_b': 'Your account is blocked. Contact Digital Target.',
+    'blk_payment_t': 'Payment pending',
+    'blk_payment_b': 'Your subscription fee is pending. The app starts again as soon as it is paid and activated.',
+    'blk_expired_t': 'Subscription expired',
+    'blk_expired_b': 'Your subscription has ended. Renew it with Digital Target to continue selling.',
+    'blk_phone_blocked_t': 'This phone is blocked',
+    'blk_phone_blocked_b':
+        'This phone was blocked for your account. Contact Digital Target.',
+    'blk_new_phone_t': 'New phone needs approval',
+    'blk_new_phone_b': 'Your account is approved for other phones. A request for this phone has been sent; Digital Target must approve it.',
+    'blk_internet_t': 'Internet needed',
+    'blk_internet_b': 'Connect to the internet once so the app can check your account, then tap Check again.',
+    'blk_clock_t': 'Phone date looks wrong',
+    'blk_clock_b': 'The phone clock was moved back. Set the correct date and connect to the internet.',
+    'blk_update_t': 'Update required',
+    'blk_update_b': 'Install the latest version of the app to continue.',
+    'data_safe': 'Your restaurant data is safe on this phone.',
+    'check_again': 'Check again',
+    'contact_support': 'Contact support',
+    'support_title': 'Support',
+    'support_empty':
+        'Write to Digital Target support here. Replies appear in this chat.',
+    'support_hint': 'Write a message',
+    'expiry_soon': 'Subscription ends in {n} days.',
+    'support': 'Support',
+    'account_section': 'Account',
+    'signed_in_as': 'Signed in as',
   };
 
   static const _ur = <String, String>{
@@ -542,6 +599,59 @@ class Strings {
     'add_to_order': 'آرڈر میں شامل کریں',
     'choose_between': 'منتخب کریں',
     'invalid_lines': 'سطریں دیکھیں: ہر ایک میں نام اور عدد ضروری ہے',
+    'setup_incomplete_title': 'ایپ کی سیٹنگ نامکمل ہے',
+    'setup_incomplete_body': 'ایپ ڈیجیٹل ٹارگٹ کی اکاؤنٹ سروس سے نہیں جڑ سکی۔ ایپ کا تازہ ورژن انسٹال کریں یا ڈیجیٹل ٹارگٹ سے رابطہ کریں۔',
+    'auth_check_fields': 'درست ای میل اور کم از کم 6 حروف کا پاس ورڈ لکھیں۔',
+    'auth_type_email': 'پہلے اپنی ای میل لکھیں۔',
+    'reset_sent': 'پاس ورڈ ری سیٹ کی ای میل بھیج دی گئی۔ اپنا ان باکس دیکھیں۔',
+    'create_account': 'اکاؤنٹ بنائیں',
+    'email': 'ای میل',
+    'password': 'پاس ورڈ',
+    'have_account': 'میرا اکاؤنٹ پہلے سے ہے',
+    'no_account': 'نیا اکاؤنٹ بنائیں',
+    'forgot_password': 'پاس ورڈ بھول گئے؟',
+    'register_title': 'اپنا ریسٹورنٹ رجسٹر کریں',
+    'city': 'شہر',
+    'country': 'ملک',
+    'pakistan': 'پاکستان',
+    'uae': 'متحدہ عرب امارات',
+    'fill_required': 'کاروبار کا نام، مالک کا نام اور فون نمبر لکھیں۔',
+    'submit_approval': 'منظوری کے لیے بھیجیں',
+    'blk_waiting_t': 'منظوری کا انتظار',
+    'blk_waiting_b': 'ڈیجیٹل ٹارگٹ آپ کی رجسٹریشن دیکھ رہا ہے۔ منظوری ملتے ہی یہ اسکرین خود ایپ کھول دے گی۔',
+    'blk_rejected_t': 'رجسٹریشن منظور نہیں ہوئی',
+    'blk_rejected_b': 'آپ کی رجسٹریشن منظور نہیں ہوئی۔ تفصیل کے لیے ڈیجیٹل ٹارگٹ سے رابطہ کریں۔',
+    'blk_suspended_t': 'اکاؤنٹ معطل ہے',
+    'blk_suspended_b':
+        'آپ کا اکاؤنٹ فی الحال معطل ہے۔ ڈیجیٹل ٹارگٹ سے رابطہ کریں۔',
+    'blk_blocked_t': 'اکاؤنٹ بلاک ہے',
+    'blk_blocked_b': 'آپ کا اکاؤنٹ بلاک ہے۔ ڈیجیٹل ٹارگٹ سے رابطہ کریں۔',
+    'blk_payment_t': 'ادائیگی باقی ہے',
+    'blk_payment_b': 'آپ کی سبسکرپشن کی فیس باقی ہے۔ ادائیگی اور ایکٹیو ہوتے ہی ایپ دوبارہ چل پڑے گی۔',
+    'blk_expired_t': 'سبسکرپشن ختم ہو گئی',
+    'blk_expired_b': 'آپ کی سبسکرپشن ختم ہو چکی ہے۔ فروخت جاری رکھنے کے لیے ڈیجیٹل ٹارگٹ سے تجدید کروائیں۔',
+    'blk_phone_blocked_t': 'یہ فون بلاک ہے',
+    'blk_phone_blocked_b': 'یہ فون آپ کے اکاؤنٹ کے لیے بلاک کیا گیا ہے۔ ڈیجیٹل ٹارگٹ سے رابطہ کریں۔',
+    'blk_new_phone_t': 'نئے فون کی منظوری درکار ہے',
+    'blk_new_phone_b': 'آپ کا اکاؤنٹ دوسرے فونز کے لیے منظور ہے۔ اس فون کی درخواست بھیج دی گئی ہے؛ ڈیجیٹل ٹارگٹ کو منظور کرنی ہوگی۔',
+    'blk_internet_t': 'انٹرنیٹ درکار ہے',
+    'blk_internet_b': 'ایک بار انٹرنیٹ سے جڑیں تاکہ ایپ آپ کا اکاؤنٹ چیک کر سکے، پھر "دوبارہ چیک کریں" دبائیں۔',
+    'blk_clock_t': 'فون کی تاریخ غلط لگ رہی ہے',
+    'blk_clock_b':
+        'فون کی گھڑی پیچھے کی گئی ہے۔ درست تاریخ لگائیں اور انٹرنیٹ سے جڑیں۔',
+    'blk_update_t': 'اپڈیٹ ضروری ہے',
+    'blk_update_b': 'جاری رکھنے کے لیے ایپ کا تازہ ورژن انسٹال کریں۔',
+    'data_safe': 'آپ کے ریسٹورنٹ کا ڈیٹا اس فون میں محفوظ ہے۔',
+    'check_again': 'دوبارہ چیک کریں',
+    'contact_support': 'سپورٹ سے رابطہ',
+    'support_title': 'سپورٹ',
+    'support_empty':
+        'یہاں ڈیجیٹل ٹارگٹ سپورٹ کو لکھیں۔ جوابات اسی چیٹ میں آئیں گے۔',
+    'support_hint': 'پیغام لکھیں',
+    'expiry_soon': 'سبسکرپشن {n} دن میں ختم ہو رہی ہے۔',
+    'support': 'سپورٹ',
+    'account_section': 'اکاؤنٹ',
+    'signed_in_as': 'لاگ اِن بطور',
   };
 
   static const _ar = <String, String>{
@@ -806,10 +916,66 @@ class Strings {
     'add_to_order': 'أضف إلى الطلب',
     'choose_between': 'اختر',
     'invalid_lines': 'تحقق من الأسطر: يلزم اسم ورقم في كل سطر',
+    'setup_incomplete_title': 'إعداد التطبيق غير مكتمل',
+    'setup_incomplete_body': 'تعذّر على التطبيق الاتصال بخدمة حسابات ديجيتال تارجت. ثبّت أحدث إصدار من التطبيق أو تواصل مع ديجيتال تارجت.',
+    'auth_check_fields':
+        'أدخل بريدًا إلكترونيًا صحيحًا وكلمة مرور من 6 أحرف على الأقل.',
+    'auth_type_email': 'اكتب بريدك الإلكتروني أولًا.',
+    'reset_sent': 'تم إرسال رسالة إعادة تعيين كلمة المرور. تحقق من بريدك.',
+    'create_account': 'إنشاء حساب',
+    'email': 'البريد الإلكتروني',
+    'password': 'كلمة المرور',
+    'have_account': 'لدي حساب بالفعل',
+    'no_account': 'إنشاء حساب جديد',
+    'forgot_password': 'نسيت كلمة المرور؟',
+    'register_title': 'سجّل مطعمك',
+    'city': 'المدينة',
+    'country': 'الدولة',
+    'pakistan': 'باكستان',
+    'uae': 'الإمارات العربية المتحدة',
+    'fill_required': 'أدخل اسم النشاط واسم المالك ورقم الهاتف.',
+    'submit_approval': 'إرسال للموافقة',
+    'blk_waiting_t': 'بانتظار الموافقة',
+    'blk_waiting_b': 'تقوم ديجيتال تارجت بمراجعة تسجيلك. ستفتح هذه الشاشة التطبيق تلقائيًا عند الموافقة.',
+    'blk_rejected_t': 'لم تتم الموافقة على التسجيل',
+    'blk_rejected_b':
+        'لم تتم الموافقة على تسجيلك. تواصل مع ديجيتال تارجت للتفاصيل.',
+    'blk_suspended_t': 'الحساب معلّق',
+    'blk_suspended_b': 'حسابك معلّق حاليًا. تواصل مع ديجيتال تارجت.',
+    'blk_blocked_t': 'الحساب محظور',
+    'blk_blocked_b': 'حسابك محظور. تواصل مع ديجيتال تارجت.',
+    'blk_payment_t': 'الدفع معلّق',
+    'blk_payment_b':
+        'رسوم اشتراكك معلّقة. سيعمل التطبيق من جديد فور السداد والتفعيل.',
+    'blk_expired_t': 'انتهى الاشتراك',
+    'blk_expired_b': 'انتهى اشتراكك. جدّده مع ديجيتال تارجت لمتابعة البيع.',
+    'blk_phone_blocked_t': 'هذا الهاتف محظور',
+    'blk_phone_blocked_b': 'تم حظر هذا الهاتف لحسابك. تواصل مع ديجيتال تارجت.',
+    'blk_new_phone_t': 'الهاتف الجديد يحتاج موافقة',
+    'blk_new_phone_b': 'حسابك معتمد لهواتف أخرى. تم إرسال طلب لهذا الهاتف ويجب أن توافق عليه ديجيتال تارجت.',
+    'blk_internet_t': 'الإنترنت مطلوب',
+    'blk_internet_b': 'اتصل بالإنترنت مرة واحدة ليتحقق التطبيق من حسابك، ثم اضغط «تحقق مرة أخرى».',
+    'blk_clock_t': 'تاريخ الهاتف يبدو خاطئًا',
+    'blk_clock_b':
+        'تم إرجاع ساعة الهاتف إلى الوراء. اضبط التاريخ الصحيح واتصل بالإنترنت.',
+    'blk_update_t': 'التحديث مطلوب',
+    'blk_update_b': 'ثبّت أحدث إصدار من التطبيق للمتابعة.',
+    'data_safe': 'بيانات مطعمك آمنة على هذا الهاتف.',
+    'check_again': 'تحقق مرة أخرى',
+    'contact_support': 'تواصل مع الدعم',
+    'support_title': 'الدعم',
+    'support_empty':
+        'اكتب هنا لدعم ديجيتال تارجت. ستظهر الردود في هذه المحادثة.',
+    'support_hint': 'اكتب رسالة',
+    'expiry_soon': 'ينتهي الاشتراك خلال {n} أيام.',
+    'support': 'الدعم',
+    'account_section': 'الحساب',
+    'signed_in_as': 'تم تسجيل الدخول باسم',
   };
 
   static const _all = {'en': _en, 'ur': _ur, 'ar': _ar};
 
   /// Key set of a language, for the translation-completeness test.
-  static Set<String> debugKeys(String lang) => (_all[lang] ?? const {}).keys.toSet();
+  static Set<String> debugKeys(String lang) =>
+      (_all[lang] ?? const {}).keys.toSet();
 }
