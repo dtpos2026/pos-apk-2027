@@ -39,3 +39,9 @@ Modelled on the owner's DT Salon Management guide (account approval, plans, phon
   - App: account gate (`decideAccess`, 11 unit tests), sign-in / register / waiting / blocked screens, offline grace and clock-rollback rules, expiry banner and notice, support chat, totals + phone reporting; 6 widget flow tests with a fake cloud. Whole app: 212 tests pass.
 - **Not verified:** nothing has run against the real `dt-food-app` Firebase project, on a real phone, or with real Android Auth (the app uses the Web app's public identifiers; if sign-in fails on a device, register an Android app and pass `--dart-define=FIREBASE_APP_ID`). Deploy and console steps are in `docs/FIREBASE_SETUP.md`.
 - **Not done:** location sharing with consent (panel shows "not allowed"), AI assistant, announcements, panel PNG/WhatsApp-image invoices (print/PDF and WhatsApp link only), a live map (links to OpenStreetMap), sync of business data (by design it stays on the phone), TOTP 2FA.
+
+## Production-readiness pass (2026-10-23)
+See `docs/AUDIT.md` (audit, fixes, limits) and `docs/USER_GUIDE.md`.
+- Added and tested: Bluetooth printer support (UI + transport; hardware untested), PDF sales reports, offline-day sales catch-up, sync status icon, brand colour #3C096C, POS tile in-cart badges.
+- Panel: append-only audit log, pagination, per-currency totals, local dates, plan prices, restaurant editing, freshness labels, redesigned shell; screenshots from the emulator in `docs/screens/panel/`.
+- Tests: app 218 passed; Firestore rules 13 passed; panel 22 unit/UI + 1 end-to-end on Auth+Firestore emulators passed.

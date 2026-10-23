@@ -76,7 +76,7 @@ class _CartBar extends ConsumerWidget {
     final cart = ref.watch(cartProvider);
     final count = cart.items.fold<int>(0, (s, i) => s + (i.qtyMilli / 1000).ceil());
     return Material(
-      elevation: 8,
+      elevation: 3,
       color: Theme.of(context).colorScheme.surface,
       child: SafeArea(
         top: false,
@@ -153,10 +153,14 @@ class _ProductTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
+    final inCartMilli = ref.watch(cartProvider.select((c) => c.items.where((i) => i.productId == p.id).fold<int>(0, (s, i) => s + i.qtyMilli)));
+    final inCart = inCartMilli == 0 ? null : (inCartMilli % 1000 == 0 ? '${inCartMilli ~/ 1000}' : (inCartMilli / 1000).toStringAsFixed(2));
+    final initial = p.name.trim().isEmpty ? '?' : p.name.trim().characters.first.toUpperCase();
     return Opacity(
       opacity: p.available ? 1 : 0.45,
       child: Card(
         clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: inCart != null ? scheme.primary : scheme.outlineVariant, width: inCart != null ? 2 : 1)),
         child: InkWell(
           key: ValueKey('product-${p.name}'),
           onTap: p.available
@@ -173,7 +177,23 @@ class _ProductTile extends ConsumerWidget {
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Expanded(child: Text(p.name, maxLines: 3, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15))),
+              Row(children: [
+                Container(
+                  width: 30, height: 30, alignment: Alignment.center,
+                  decoration: BoxDecoration(color: scheme.primaryContainer, borderRadius: BorderRadius.circular(8)),
+                  child: Text(initial, style: TextStyle(color: scheme.onPrimaryContainer, fontWeight: FontWeight.w800)),
+                ),
+                const Spacer(),
+                if (inCart != null)
+                  Container(
+                    key: ValueKey('in-cart-${p.name}'),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(color: scheme.primary, borderRadius: BorderRadius.circular(999)),
+                    child: Text('× $inCart', style: TextStyle(color: scheme.onPrimary, fontWeight: FontWeight.w700, fontSize: 12)),
+                  ),
+              ]),
+              const SizedBox(height: 6),
+              Expanded(child: Text(p.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15))),
               Wrap(crossAxisAlignment: WrapCrossAlignment.end, children: [
                 Text(ref.money(p.priceMinor, symbol: false), style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w800, fontSize: 16)),
                 if (p.unit != 'pc') Text(' / ${p.unit}', style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
