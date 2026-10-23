@@ -102,6 +102,21 @@ class CartNotifier extends Notifier<CartState> {
     _persist();
   }
 
+  /// Adds an item that was configured (variant, add-ons, note). The same configuration merges into one line.
+  void addConfigured(CartItem item) {
+    String key(CartItem i) => '${i.productId}|${i.variantId}|${(i.modifiers.map((m) => m.optionId ?? m.name).toList()..sort()).join(',')}|${i.note ?? ''}';
+    final items = [...state.items];
+    final i = items.indexWhere((x) => key(x) == key(item) && x.lineDiscountMinor == 0);
+    if (i >= 0) {
+      final x = items[i];
+      items[i] = CartItem(productId: x.productId, variantId: x.variantId, name: x.name, qtyMilli: x.qtyMilli + item.qtyMilli, unitPriceMinor: x.unitPriceMinor, modifiers: x.modifiers, taxRateBp: x.taxRateBp, taxInclusive: x.taxInclusive, note: x.note, station: x.station, kotSentMilli: x.kotSentMilli);
+    } else {
+      items.add(item);
+    }
+    state = _valid(state.copyWith(items: items));
+    _persist();
+  }
+
   void changeQty(int index, int deltaMilli) {
     final items = [...state.items];
     final x = items[index];

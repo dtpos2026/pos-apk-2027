@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:drift/native.dart';
 
 import 'package:dt_food_pos/app/app.dart';
+import 'package:dt_food_pos/app/import_picker.dart';
 import 'package:dt_food_pos/app/logo_picker.dart';
 import 'package:dt_food_pos/app/share_service.dart';
 import 'package:dt_food_pos/app/providers.dart';
@@ -62,8 +63,19 @@ void setSize(WidgetTester t, {bool tablet = false}) {
 
 class FakeShare implements ShareService {
   final shared = <String>[];
+  final files = <String>[];
   @override
   Future<void> shareText(String text, {String? subject}) async => shared.add(text);
+  @override
+  Future<void> shareFile(String path, {String? mimeType, String? subject}) async => files.add(path);
+}
+
+class FakeImportPicker implements ImportFilePicker {
+  FakeImportPicker(this.name, this.bytes);
+  final String name;
+  final Uint8List bytes;
+  @override
+  Future<({String name, Uint8List bytes})?> pick() async => (name: name, bytes: bytes);
 }
 
 class FakeLogoPicker implements LogoPicker {
@@ -73,7 +85,7 @@ class FakeLogoPicker implements LogoPicker {
   Future<Uint8List?> pick() async => bytes;
 }
 
-Future<Harness> pumpApp(WidgetTester t, {AppDatabase? db, bool tablet = false, Locale? locale, Directory? backupDir, LogoPicker? logoPicker, Directory? logoDir, ShareService? share}) async {
+Future<Harness> pumpApp(WidgetTester t, {AppDatabase? db, bool tablet = false, Locale? locale, Directory? backupDir, LogoPicker? logoPicker, Directory? logoDir, ShareService? share, ImportFilePicker? importPicker}) async {
   await t.runAsync(loadAppFonts);
   setSize(t, tablet: tablet);
   final database = db ?? newDb();
@@ -86,6 +98,7 @@ Future<Harness> pumpApp(WidgetTester t, {AppDatabase? db, bool tablet = false, L
     logoDirProvider.overrideWithValue(logoDir ?? Directory.systemTemp.createTempSync('dtlogo')),
     if (logoPicker != null) logoPickerProvider.overrideWithValue(logoPicker),
     if (share != null) shareServiceProvider.overrideWithValue(share),
+    if (importPicker != null) importFilePickerProvider.overrideWithValue(importPicker),
   ]);
   addTearDown(container.dispose);
   if (locale != null) container.read(localeProvider.notifier).state = locale;

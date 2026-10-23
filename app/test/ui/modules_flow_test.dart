@@ -46,6 +46,7 @@ Text text(WidgetTester t, String key) => t.widget<Text>(find.byKey(ValueKey(key)
 Future<int> n(Harness h, String q) async => (await h.db.customSelect(q).getSingle()).data['n'] as int;
 
 void main() {
+  reportUiTests();
   testWidgets('tables: build a floor, start an order on a table, come back to it, settle frees it', (t) async {
     final h = await start(t);
     await openTab(t, 'tables', 'Tables');
@@ -318,5 +319,42 @@ void main() {
     await t.runAsync(() async => Future<void>.delayed(const Duration(milliseconds: 300)));
     await t.pump(const Duration(milliseconds: 50));
     expect(got.length, 3);
+  });
+}
+
+void reportUiTests() {
+  testWidgets('reports: item, category and cashier tabs, expenses and result, CSV export to the share sheet', (t) async {
+    final share = FakeShare();
+    final h = await start(t, share: share);
+    await add(t, 'Zinger Burger', times: 2);
+    await add(t, 'Cola 500ml');
+    await pay(t, 'Cash', amount: '1000');
+    await openTab(t, 'expenses', 'Expenses');
+    await tapKey(t, 'add-expense');
+    await form(t, {'amount': '200', 'category': 'Gas'});
+    await tapKey(t, 'form-ok');
+
+    await openTab(t, 'reports', 'Reports');
+    expect(text(t, 'stat-gross').data, 'PKR 1,000.00');
+    expect(text(t, 'stat-expenses').data, 'PKR 200.00');
+    expect(text(t, 'stat-result').data, 'PKR 800.00');
+    await shot(t, '52_report_summary');
+
+    await t.tap(find.text('Items'));
+    await t.pumpAndSettle();
+    expect(find.text('Zinger Burger'), findsOneWidget);
+    expect(find.textContaining('Qty: 2'), findsOneWidget);
+    await tapKey(t, 'export-Items');
+    final csv = File(share.files.single).readAsStringSync();
+    expect(csv, contains('Item,Quantity,Bills,Amount'));
+    expect(csv, contains('Zinger Burger,2,1,900.00'));
+
+    await t.tap(find.text('Categories'));
+    await t.pumpAndSettle();
+    expect(find.text('Burgers'), findsOneWidget);
+    await t.tap(find.text('Cashiers'));
+    await t.pumpAndSettle();
+    expect(find.text('Ali'), findsWidgets);
+    expect(h.container.read(cartProvider).isEmpty, isTrue);
   });
 }

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +11,8 @@ import '../../data/menu_import.dart';
 import '../../data/menu_service.dart';
 import '../../data/queries.dart';
 import '../../domain/money.dart';
+import '../../domain/xlsx.dart';
+import '../common/dialogs.dart';
 
 class MenuScreen extends ConsumerStatefulWidget {
   const MenuScreen({super.key});
@@ -100,6 +104,14 @@ Future<bool> _editDialog(BuildContext context, WidgetRef ref, MenuProduct? p) as
             TextField(key: const ValueKey('item-price'), controller: price, keyboardType: const TextInputType.numberWithOptions(decimal: true), inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))], decoration: InputDecoration(labelText: t['price'])),
             const SizedBox(height: 10),
             TextField(key: const ValueKey('item-category'), controller: category, decoration: InputDecoration(labelText: t['category'])),
+            if (p != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Wrap(spacing: 8, runSpacing: 8, children: [
+                  OutlinedButton.icon(key: const ValueKey('edit-variants'), onPressed: () => _variantsDialog(ctx, ref, p), icon: const Icon(Icons.straighten, size: 18), label: Text(t['variants_title'])),
+                  OutlinedButton.icon(key: const ValueKey('edit-addons'), onPressed: () => _addonsDialog(ctx, ref, p), icon: const Icon(Icons.add_circle_outline, size: 18), label: Text(t['addons'])),
+                ]),
+              ),
             if (error != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(error!, style: TextStyle(color: Theme.of(ctx).colorScheme.error))),
           ]),
         ),
@@ -147,6 +159,22 @@ class _ImportDialogState extends ConsumerState<_ImportDialog> {
   final _text = TextEditingController();
   ImportReport? _report;
 
+  Future<void> _pickFile() async {
+    final f = await ref.read(importFilePickerProvider).pick();
+    if (f == null) return;
+    String? text;
+    if (f.name.toLowerCase().endsWith('.xlsx')) {
+      text = xlsxToCsv(f.bytes);
+    } else {
+      text = utf8.decode(f.bytes, allowMalformed: true);
+    }
+    setState(() {
+      _text.text = text ?? '';
+      _report = null;
+    });
+    if (text == null && mounted) showMessage(context, Strings.of(context)['file_unreadable']);
+  }
+
   Future<void> _run(bool dry) async {
     final r = await ref.read(menuImporterProvider).import(_text.text, dryRun: dry, staffId: ref.read(sessionProvider)?.staffId);
     setState(() => _report = r);
@@ -164,7 +192,10 @@ class _ImportDialogState extends ConsumerState<_ImportDialog> {
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
             TextField(key: const ValueKey('csv-text'), controller: _text, minLines: 6, maxLines: 10, style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 12), decoration: InputDecoration(hintText: t['paste_csv'])),
             const SizedBox(height: 8),
-            Align(alignment: AlignmentDirectional.centerStart, child: TextButton.icon(key: const ValueKey('csv-template'), onPressed: () => setState(() => _text.text = menuCsvTemplate()), icon: const Icon(Icons.description_outlined), label: Text(t['template']))),
+            Wrap(spacing: 8, children: [
+              TextButton.icon(key: const ValueKey('csv-template'), onPressed: () => setState(() => _text.text = menuCsvTemplate()), icon: const Icon(Icons.description_outlined), label: Text(t['template'])),
+              TextButton.icon(key: const ValueKey('csv-file'), onPressed: _pickFile, icon: const Icon(Icons.folder_open), label: Text(t['choose_file'])),
+            ]),
             if (r != null) ...[
               const Divider(),
               Text(r.ok ? '${r.creates} ${t['new_items']}, ${r.updates} ${t['updated_items']}${r.committed ? '  ✓' : ''}' : '${r.issues.length} ${t['problems']}', key: const ValueKey('csv-summary'), style: TextStyle(fontWeight: FontWeight.w700, color: r.ok ? Colors.green.shade700 : Theme.of(context).colorScheme.error)),
@@ -181,4 +212,111 @@ class _ImportDialogState extends ConsumerState<_ImportDialog> {
       ],
     );
   }
+}
+
+/// "name, price" per line -> list, or null if any line is invalid.
+List<({String name, int priceMinor})>? parseOptionLines(String text, Currency currency) {
+  final out = <({String name, int priceMinor})>[];
+  for (final raw in text.split('\n')) {
+    final line = raw.trim();
+    if (line.isEmpty) continue;
+    final i = line.lastIndexOf(',');
+    final name = (i < 0 ? line : line.substring(0, i)).trim();
+    final price = i < 0 ? 0 : parseMinor(line.substring(i + 1).trim().isEmpty ? '0' : line.substring(i + 1).trim(), currency: currency);
+    if (name.isEmpty || price == null) return null;
+    out.add((name: name, priceMinor: price));
+  }
+  return out;
+}
+
+String _optionLines(Iterable<(String, int)> items, Currency c) => items.map((e) => '${e.$1}, ${formatMinor(e.$2, currency: c, symbol: false).replaceAll(',', '')}').join('\n');
+
+Future<void> _variantsDialog(BuildContext context, WidgetRef ref, MenuProduct p) async {
+  final t = Strings.of(context);
+  final svc = ref.read(menuServiceProvider);
+  final current = (await svc.optionsFor(p.id)).variants;
+  if (!context.mounted) return;
+  await showFormDialog(
+    context,
+    title: '${t['variants_title']}: ${p.name}',
+    fields: [FieldSpec('lines', t['variants_hint'], lines: 5, required: false, initial: _optionLines(current.map((v) => (v.name, v.priceMinor)), ref.currency))],
+    validate: (v) async {
+      final parsed = parseOptionLines(v['lines']!, ref.currency);
+      if (parsed == null) return t['invalid_lines'];
+      try {
+        await svc.saveVariants(p.id, parsed);
+        return null;
+      } on MenuException catch (e) {
+        return e.message;
+      }
+    },
+  );
+}
+
+Future<void> _addonsDialog(BuildContext context, WidgetRef ref, MenuProduct p) async {
+  final t = Strings.of(context);
+  final svc = ref.read(menuServiceProvider);
+  var groups = await svc.allGroups();
+  final linked = (await svc.optionsFor(p.id)).groups.map((g) => g.id).toSet();
+  if (!context.mounted) return;
+  await showDialog<void>(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setState) => AlertDialog(
+        title: Text('${t['addons']}: ${p.name}'),
+        content: SizedBox(
+          width: 380,
+          child: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              for (final g in groups)
+                CheckboxListTile(
+                  key: ValueKey('group-${g.name}'),
+                  contentPadding: EdgeInsets.zero,
+                  value: linked.contains(g.id),
+                  title: Text(g.name),
+                  subtitle: Text('${g.minSelect}-${g.maxSelect}  ·  ${g.options.map((o) => o.name).join(', ')}'),
+                  onChanged: (v) => setState(() => v == true ? linked.add(g.id) : linked.remove(g.id)),
+                ),
+              TextButton.icon(
+                key: const ValueKey('new-group'),
+                onPressed: () async {
+                  final v = await showFormDialog(
+                    ctx,
+                    title: t['new_group'],
+                    fields: [FieldSpec('name', t['group_name']), FieldSpec('min', t['min_choices'], number: true, initial: '0'), FieldSpec('max', t['max_choices'], number: true, initial: '1'), FieldSpec('options', t['options_hint'], lines: 5)],
+                    validate: (v) async {
+                      final opts = parseOptionLines(v['options']!, ref.currency);
+                      if (opts == null) return t['invalid_lines'];
+                      try {
+                        await svc.saveGroup(name: v['name']!, minSelect: int.tryParse(v['min']!) ?? 0, maxSelect: int.tryParse(v['max']!) ?? 1, options: opts);
+                        return null;
+                      } on MenuException catch (e) {
+                        return e.message;
+                      }
+                    },
+                  );
+                  if (v != null) {
+                    final all = await svc.allGroups();
+                    setState(() {
+                      groups = all;
+                      linked.add(all.firstWhere((g) => g.name == v['name']).id);
+                    });
+                  }
+                },
+                icon: const Icon(Icons.add),
+                label: Text(t['new_group']),
+              ),
+            ]),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(t['cancel'])),
+          FilledButton(key: const ValueKey('addons-save'), onPressed: () async {
+            await svc.setProductGroups(p.id, linked.toList());
+            if (ctx.mounted) Navigator.pop(ctx);
+          }, child: Text(t['save'])),
+        ],
+      ),
+    ),
+  );
 }

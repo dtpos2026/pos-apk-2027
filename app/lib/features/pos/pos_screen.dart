@@ -4,8 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/format.dart';
 import '../../app/providers.dart';
 import '../../app/strings.dart';
+import '../../data/menu_service.dart';
 import '../../data/queries.dart';
 import 'cart.dart';
+import 'options_sheet.dart';
 import 'cart_panel.dart';
 import 'shift_dialogs.dart';
 
@@ -157,7 +159,17 @@ class _ProductTile extends ConsumerWidget {
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           key: ValueKey('product-${p.name}'),
-          onTap: p.available ? () => ref.read(cartProvider.notifier).add(p) : null,
+          onTap: p.available
+              ? () async {
+                  final opts = await ref.read(menuServiceProvider).optionsFor(p.id);
+                  if (opts.isEmpty) {
+                    ref.read(cartProvider.notifier).add(p);
+                  } else if (context.mounted) {
+                    final item = await showOptionsSheet(context, ref, p, opts);
+                    if (item != null) ref.read(cartProvider.notifier).addConfigured(item);
+                  }
+                }
+              : null,
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

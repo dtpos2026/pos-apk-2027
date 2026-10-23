@@ -119,7 +119,7 @@ class CartPanel extends ConsumerWidget {
                         child: Row(children: [
                           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             Text(it.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                            Text(ref.money(it.unitPriceMinor, symbol: false), style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+                            Text([ref.money(it.unitPriceMinor + it.modifiersMinor, symbol: false), if (it.modifiers.isNotEmpty) '+ ${it.modifiers.map((m) => m.name).join(', ')}', if (it.note != null) '* ${it.note}'].join('  '), style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
                           ])),
                           IconButton(key: ValueKey('dec-$i'), visualDensity: VisualDensity.compact, icon: const Icon(Icons.remove_circle_outline), onPressed: () => notifier.changeQty(i, -step)),
                           SizedBox(width: 34, child: Text(formatQty(it.qtyMilli), key: ValueKey('qty-$i'), textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16))),

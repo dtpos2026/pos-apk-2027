@@ -9,6 +9,7 @@ late MenuService svc;
 Future<int> count(String q) async => (await db.customSelect(q).getSingle()).data['n'] as int;
 
 void main() {
+  optionTests();
   setUp(() {
     db = AppDatabase(NativeDatabase.memory());
     var n = 0;
@@ -51,5 +52,48 @@ void main() {
     expect((await loadProducts(db, search: 'kara')).map((p) => p.name), ['Chicken Karahi']);
     expect((await loadProducts(db, search: 'krh')).length, 1);
     expect((await loadProducts(db, search: '6281000')).map((p) => p.name), ['Cola']);
+  });
+}
+
+void optionTests() {
+  group('variants and add-ons', () {
+    late AppDatabase d;
+    late MenuService s;
+    setUp(() {
+      d = AppDatabase(NativeDatabase.memory());
+      var n = 0;
+      s = MenuService(d, newId: () => 'id-${++n}', now: () => DateTime(2026, 1, 12));
+    });
+    tearDown(() => d.close());
+
+    test('variants are replaced by name, validated, and old ones are soft-deleted', () async {
+      final p = await s.saveProduct(name: 'Pizza', priceMinor: 100000, staffId: 's');
+      await s.saveVariants(p, [(name: 'Small', priceMinor: 60000), (name: 'Large', priceMinor: 120000)]);
+      expect((await s.optionsFor(p)).variants.map((v) => v.name), ['Small', 'Large']);
+      final largeId = (await s.optionsFor(p)).variants.last.id;
+      await s.saveVariants(p, [(name: 'large', priceMinor: 130000)]); // same name: same row, new price, Small gone
+      final after = (await s.optionsFor(p)).variants;
+      expect(after.single.id, largeId);
+      expect(after.single.priceMinor, 130000);
+      expect((await d.customSelect('SELECT COUNT(*) AS n FROM product_variant WHERE deleted_at IS NOT NULL').getSingle()).data['n'], 1);
+      await expectLater(s.saveVariants(p, [(name: 'A', priceMinor: 1), (name: 'a', priceMinor: 2)]), throwsA(isA<MenuException>()));
+      await expectLater(s.saveVariants(p, [(name: ' ', priceMinor: 1)]), throwsA(isA<MenuException>()));
+    });
+
+    test('add-on groups: options, limits, linking to products', () async {
+      final p = await s.saveProduct(name: 'Burger', priceMinor: 45000, staffId: 's');
+      final g = await s.saveGroup(name: 'Extras', maxSelect: 2, options: [(name: 'Cheese', priceMinor: 5000), (name: 'Egg', priceMinor: 3000), (name: 'Jalapeno', priceMinor: 0)]);
+      await s.setProductGroups(p, [g]);
+      final opts = await s.optionsFor(p);
+      expect(opts.groups.single.options.map((o) => o.name), ['Cheese', 'Egg', 'Jalapeno']);
+      expect([opts.groups.single.minSelect, opts.groups.single.maxSelect, opts.groups.single.required], [0, 2, false]);
+      await s.saveGroup(id: g, name: 'Extras', maxSelect: 2, options: [(name: 'Cheese', priceMinor: 6000)]);
+      expect((await s.optionsFor(p)).groups.single.options.single.priceMinor, 6000);
+      await s.setProductGroups(p, []);
+      expect((await s.optionsFor(p)).isEmpty, isTrue);
+      await expectLater(s.saveGroup(name: 'X', minSelect: 3, options: [(name: 'a', priceMinor: 0)]), throwsA(isA<MenuException>()));
+      await expectLater(s.saveGroup(name: 'X', options: const []), throwsA(isA<MenuException>()));
+      expect((await s.allGroups()).length, 1);
+    });
   });
 }

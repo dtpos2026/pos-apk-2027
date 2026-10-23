@@ -1,43 +1,32 @@
 # PROGRESS
 
-Legend for verification: **unit-tested** (automated test passes here), **viewed** (rendered and looked at), **untested**.
+Legend: **tested** = automated test passes in this container; **viewed** = rendered and looked at; **untested** = not verified.
+Nothing below has been run on a real phone or a real printer yet: see "Not verified on hardware".
 
 ## Environment
-- Flutter 3.47.7 / Dart 3.13.5 installed in the build container (`/opt/flutter-sdk`). `flutter test` and `flutter analyze` run here.
-- **Blocked:** Android SDK / Google Maven (`dl.google.com`) is denied by the container network policy, so no APK/AAB can be built yet. Needs that host allowed (Network access setting of the environment).
+- Flutter 3.47.7 / Dart 3.13.5 in the authoring container. `flutter test` and `flutter analyze` run here (**200+ tests, analyzer clean**).
+- The container cannot reach `dl.google.com` (Android SDK), so the APK is built by **GitHub Actions** (`.github/workflows/build-apk.yml`). A manual run with "publish" commits the APK to `releases/` (see `docs/BUILD.md`).
 
-## Completed
-- [x] Brand assets: vector icon masters, all Android launcher PNGs, splash, Play Store graphic (viewed; not on a device)
-- [x] Lottie splash animation (played in lottie-web; not in Flutter yet)
-- [x] Architecture doc, local SQLite schema (47 tables; loads in SQLite; append-only guards checked by `tool/check_schema.py`, all pass)
-- [x] Server PostgreSQL schema with RLS (**untested**: not executed against Postgres)
+## Done (all **tested** unless noted)
+- **Branding**: vector icon masters, all launcher icons, splash, Play Store graphic, Lottie splash (viewed; not on a device).
+- **Billing core**: money/tax/discount/service/rounding, split payments with change, atomic settlement with gap-free invoice numbers, stock ledger (recipes), udhaar with credit limit, void/refund with reason and permissions, crash rollback, safe retry.
+- **Screens** (phone and tablet sizes, English / اردو / العربية with right-to-left): first-run setup, branded sign-in (logo, name, address, phone centred) with PIN lockout, Sell (menu grid, search, categories, kg items, **sizes/variants and add-ons**, discount, hold/resume, customer, table, send to kitchen), checkout, shifts and cash variance, **Tables** (areas, tables, transfer, statuses), **Bills** (search, reprint marked DUPLICATE, share, refund, void), **Customers/udhaar**, **Expenses**, **Inventory** (stock, purchases, wastage, counts, recipes, suppliers, low stock, valuation), **Staff**, **Reports** (summary with expenses/result, items, categories, cashiers, CSV export), Menu (add/edit, CSV and **Excel .xlsx import**), Settings.
+- **Receipt designer**: logo (any picture, converted to a printer bitmap), business name, address, phone and tax number centred by default, every block switchable and alignable, extra header/footer lines, QR, copies, 58/80 mm, **bill language English/Urdu/Arabic**, live preview rendered from the same document the printer prints, test print.
+- **Themes**: default is the Digital Target logo purple (exact), plus Ocean, Forest, Sunset, Rose, Slate, Gold, Teal; light/dark/automatic; saved.
+- **Printing**: ESC/POS 58/80 mm, LAN (TCP 9100) transport, print queue with retry, KOT routing by station, kitchen tickets print only what is new, Urdu/Arabic lines printed as bitmaps. Tested against a fake LAN printer only.
+- **Backup**: AES-256-GCM encrypted backup/restore with integrity check. **Sync engine** (outbox, backoff, ordering, no duplicate on lost ACK) tested against a fake server.
+- **Docs/schemas**: architecture, local SQLite schema (47 tables), server PostgreSQL schema with RLS (**untested against Postgres**).
 
-- [x] Flutter app scaffold (`app/`, Android)
-- [x] Pure-Dart domain core, **unit-tested (50 tests pass, analyzer clean)**: money/rounding, tax (inclusive/exclusive), bill calculator (line + bill discounts with exact allocation, service charge, delivery, tip, rounding), split payments with change, ESC/POS builder (58/80 mm, QR, raster, wrap), bill and KOT renderers (DUPLICATE/REPRINT markers), Urdu/Arabic raster detection, Ed25519 licence verifier (tamper, wrong device, suspend/block, expiry, offline grace, clock rollback)
-  - Not yet verified on a real printer or device.
-
-- [x] Local database via Drift from the canonical `docs/schema/local.sql` (`tool/sync_schema.py` generates the Drift schema)
-- [x] `PosService`, **integration-tested on real SQLite (16 tests)**: persisted drafts, atomic settlement (gap-free invoice numbers, split payments with tender/change, stock ledger via recipes/direct stock, udhaar with credit limit, audit, outbox), crash rollback of the whole settlement, safe retry (no duplicate sale), permission-gated discount/void/refund with mandatory reason, partial/full refunds, append-only guards, daily report (gross / refunds / net / by method)
-
-- [x] Staff PIN login: salted PBKDF2 hashes, 5-strikes lockout with audit, PIN change (**unit-tested**)
-- [x] Shifts and cash drawer (expected cash, variance, cash in/out), day close / Z snapshot, locked once closed (**unit-tested**)
-- [x] Menu CSV import: RFC 4180 parser, template, dry-run, row-level errors with line numbers, all-or-nothing commit, update-by-SKU, Urdu names (**unit-tested**). Excel (.xlsx) import is NOT done yet.
-- [x] Sync engine (outbox drain, exponential backoff + jitter, per-record ordering, parking of rejected items) tested against a fake server, **including "server applied but ACK lost" with no duplicate**. No real server exists yet, so this is untested against a real backend.
-- [x] Encrypted backup/restore: AES-256-GCM, PBKDF2, integrity check, wrong passphrase/tampering/truncation detected, pruning (**unit-tested**). Not yet wired to a UI or to cloud upload.
-
-- [x] Draft recovery (reload after restart, discard), live print preview text identical to printed content, receipt loader from the DB snapshot (**unit-tested**)
-- [x] Print queue with real LAN (TCP 9100) transport, tested against a loopback fake printer: bill and KOT routing by station, retry with attempt limit, DUPLICATE reprint + audit, never blocks the sale, crash recovery of stuck jobs (**tested on a fake printer only; no real printer has been tried**). Bluetooth/BLE/USB transports are NOT implemented (need native plugins and hardware).
-
-- [x] **App screens, widget-tested with real fonts on a simulated phone and tablet (133 tests in total pass, analyzer clean):** first-run setup, PIN login with lockout, shell with role-based navigation, Sell screen (menu grid, search, categories, weight items in 0.5 kg steps, cart, discount for authorised users, order types), shift open/close with cash variance, checkout with split payments, quick-cash buttons and live change, receipt preview identical to the printed text, print queue hook, Menu management (add/edit/availability/delete, CSV import with dry-run), Reports (gross / refunds / net / tax / by method), Settings (language, business profile, LAN printers, encrypted backup), Urdu and Arabic with right-to-left layout, animated splash (Lottie). Screenshots in `docs/screens/`.
-  - Bugs the UI tests found and fixed: two quick taps created two draft orders; the cart sheet stayed open after a sale; button text lost the app font; long totals overflowed.
-  - **Not tested on a real device or emulator.** Screenshots come from Flutter's test renderer.
-
-## In progress
-- [ ] Tables and waiters (UI), customers and udhaar screens, inventory screens (purchases, wastage, low stock), expenses, staff management, PDF/Excel export, Bluetooth printing
+## Not verified on hardware
+- Any real Android phone/tablet, emulator, or thermal printer. Screens were checked in Flutter's test renderer.
+- Bluetooth, BLE and USB printing are **not implemented** (need native plugins and hardware). Only LAN printing exists.
+- The database file is **not encrypted yet** (SQLCipher is planned; needs device testing).
+- PDF export is not done (CSV export is). Urdu in PDF needs text shaping the `pdf` package lacks.
+- Per-order-type prices and combos exist in the schema but have no screens yet.
 
 ## Pending
-Tables UI, inventory UI (purchases, wastage), expenses, customer screens, staff management UI, PDF/Excel export, Bluetooth/BLE/USB printing and real-printer tests, SQLCipher on device, Excel (.xlsx) import, sync pull side, Super Admin web panel, licensing server, invoices, support chat, notifications, Urdu/Arabic, Phase 2 online ordering.
+Super Admin web panel, licensing server and signed-licence issuing, platform invoices and payments, support chat, push notifications, announcements, consent-based location, sync pull side and server, SQLCipher, Bluetooth/USB printers, combos and per-order-type prices UI, PDF export, FBR/PRA and UAE e-invoicing (future modules), Phase 2 online ordering.
 
 ## Blocked
-- APK/AAB build: needs `dl.google.com` access.
-- Real-printer tests, device/emulator tests: no device available in this container.
+- Anything needing a real device or printer.
+- Supabase project creation and keys: waiting for the owner (the Super Admin panel is being built to read them from a config file).

@@ -8,6 +8,7 @@ import '../data/customer_service.dart';
 import '../data/db_helper.dart';
 import '../data/expense_service.dart';
 import '../data/inventory_service.dart';
+import '../data/report_service.dart';
 import '../data/staff_service.dart';
 import '../data/table_service.dart';
 import '../data/backup_service.dart';
@@ -20,6 +21,7 @@ import '../data/queries.dart';
 import '../data/receipt_settings.dart';
 import '../domain/receipt_doc.dart';
 import '../domain/receipt_template.dart';
+import 'import_picker.dart';
 import 'logo_picker.dart';
 import 'share_service.dart';
 import 'themes.dart';
@@ -38,9 +40,14 @@ final customerServiceProvider = Provider<CustomerService>((ref) => CustomerServi
 final expenseServiceProvider = Provider<ExpenseService>((ref) => ExpenseService(ref.watch(dbHelperProvider)));
 final inventoryServiceProvider = Provider<InventoryService>((ref) => InventoryService(ref.watch(dbHelperProvider)));
 final tableServiceProvider = Provider<TableService>((ref) => TableService(ref.watch(dbHelperProvider)));
+final reportServiceProvider = Provider<ReportService>((ref) => ReportService(ref.watch(dbHelperProvider)));
+
+/// Where exported report files are written before sharing. Defaults to the system temp (cache) folder.
+final exportDirProvider = Provider<Directory>((ref) => Directory.systemTemp);
 final billHistoryProvider = Provider<BillHistory>((ref) => BillHistory(ref.watch(dbHelperProvider)));
 final staffServiceProvider = Provider<StaffService>((ref) => StaffService(ref.watch(dbHelperProvider), ref.watch(authServiceProvider)));
 
+final importFilePickerProvider = Provider<ImportFilePicker>((ref) => const SystemImportFilePicker());
 final shareServiceProvider = Provider<ShareService>((ref) => const SystemShareService());
 
 /// Which screen the app shell shows ('pos', 'tables', ...). Other screens switch it (for example Tables opens Sell).

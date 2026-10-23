@@ -7,6 +7,7 @@ import 'package:dt_food_pos/data/db_helper.dart';
 import 'package:dt_food_pos/data/expense_service.dart';
 import 'package:dt_food_pos/data/inventory_service.dart';
 import 'package:dt_food_pos/data/pos_service.dart';
+import 'package:dt_food_pos/data/report_service.dart';
 import 'package:dt_food_pos/data/setup_service.dart';
 import 'package:dt_food_pos/data/shift_service.dart';
 import 'package:dt_food_pos/data/staff_service.dart';
@@ -37,6 +38,7 @@ Future<String> sell(String productId, int price, List<SettlePayment> pays, {Stri
 }
 
 void main() {
+  reportTests();
   setUp(() async {
     db = AppDatabase(NativeDatabase.memory());
     clock = DateTime(2026, 1, 12, 10);
@@ -268,6 +270,58 @@ void main() {
       expect(await BillHistory(h).forDate('2026-01-13'), isEmpty);
       await pos.refundOrder(orderId: a, staffId: owner, reason: 'Rest');
       expect((await BillHistory(h).forDate('2026-01-12')).firstWhere((r) => r.id == a).canRefund, isFalse);
+    });
+  });
+}
+
+void reportTests() {
+  group('reports', () {
+    setUp(() async {
+      db = AppDatabase(NativeDatabase.memory());
+      clock = DateTime(2026, 1, 12, 10);
+      var n = 0;
+      String nid() => 'id-${++n}';
+      h = DbHelper(db, now: () => clock, newId: nid);
+      pos = PosService(db, now: () => clock, newId: nid);
+      auth = AuthService(db, now: () => clock, iterations: 1000);
+      owner = await SetupService(db, auth, now: () => clock, newId: nid).completeSetup(businessName: 'T', ownerName: 'Owner', pin: '1234');
+      cashId = await methodId('cash');
+      await db.customStatement("INSERT INTO category(id,name,updated_at) VALUES ('c1','Burgers',1), ('c2','Drinks',1)");
+      await db.customStatement("INSERT INTO product(id,name,base_price_minor,category_id,updated_at) VALUES ('b','Burger',45000,'c1',1), ('d','Cola',10000,'c2',1)");
+    });
+    tearDown(() => db.close());
+
+    Future<void> saleOf(Map<String, int> qty) async {
+      final items = [for (final e in qty.entries) CartItem(productId: e.key, name: e.key == 'b' ? 'Burger' : 'Cola', qtyMilli: e.value * 1000, unitPriceMinor: e.key == 'b' ? 45000 : 10000)];
+      final o = await pos.saveDraft(DraftOrder(orderType: 'counter', items: items), staffId: owner);
+      final total = qty.entries.fold<int>(0, (s, e) => s + e.value * (e.key == 'b' ? 45000 : 10000));
+      await pos.settleOrder(orderId: o, payments: [SettlePayment(methodId: cashId, amountMinor: total)], staffId: owner);
+    }
+
+    test('item, category and cashier breakdowns; voided bills are excluded; CSV is plain numbers', () async {
+      await saleOf({'b': 2, 'd': 1});
+      await saleOf({'b': 1});
+      clock = DateTime(2026, 1, 13, 10);
+      await saleOf({'d': 3});
+      final voided = await pos.saveDraft(DraftOrder(orderType: 'counter', items: const [CartItem(productId: 'b', name: 'Burger', qtyMilli: 1000, unitPriceMinor: 45000)]), staffId: owner);
+      await pos.settleOrder(orderId: voided, payments: [SettlePayment(methodId: cashId, amountMinor: 45000)], staffId: owner);
+      await pos.refundOrder(orderId: voided, staffId: owner, reason: 'Wrong');
+
+      final svc = ReportService(h);
+      final items = await svc.itemWise('2026-01-12', '2026-01-13');
+      expect({for (final i in items) i.label: [i.qtyMilli ~/ 1000, i.amountMinor]}, {'Burger': [3, 135000], 'Cola': [4, 40000]});
+      expect((await svc.itemWise('2026-01-12', '2026-01-12')).map((i) => i.label), ['Burger', 'Cola']);
+      expect({for (final c in await svc.categoryWise('2026-01-12', '2026-01-13')) c.label: c.amountMinor}, {'Burgers': 135000, 'Drinks': 40000});
+      final who = (await svc.cashierWise('2026-01-12', '2026-01-13')).single;
+      expect([who.label, who.bills, who.amountMinor], ['Owner', 3, 175000]);
+
+      final t = await svc.totals('2026-01-12', '2026-01-13');
+      expect([t.sales, t.refunds], [220000, 45000]);
+
+      final csv = reportCsv(items, labelHeader: 'Item');
+      expect(csv.split('\n').first, 'Item,Quantity,Bills,Amount');
+      expect(csv, contains('Burger,3,2,1350.00'));
+      expect(reportCsv([const ReportLine(label: 'Chicken, boneless "special"', qtyMilli: 1500, amountMinor: 123456, bills: 1)], labelHeader: 'Item'), contains('"Chicken, boneless ""special""",1.500,1,1234.56'));
     });
   });
 }
