@@ -185,7 +185,7 @@ Future<void> showReceipt(BuildContext context, WidgetRef ref, SettledOrder order
   final jobs = await printSvc.queueBill(order.orderId);
   if (jobs.isNotEmpty) {
     printSvc.processQueue(); // fire and forget: a missing/offline printer never blocks the sale
-    printSvc.queueKot(order.orderId).then((_) => printSvc.processQueue());
+    printSvc.queueKot(order.orderId, onlyNew: true).then((_) => printSvc.processQueue());
   }
   if (!context.mounted) return;
   final t = Strings.of(context);

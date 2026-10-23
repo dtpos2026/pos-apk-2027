@@ -1,0 +1,322 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:dt_food_pos/app/providers.dart';
+import 'package:dt_food_pos/features/pos/cart.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import '../helpers/harness.dart';
+
+Future<Harness> start(WidgetTester t, {bool tablet = false, FakeShare? share}) async {
+  final db = newDb();
+  await seedBusiness(db);
+  final h = await pumpApp(t, db: db, tablet: tablet, share: share);
+  await signIn(t, 'Ali', '1234');
+  await tapKey(t, 'open-shift');
+  await tapKey(t, 'amount-ok');
+  return h;
+}
+
+Future<void> add(WidgetTester t, String product, {int times = 1}) async {
+  for (var i = 0; i < times; i++) {
+    await t.tap(find.byKey(ValueKey('product-$product')));
+  }
+  await t.pumpAndSettle();
+}
+
+Future<void> form(WidgetTester t, Map<String, String> values) async {
+  for (final e in values.entries) {
+    await typeInto(t, find.byKey(ValueKey('f-${e.key}')), e.value);
+  }
+}
+
+Future<void> pay(WidgetTester t, String method, {String? amount}) async {
+  await tapKey(t, 'open-cart');
+  await tapKey(t, 'charge');
+  await tapKey(t, 'method-$method');
+  if (amount != null) await typeInto(t, find.byKey(const ValueKey('pay-0')), amount);
+  await tapKey(t, 'confirm-payment');
+  await tapKey(t, 'new-sale');
+}
+
+Text text(WidgetTester t, String key) => t.widget<Text>(find.byKey(ValueKey(key)));
+
+Future<int> n(Harness h, String q) async => (await h.db.customSelect(q).getSingle()).data['n'] as int;
+
+void main() {
+  testWidgets('tables: build a floor, start an order on a table, come back to it, settle frees it', (t) async {
+    final h = await start(t);
+    await openTab(t, 'tables', 'Tables');
+    expect(find.text('No tables yet. Add an area and tables.'), findsOneWidget);
+    await tapKey(t, 'add-area');
+    await form(t, {'name': 'Hall'});
+    await tapKey(t, 'form-ok');
+    await tapKey(t, 'add-table');
+    await form(t, {'label': 'T1', 'seats': '4'});
+    await tapKey(t, 'form-ok');
+    await tapKey(t, 'add-table');
+    await form(t, {'label': 'T2'});
+    await tapKey(t, 'form-ok');
+    await shot(t, '40_tables');
+    expect(find.byKey(const ValueKey('table-T1')), findsOneWidget);
+
+    // duplicate label is refused inside the dialog
+    await tapKey(t, 'add-table');
+    await form(t, {'label': 't1'});
+    await tapKey(t, 'form-ok');
+    expect(find.byKey(const ValueKey('form-error')), findsOneWidget);
+    await t.tap(find.text('Cancel'));
+    await t.pumpAndSettle();
+
+    await tapKey(t, 'table-T1'); // free table: goes to Sell with the table attached
+    expect(find.byKey(const ValueKey('pick-table')), findsNothing); // narrow: cart bar, not the cart panel
+    await add(t, 'Zinger Burger', times: 2);
+    expect(h.container.read(cartProvider).tableId, isNotNull);
+    expect(h.container.read(cartProvider).orderType, 'dine_in');
+    await openTab(t, 'tables', 'Tables');
+    expect(text(t, 'table-total-T1').data, 'PKR 900.00');
+    expect(find.text('Occupied'), findsOneWidget);
+
+    // restart from the table: the order is still there
+    await tapKey(t, 'table-T1');
+    expect(h.container.read(cartProvider).items.single.qtyMilli, 2000);
+    await pay(t, 'Cash', amount: '900');
+    await openTab(t, 'tables', 'Tables');
+    expect(find.byKey(const ValueKey('table-total-T1')), findsNothing);
+    expect(find.text('Occupied'), findsNothing);
+  });
+
+  testWidgets('hold an order, serve someone else, resume the held one', (t) async {
+    final h = await start(t, tablet: true);
+    await add(t, 'Fries', times: 2);
+    await tapKey(t, 'hold');
+    expect(h.container.read(cartProvider).isEmpty, isTrue);
+    expect(await n(h, "SELECT COUNT(*) AS n FROM \"order\" WHERE status = 'held'"), 1);
+    await add(t, 'Cola 500ml');
+    await tapKey(t, 'held');
+    await shot(t, '41_held');
+    final heldTile = find.byWidgetPredicate((w) => w.key is ValueKey && (w.key as ValueKey).value.toString().startsWith('held-'));
+    await t.tap(heldTile);
+    await t.pumpAndSettle();
+    // the held order is back; the cola order we were in the middle of was put on hold, not lost
+    expect(h.container.read(cartProvider).items.single.name, 'Fries');
+    expect(await n(h, "SELECT COUNT(*) AS n FROM \"order\" WHERE status = 'held'"), 1);
+    expect(await n(h, "SELECT COUNT(*) AS n FROM \"order\" WHERE status = 'draft'"), 1);
+  });
+
+  testWidgets('bills: search, reprint marked DUPLICATE on the printer, share, partial refund with a reason, void', (t) async {
+    final share = FakeShare();
+    final h = await start(t, share: share);
+    // a LAN printer that records what it gets
+    final server = await t.runAsync(() => ServerSocket.bind(InternetAddress.loopbackIPv4, 0));
+    addTearDown(() => server!.close());
+    final got = <Uint8List>[];
+    server!.listen((c) {
+      final b = BytesBuilder();
+      c.listen(b.add, onDone: () => got.add(b.toBytes()));
+    });
+    await h.db.customStatement("INSERT INTO printer(id,name,connection,address,paper_mm,role,updated_at) VALUES ('p','P','lan','127.0.0.1:${server.port}',58,'bill',1)");
+
+    await add(t, 'Zinger Burger', times: 2);
+    await pay(t, 'Cash', amount: '900');
+    await add(t, 'Fries');
+    await pay(t, 'Card');
+
+    await openTab(t, 'bills', 'Bills');
+    expect(find.byKey(const ValueKey('bill-INV-20260112-0001')), findsOneWidget);
+    expect(find.byKey(const ValueKey('bill-INV-20260112-0002')), findsOneWidget);
+    await typeInto(t, find.byKey(const ValueKey('bill-search')), '0002');
+    await t.pumpAndSettle();
+    expect(find.byKey(const ValueKey('bill-INV-20260112-0001')), findsNothing);
+    await typeInto(t, find.byKey(const ValueKey('bill-search')), '');
+    await t.pumpAndSettle();
+
+    await t.tap(find.byKey(const ValueKey('bill-INV-20260112-0001')));
+    await t.pumpAndSettle();
+    expect(text(t, 'bill-preview').data, contains('2 x Zinger Burger'));
+    await shot(t, '42_bill_detail');
+
+    await tapKey(t, 'bill-share');
+    expect(share.shared.single, contains('INV-20260112-0001'));
+
+    got.clear(); // the two sales above were also printed automatically; only look at the reprint
+    await tapKey(t, 'bill-reprint');
+    bool hasDuplicate() => got.any((b) => latin1.decode(b, allowInvalid: true).contains('*** DUPLICATE ***'));
+    for (var i = 0; i < 40 && !hasDuplicate(); i++) {
+      await t.runAsync(() async => Future<void>.delayed(const Duration(milliseconds: 100)));
+      await t.pump(const Duration(milliseconds: 50));
+    }
+    expect(hasDuplicate(), isTrue);
+    expect(await n(h, "SELECT COUNT(*) AS n FROM audit_log WHERE event = 'bill.reprint'"), 1);
+
+    // partial refund needs a reason
+    await tapKey(t, 'bill-refund');
+    await form(t, {'amount': '100'});
+    await tapKey(t, 'form-ok');
+    expect(find.byKey(const ValueKey('form-error')), findsOneWidget); // reason missing
+    await form(t, {'reason': 'Cold food'});
+    await tapKey(t, 'form-ok');
+    expect(await n(h, 'SELECT COUNT(*) AS n FROM refund'), 1);
+    expect((await h.db.customSelect('SELECT amount_minor FROM refund').getSingle()).data['amount_minor'], 10000);
+
+    // void the other (card) bill entirely
+    await t.tap(find.byKey(const ValueKey('bill-INV-20260112-0002')));
+    await t.pumpAndSettle();
+    await tapKey(t, 'bill-void');
+    await form(t, {'reason': 'Customer left'});
+    await tapKey(t, 'form-ok');
+    expect((await h.db.customSelect("SELECT status FROM \"order\" WHERE invoice_no = 'INV-20260112-0002'").getSingle()).data['status'], 'void');
+    await shot(t, '43_bills');
+  });
+
+  testWidgets('udhaar: add a customer, sell on credit, see what they owe, receive payment', (t) async {
+    final h = await start(t);
+    await openTab(t, 'customers', 'Customers');
+    await tapKey(t, 'add-customer');
+    await form(t, {'name': 'Ahmed', 'phone': '0300-1111111', 'limit': '2000'});
+    await tapKey(t, 'form-ok');
+    expect(find.byKey(const ValueKey('customer-Ahmed')), findsOneWidget);
+
+    await openTab(t, 'pos', 'Sell');
+    await add(t, 'Zinger Burger');
+    await tapKey(t, 'open-cart');
+    // credit is not offered until a customer is attached to the order
+    await tapKey(t, 'charge');
+    expect(find.byKey(const ValueKey('method-Credit (udhaar)')), findsNothing);
+    await t.tapAt(const Offset(10, 10)); // dismiss the sheet
+    await t.pumpAndSettle();
+    await tapKey(t, 'pick-customer');
+    await tapKey(t, 'pick-Ahmed');
+    await tapKey(t, 'charge');
+    await tapKey(t, 'method-Credit (udhaar)');
+    await tapKey(t, 'confirm-payment');
+    await tapKey(t, 'new-sale');
+    expect(h.container.read(cartProvider).isEmpty, isTrue);
+
+    await openTab(t, 'customers', 'Customers');
+    expect(find.text('PKR 450.00'), findsOneWidget);
+    await t.tap(find.byKey(const ValueKey('customer-Ahmed')));
+    await t.pumpAndSettle();
+    expect(text(t, 'cust-balance').data, contains('PKR 450.00'));
+    await tapKey(t, 'receive-payment');
+    await form(t, {'amount': '200'});
+    await tapKey(t, 'form-ok');
+    expect(text(t, 'cust-balance').data, contains('PKR 250.00'));
+    await shot(t, '44_udhaar');
+    // paying more than owed is refused
+    await tapKey(t, 'receive-payment');
+    await form(t, {'amount': '999'});
+    await tapKey(t, 'form-ok');
+    expect(find.byKey(const ValueKey('form-error')), findsOneWidget);
+  });
+
+  testWidgets('expenses: a cash expense is added and shows in the total', (t) async {
+    final h = await start(t);
+    await openTab(t, 'expenses', 'Expenses');
+    await tapKey(t, 'add-expense');
+    await form(t, {'amount': '300', 'category': 'Gas'});
+    await tapKey(t, 'form-ok');
+    expect(text(t, 'exp-total').data, 'PKR 300.00');
+    expect(find.text('Gas'), findsOneWidget);
+    // the cash left the drawer: closing the shift with 0 counted is short by exactly 300
+    expect(await n(h, "SELECT COUNT(*) AS n FROM cash_movement WHERE direction = 'out' AND amount_minor = 30000"), 1);
+  });
+
+  testWidgets('inventory: add stock, buy, waste, count, low-stock filter and stock value', (t) async {
+    final h = await start(t);
+    await openTab(t, 'inventory', 'Inventory');
+    await tapKey(t, 'add-stock');
+    await form(t, {'name': 'Flour', 'open': '10', 'cost': '100', 'reorder': '5'});
+    await tapKey(t, 'form-ok');
+    expect(find.byKey(const ValueKey('stock-Flour')), findsOneWidget);
+    expect(text(t, 'stock-value').data, contains('PKR 1,000.00'));
+
+    await tapKey(t, 'stock-menu-Flour');
+    await t.tap(find.text('Purchase').last);
+    await t.pumpAndSettle();
+    await form(t, {'qty': '10', 'cost': '140'});
+    await tapKey(t, 'form-ok');
+    expect(text(t, 'stock-value').data, contains('PKR 2,400.00')); // 20 kg at the new average cost of 120
+
+    await tapKey(t, 'stock-menu-Flour');
+    await t.tap(find.text('Wastage').last);
+    await t.pumpAndSettle();
+    await form(t, {'qty': '12'});
+    await tapKey(t, 'form-ok');
+    expect(find.byKey(const ValueKey('form-error')), findsOneWidget); // reason required
+    await form(t, {'reason': 'Spoiled'});
+    await tapKey(t, 'form-ok');
+    expect(find.textContaining('On hand: 8'), findsOneWidget);
+    expect(find.textContaining('Low stock'), findsWidgets);
+    await shot(t, '45_inventory');
+
+    await tapKey(t, 'low-filter');
+    expect(find.byKey(const ValueKey('stock-Flour')), findsNothing); // 8 kg is above the reorder level of 5
+    await tapKey(t, 'low-filter');
+    await tapKey(t, 'stock-menu-Flour');
+    await t.tap(find.text('Stock count').last);
+    await t.pumpAndSettle();
+    await form(t, {'qty': '3'});
+    await tapKey(t, 'form-ok');
+    await tapKey(t, 'low-filter');
+    expect(find.byKey(const ValueKey('stock-Flour')), findsOneWidget);
+    expect(await n(h, "SELECT COUNT(*) AS n FROM stock_movement WHERE reason = 'adjustment'"), 1);
+  });
+
+  testWidgets('staff: the owner adds a cashier who can then sign in; a cashier never sees Staff', (t) async {
+    final h = await start(t);
+    await openTab(t, 'staff', 'Staff');
+    await tapKey(t, 'add-staff');
+    await form(t, {'name': 'Sara', 'pin': '5555'});
+    await tapKey(t, 'form-ok');
+    expect(find.byKey(const ValueKey('staff-row-Sara')), findsOneWidget);
+    await tapKey(t, 'sign-out');
+    h.container.invalidate(staffListProvider);
+    await t.pumpAndSettle();
+    await signIn(t, 'Sara', '5555');
+    expect(find.byKey(const ValueKey('open-shift')), findsOneWidget);
+    expect(find.descendant(of: find.byType(NavigationBar), matching: find.text('Staff')), findsNothing);
+  });
+
+  testWidgets('kitchen: send to kitchen prints only what was added since the last send', (t) async {
+    final h = await start(t, tablet: true);
+    final server = await t.runAsync(() => ServerSocket.bind(InternetAddress.loopbackIPv4, 0));
+    addTearDown(() => server!.close());
+    final got = <String>[];
+    server!.listen((c) {
+      final b = BytesBuilder();
+      c.listen(b.add, onDone: () => got.add(latin1.decode(b.toBytes(), allowInvalid: true)));
+    });
+    await h.db.customStatement("INSERT INTO printer(id,name,connection,address,paper_mm,role,updated_at) VALUES ('k','K','lan','127.0.0.1:${server.port}',58,'kot',1)");
+
+    Future<void> send(int expected) async {
+      await tapKey(t, 'send-kitchen');
+      for (var i = 0; i < 30 && got.length < expected; i++) {
+        await t.runAsync(() async => Future<void>.delayed(const Duration(milliseconds: 100)));
+        await t.pump(const Duration(milliseconds: 50));
+      }
+    }
+
+    await t.tap(find.text('Dine-in'));
+    await t.pumpAndSettle();
+    await add(t, 'Zinger Burger', times: 2);
+    await send(1);
+    expect(got.single, contains('2 x Zinger Burger'));
+    await add(t, 'Fries');
+    await send(2);
+    expect(got.last, contains('1 x Fries'));
+    expect(got.last, isNot(contains('Zinger')));
+    // more of an item already sent: only the extra portion is printed
+    await add(t, 'Zinger Burger');
+    await send(3);
+    expect(got.last, contains('1 x Zinger Burger'));
+    expect(got.last, isNot(contains('2 x Zinger')));
+    expect(got.last, isNot(contains('Fries')));
+    await tapKey(t, 'send-kitchen'); // nothing new: nothing printed
+    await t.runAsync(() async => Future<void>.delayed(const Duration(milliseconds: 300)));
+    await t.pump(const Duration(milliseconds: 50));
+    expect(got.length, 3);
+  });
+}

@@ -111,8 +111,7 @@ void main() {
     expect(h.container.read(cartProvider).isEmpty, isTrue);
 
     // report
-    await t.tap(find.text('Reports'));
-    await t.pumpAndSettle();
+    await openTab(t, 'reports', 'Reports');
     expect(t.widget<Text>(find.byKey(const ValueKey('stat-gross'))).data, 'PKR 900.00');
     expect(t.widget<Text>(find.byKey(const ValueKey('stat-bills'))).data, '1');
     await shot(t, '09_report');
@@ -166,7 +165,10 @@ void main() {
     h.container.invalidate(staffListProvider);
     await t.pumpAndSettle();
     await signIn(t, 'Sara', '5555');
-    expect(find.byType(NavigationBar), findsNothing); // a single destination: no bar
+    for (final hidden in ['Menu', 'Settings', 'Reports', 'Inventory', 'Staff']) {
+      expect(find.descendant(of: find.byType(NavigationBar), matching: find.text(hidden)), findsNothing, reason: hidden);
+    }
+    expect(find.byKey(const ValueKey('nav-more')), findsNothing); // exactly five destinations fit on the bar
     await tapKey(t, 'open-shift');
     await tapKey(t, 'amount-ok');
     await t.tap(find.byKey(const ValueKey('product-Fries')));

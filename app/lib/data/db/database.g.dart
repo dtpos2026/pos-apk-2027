@@ -12303,6 +12303,18 @@ class OrderItem extends Table with TableInfo<OrderItem, OrderItemData> {
     requiredDuringInsert: false,
     $customConstraints: '',
   );
+  static const VerificationMeta _kotQtyMilliMeta = const VerificationMeta(
+    'kotQtyMilli',
+  );
+  late final GeneratedColumn<int> kotQtyMilli = GeneratedColumn<int>(
+    'kot_qty_milli',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT 0',
+    defaultValue: const CustomExpression('0'),
+  );
   static const VerificationMeta _statusMeta = const VerificationMeta('status');
   late final GeneratedColumn<String> status = GeneratedColumn<String>(
     'status',
@@ -12331,6 +12343,7 @@ class OrderItem extends Table with TableInfo<OrderItem, OrderItemData> {
     note,
     station,
     kotSentAt,
+    kotQtyMilli,
     status,
   ];
   @override
@@ -12456,6 +12469,15 @@ class OrderItem extends Table with TableInfo<OrderItem, OrderItemData> {
         kotSentAt.isAcceptableOrUnknown(data['kot_sent_at']!, _kotSentAtMeta),
       );
     }
+    if (data.containsKey('kot_qty_milli')) {
+      context.handle(
+        _kotQtyMilliMeta,
+        kotQtyMilli.isAcceptableOrUnknown(
+          data['kot_qty_milli']!,
+          _kotQtyMilliMeta,
+        ),
+      );
+    }
     if (data.containsKey('status')) {
       context.handle(
         _statusMeta,
@@ -12531,6 +12553,10 @@ class OrderItem extends Table with TableInfo<OrderItem, OrderItemData> {
         DriftSqlType.int,
         data['${effectivePrefix}kot_sent_at'],
       ),
+      kotQtyMilli: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}kot_qty_milli'],
+      )!,
       status: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}status'],
@@ -12565,6 +12591,9 @@ class OrderItemData extends DataClass implements Insertable<OrderItemData> {
   final String? note;
   final String? station;
   final int? kotSentAt;
+  final int kotQtyMilli;
+
+  /// quantity the kitchen has already been sent; the next KOT prints only the difference
   final String status;
   const OrderItemData({
     this.id,
@@ -12582,6 +12611,7 @@ class OrderItemData extends DataClass implements Insertable<OrderItemData> {
     this.note,
     this.station,
     this.kotSentAt,
+    required this.kotQtyMilli,
     required this.status,
   });
   @override
@@ -12612,6 +12642,7 @@ class OrderItemData extends DataClass implements Insertable<OrderItemData> {
     if (!nullToAbsent || kotSentAt != null) {
       map['kot_sent_at'] = Variable<int>(kotSentAt);
     }
+    map['kot_qty_milli'] = Variable<int>(kotQtyMilli);
     map['status'] = Variable<String>(status);
     return map;
   }
@@ -12639,6 +12670,7 @@ class OrderItemData extends DataClass implements Insertable<OrderItemData> {
       kotSentAt: kotSentAt == null && nullToAbsent
           ? const Value.absent()
           : Value(kotSentAt),
+      kotQtyMilli: Value(kotQtyMilli),
       status: Value(status),
     );
   }
@@ -12664,6 +12696,7 @@ class OrderItemData extends DataClass implements Insertable<OrderItemData> {
       note: serializer.fromJson<String?>(json['note']),
       station: serializer.fromJson<String?>(json['station']),
       kotSentAt: serializer.fromJson<int?>(json['kot_sent_at']),
+      kotQtyMilli: serializer.fromJson<int>(json['kot_qty_milli']),
       status: serializer.fromJson<String>(json['status']),
     );
   }
@@ -12686,6 +12719,7 @@ class OrderItemData extends DataClass implements Insertable<OrderItemData> {
       'note': serializer.toJson<String?>(note),
       'station': serializer.toJson<String?>(station),
       'kot_sent_at': serializer.toJson<int?>(kotSentAt),
+      'kot_qty_milli': serializer.toJson<int>(kotQtyMilli),
       'status': serializer.toJson<String>(status),
     };
   }
@@ -12706,6 +12740,7 @@ class OrderItemData extends DataClass implements Insertable<OrderItemData> {
     Value<String?> note = const Value.absent(),
     Value<String?> station = const Value.absent(),
     Value<int?> kotSentAt = const Value.absent(),
+    int? kotQtyMilli,
     String? status,
   }) => OrderItemData(
     id: id.present ? id.value : this.id,
@@ -12723,6 +12758,7 @@ class OrderItemData extends DataClass implements Insertable<OrderItemData> {
     note: note.present ? note.value : this.note,
     station: station.present ? station.value : this.station,
     kotSentAt: kotSentAt.present ? kotSentAt.value : this.kotSentAt,
+    kotQtyMilli: kotQtyMilli ?? this.kotQtyMilli,
     status: status ?? this.status,
   );
   OrderItemData copyWithCompanion(OrderItemCompanion data) {
@@ -12750,6 +12786,9 @@ class OrderItemData extends DataClass implements Insertable<OrderItemData> {
       note: data.note.present ? data.note.value : this.note,
       station: data.station.present ? data.station.value : this.station,
       kotSentAt: data.kotSentAt.present ? data.kotSentAt.value : this.kotSentAt,
+      kotQtyMilli: data.kotQtyMilli.present
+          ? data.kotQtyMilli.value
+          : this.kotQtyMilli,
       status: data.status.present ? data.status.value : this.status,
     );
   }
@@ -12772,6 +12811,7 @@ class OrderItemData extends DataClass implements Insertable<OrderItemData> {
           ..write('note: $note, ')
           ..write('station: $station, ')
           ..write('kotSentAt: $kotSentAt, ')
+          ..write('kotQtyMilli: $kotQtyMilli, ')
           ..write('status: $status')
           ..write(')'))
         .toString();
@@ -12794,6 +12834,7 @@ class OrderItemData extends DataClass implements Insertable<OrderItemData> {
     note,
     station,
     kotSentAt,
+    kotQtyMilli,
     status,
   );
   @override
@@ -12815,6 +12856,7 @@ class OrderItemData extends DataClass implements Insertable<OrderItemData> {
           other.note == this.note &&
           other.station == this.station &&
           other.kotSentAt == this.kotSentAt &&
+          other.kotQtyMilli == this.kotQtyMilli &&
           other.status == this.status);
 }
 
@@ -12834,6 +12876,7 @@ class OrderItemCompanion extends UpdateCompanion<OrderItemData> {
   final Value<String?> note;
   final Value<String?> station;
   final Value<int?> kotSentAt;
+  final Value<int> kotQtyMilli;
   final Value<String> status;
   final Value<int> rowid;
   const OrderItemCompanion({
@@ -12852,6 +12895,7 @@ class OrderItemCompanion extends UpdateCompanion<OrderItemData> {
     this.note = const Value.absent(),
     this.station = const Value.absent(),
     this.kotSentAt = const Value.absent(),
+    this.kotQtyMilli = const Value.absent(),
     this.status = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -12871,6 +12915,7 @@ class OrderItemCompanion extends UpdateCompanion<OrderItemData> {
     this.note = const Value.absent(),
     this.station = const Value.absent(),
     this.kotSentAt = const Value.absent(),
+    this.kotQtyMilli = const Value.absent(),
     this.status = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : orderId = Value(orderId),
@@ -12895,6 +12940,7 @@ class OrderItemCompanion extends UpdateCompanion<OrderItemData> {
     Expression<String>? note,
     Expression<String>? station,
     Expression<int>? kotSentAt,
+    Expression<int>? kotQtyMilli,
     Expression<String>? status,
     Expression<int>? rowid,
   }) {
@@ -12914,6 +12960,7 @@ class OrderItemCompanion extends UpdateCompanion<OrderItemData> {
       if (note != null) 'note': note,
       if (station != null) 'station': station,
       if (kotSentAt != null) 'kot_sent_at': kotSentAt,
+      if (kotQtyMilli != null) 'kot_qty_milli': kotQtyMilli,
       if (status != null) 'status': status,
       if (rowid != null) 'rowid': rowid,
     });
@@ -12935,6 +12982,7 @@ class OrderItemCompanion extends UpdateCompanion<OrderItemData> {
     Value<String?>? note,
     Value<String?>? station,
     Value<int?>? kotSentAt,
+    Value<int>? kotQtyMilli,
     Value<String>? status,
     Value<int>? rowid,
   }) {
@@ -12954,6 +13002,7 @@ class OrderItemCompanion extends UpdateCompanion<OrderItemData> {
       note: note ?? this.note,
       station: station ?? this.station,
       kotSentAt: kotSentAt ?? this.kotSentAt,
+      kotQtyMilli: kotQtyMilli ?? this.kotQtyMilli,
       status: status ?? this.status,
       rowid: rowid ?? this.rowid,
     );
@@ -13007,6 +13056,9 @@ class OrderItemCompanion extends UpdateCompanion<OrderItemData> {
     if (kotSentAt.present) {
       map['kot_sent_at'] = Variable<int>(kotSentAt.value);
     }
+    if (kotQtyMilli.present) {
+      map['kot_qty_milli'] = Variable<int>(kotQtyMilli.value);
+    }
     if (status.present) {
       map['status'] = Variable<String>(status.value);
     }
@@ -13034,6 +13086,7 @@ class OrderItemCompanion extends UpdateCompanion<OrderItemData> {
           ..write('note: $note, ')
           ..write('station: $station, ')
           ..write('kotSentAt: $kotSentAt, ')
+          ..write('kotQtyMilli: $kotQtyMilli, ')
           ..write('status: $status, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -36632,6 +36685,7 @@ typedef $OrderItemCreateCompanionBuilder =
       Value<String?> note,
       Value<String?> station,
       Value<int?> kotSentAt,
+      Value<int> kotQtyMilli,
       Value<String> status,
       Value<int> rowid,
     });
@@ -36652,6 +36706,7 @@ typedef $OrderItemUpdateCompanionBuilder =
       Value<String?> note,
       Value<String?> station,
       Value<int?> kotSentAt,
+      Value<int> kotQtyMilli,
       Value<String> status,
       Value<int> rowid,
     });
@@ -36805,6 +36860,11 @@ class $OrderItemFilterComposer extends Composer<_$AppDatabase, OrderItem> {
 
   ColumnFilters<int> get kotSentAt => $composableBuilder(
     column: $table.kotSentAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get kotQtyMilli => $composableBuilder(
+    column: $table.kotQtyMilli,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -36976,6 +37036,11 @@ class $OrderItemOrderingComposer extends Composer<_$AppDatabase, OrderItem> {
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get kotQtyMilli => $composableBuilder(
+    column: $table.kotQtyMilli,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get status => $composableBuilder(
     column: $table.status,
     builder: (column) => ColumnOrderings(column),
@@ -37102,6 +37167,11 @@ class $OrderItemAnnotationComposer extends Composer<_$AppDatabase, OrderItem> {
 
   GeneratedColumn<int> get kotSentAt =>
       $composableBuilder(column: $table.kotSentAt, builder: (column) => column);
+
+  GeneratedColumn<int> get kotQtyMilli => $composableBuilder(
+    column: $table.kotQtyMilli,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
@@ -37249,6 +37319,7 @@ class $OrderItemTableManager
                 Value<String?> note = const Value.absent(),
                 Value<String?> station = const Value.absent(),
                 Value<int?> kotSentAt = const Value.absent(),
+                Value<int> kotQtyMilli = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => OrderItemCompanion(
@@ -37267,6 +37338,7 @@ class $OrderItemTableManager
                 note: note,
                 station: station,
                 kotSentAt: kotSentAt,
+                kotQtyMilli: kotQtyMilli,
                 status: status,
                 rowid: rowid,
               ),
@@ -37287,6 +37359,7 @@ class $OrderItemTableManager
                 Value<String?> note = const Value.absent(),
                 Value<String?> station = const Value.absent(),
                 Value<int?> kotSentAt = const Value.absent(),
+                Value<int> kotQtyMilli = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => OrderItemCompanion.insert(
@@ -37305,6 +37378,7 @@ class $OrderItemTableManager
                 note: note,
                 station: station,
                 kotSentAt: kotSentAt,
+                kotQtyMilli: kotQtyMilli,
                 status: status,
                 rowid: rowid,
               ),

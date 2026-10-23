@@ -196,6 +196,7 @@ CREATE TABLE order_item (
   tax_rate_bp INTEGER NOT NULL DEFAULT 0, tax_inclusive INTEGER NOT NULL DEFAULT 0,
   tax_minor INTEGER NOT NULL DEFAULT 0, line_total_minor INTEGER NOT NULL,
   note TEXT, station TEXT, kot_sent_at INTEGER,
+  kot_qty_milli INTEGER NOT NULL DEFAULT 0,   -- quantity the kitchen has already been sent; the next KOT prints only the difference
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','void'))
 );
 CREATE INDEX order_item_order_ix ON order_item(order_id);

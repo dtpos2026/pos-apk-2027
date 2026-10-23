@@ -3,6 +3,13 @@ import 'package:flutter/material.dart' show Locale, ThemeMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/auth_service.dart';
+import '../data/bill_history.dart';
+import '../data/customer_service.dart';
+import '../data/db_helper.dart';
+import '../data/expense_service.dart';
+import '../data/inventory_service.dart';
+import '../data/staff_service.dart';
+import '../data/table_service.dart';
 import '../data/backup_service.dart';
 import '../data/db/database.dart';
 import '../data/menu_import.dart';
@@ -14,6 +21,7 @@ import '../data/receipt_settings.dart';
 import '../domain/receipt_doc.dart';
 import '../domain/receipt_template.dart';
 import 'logo_picker.dart';
+import 'share_service.dart';
 import 'themes.dart';
 import 'text_rasterizer.dart';
 import '../data/shift_service.dart';
@@ -25,6 +33,25 @@ final clockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
 final posServiceProvider = Provider<PosService>((ref) => PosService(ref.watch(databaseProvider), now: ref.watch(clockProvider)));
 final authServiceProvider = Provider<AuthService>((ref) => AuthService(ref.watch(databaseProvider), now: ref.watch(clockProvider)));
 final shiftServiceProvider = Provider<ShiftService>((ref) => ShiftService(ref.watch(databaseProvider), ref.watch(posServiceProvider), now: ref.watch(clockProvider)));
+final dbHelperProvider = Provider<DbHelper>((ref) => DbHelper(ref.watch(databaseProvider), now: ref.watch(clockProvider)));
+final customerServiceProvider = Provider<CustomerService>((ref) => CustomerService(ref.watch(dbHelperProvider)));
+final expenseServiceProvider = Provider<ExpenseService>((ref) => ExpenseService(ref.watch(dbHelperProvider)));
+final inventoryServiceProvider = Provider<InventoryService>((ref) => InventoryService(ref.watch(dbHelperProvider)));
+final tableServiceProvider = Provider<TableService>((ref) => TableService(ref.watch(dbHelperProvider)));
+final billHistoryProvider = Provider<BillHistory>((ref) => BillHistory(ref.watch(dbHelperProvider)));
+final staffServiceProvider = Provider<StaffService>((ref) => StaffService(ref.watch(dbHelperProvider), ref.watch(authServiceProvider)));
+
+final shareServiceProvider = Provider<ShareService>((ref) => const SystemShareService());
+
+/// Which screen the app shell shows ('pos', 'tables', ...). Other screens switch it (for example Tables opens Sell).
+class ShellTabNotifier extends Notifier<String> {
+  @override
+  String build() => 'pos';
+  void go(String key) => state = key;
+}
+
+final shellTabProvider = NotifierProvider<ShellTabNotifier, String>(ShellTabNotifier.new);
+
 final textRasterizerProvider = Provider<TextRasterizer>((ref) => const FlutterTextRasterizer());
 final printServiceProvider = Provider<PrintService>((ref) => PrintService(ref.watch(databaseProvider), now: ref.watch(clockProvider), rasterizer: ref.watch(textRasterizerProvider)));
 

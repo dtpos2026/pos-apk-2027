@@ -5,6 +5,7 @@ import 'package:drift/native.dart';
 
 import 'package:dt_food_pos/app/app.dart';
 import 'package:dt_food_pos/app/logo_picker.dart';
+import 'package:dt_food_pos/app/share_service.dart';
 import 'package:dt_food_pos/app/providers.dart';
 import 'package:dt_food_pos/data/auth_service.dart';
 import 'package:dt_food_pos/data/db/database.dart';
@@ -59,6 +60,12 @@ void setSize(WidgetTester t, {bool tablet = false}) {
   addTearDown(t.view.reset);
 }
 
+class FakeShare implements ShareService {
+  final shared = <String>[];
+  @override
+  Future<void> shareText(String text, {String? subject}) async => shared.add(text);
+}
+
 class FakeLogoPicker implements LogoPicker {
   FakeLogoPicker(this.bytes);
   Uint8List? bytes;
@@ -66,7 +73,7 @@ class FakeLogoPicker implements LogoPicker {
   Future<Uint8List?> pick() async => bytes;
 }
 
-Future<Harness> pumpApp(WidgetTester t, {AppDatabase? db, bool tablet = false, Locale? locale, Directory? backupDir, LogoPicker? logoPicker, Directory? logoDir}) async {
+Future<Harness> pumpApp(WidgetTester t, {AppDatabase? db, bool tablet = false, Locale? locale, Directory? backupDir, LogoPicker? logoPicker, Directory? logoDir, ShareService? share}) async {
   await t.runAsync(loadAppFonts);
   setSize(t, tablet: tablet);
   final database = db ?? newDb();
@@ -78,6 +85,7 @@ Future<Harness> pumpApp(WidgetTester t, {AppDatabase? db, bool tablet = false, L
     if (backupDir != null) backupDirProvider.overrideWith((ref) async => backupDir),
     logoDirProvider.overrideWithValue(logoDir ?? Directory.systemTemp.createTempSync('dtlogo')),
     if (logoPicker != null) logoPickerProvider.overrideWithValue(logoPicker),
+    if (share != null) shareServiceProvider.overrideWithValue(share),
   ]);
   addTearDown(container.dispose);
   if (locale != null) container.read(localeProvider.notifier).state = locale;
@@ -133,4 +141,20 @@ Future<void> shot(WidgetTester t, String name) async {
     Directory(dir).createSync(recursive: true);
     File('$dir/$name.png').writeAsBytesSync(data!.buffer.asUint8List());
   });
+}
+
+/// Opens a screen from the shell whatever the layout: the rail on tablets, the bottom bar or "More" on phones.
+Future<void> openTab(WidgetTester t, String key, String label) async {
+  final direct = find.descendant(of: find.byType(NavigationBar), matching: find.text(label));
+  final rail = find.descendant(of: find.byType(NavigationRail), matching: find.text(label));
+  if (direct.evaluate().isNotEmpty) {
+    await t.tap(direct.first);
+  } else if (rail.evaluate().isNotEmpty) {
+    await t.tap(rail.first);
+  } else {
+    await t.tap(find.byKey(const ValueKey('nav-more')));
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(ValueKey('more-$key')));
+  }
+  await t.pumpAndSettle();
 }

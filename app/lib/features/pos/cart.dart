@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
 import '../../data/pos_service.dart';
+import '../../data/print_service.dart';
 import '../../data/queries.dart';
 import '../../domain/bill.dart';
 
@@ -27,13 +28,13 @@ class CartState {
               taxInclusive: items[i].taxInclusive)
       ], config);
 
-  CartState copyWith({List<CartItem>? items, String? orderType, String? draftId, bool clearDraft = false, BillConfig? config}) => CartState(
+  CartState copyWith({List<CartItem>? items, String? orderType, String? draftId, bool clearDraft = false, BillConfig? config, String? customerId, bool clearCustomer = false, String? tableId, bool clearTable = false}) => CartState(
       items: items ?? this.items,
       orderType: orderType ?? this.orderType,
       draftId: clearDraft ? null : (draftId ?? this.draftId),
       config: config ?? this.config,
-      customerId: customerId,
-      tableId: tableId);
+      customerId: clearCustomer ? null : (customerId ?? this.customerId),
+      tableId: clearTable ? null : (tableId ?? this.tableId));
 }
 
 /// The order being rung up. Every change is written to the database (as a draft), so a crash, kill or dead battery
@@ -93,7 +94,7 @@ class CartNotifier extends Notifier<CartState> {
     final step = p.unit == 'kg' || p.unit == 'l' ? 500 : 1000;
     if (i >= 0) {
       final x = items[i];
-      items[i] = CartItem(productId: x.productId, name: x.name, qtyMilli: x.qtyMilli + step, unitPriceMinor: x.unitPriceMinor, taxRateBp: x.taxRateBp, taxInclusive: x.taxInclusive, station: x.station);
+      items[i] = CartItem(productId: x.productId, name: x.name, qtyMilli: x.qtyMilli + step, unitPriceMinor: x.unitPriceMinor, taxRateBp: x.taxRateBp, taxInclusive: x.taxInclusive, station: x.station, kotSentMilli: x.kotSentMilli);
     } else {
       items.add(CartItem(productId: p.id, name: p.name, qtyMilli: step, unitPriceMinor: p.priceMinor, taxRateBp: p.taxBp, taxInclusive: p.taxInclusive, station: p.station));
     }
@@ -108,7 +109,7 @@ class CartNotifier extends Notifier<CartState> {
     if (q <= 0) {
       items.removeAt(index);
     } else {
-      items[index] = CartItem(productId: x.productId, name: x.name, qtyMilli: q, unitPriceMinor: x.unitPriceMinor, taxRateBp: x.taxRateBp, taxInclusive: x.taxInclusive, station: x.station, modifiers: x.modifiers, note: x.note, variantId: x.variantId, lineDiscountMinor: x.lineDiscountMinor);
+      items[index] = CartItem(productId: x.productId, name: x.name, qtyMilli: q, unitPriceMinor: x.unitPriceMinor, taxRateBp: x.taxRateBp, taxInclusive: x.taxInclusive, station: x.station, modifiers: x.modifiers, note: x.note, variantId: x.variantId, lineDiscountMinor: x.lineDiscountMinor, kotSentMilli: x.kotSentMilli);
     }
     state = _valid(state.copyWith(items: items));
     _persist();
@@ -117,6 +118,68 @@ class CartNotifier extends Notifier<CartState> {
   void setOrderType(String t) {
     state = state.copyWith(orderType: t);
     if (!state.isEmpty) _persist();
+  }
+
+  void setCustomer(String? id) {
+    state = id == null ? state.copyWith(clearCustomer: true) : state.copyWith(customerId: id);
+    if (!state.isEmpty) _persist();
+  }
+
+  void setTable(String? id) {
+    state = id == null ? state.copyWith(clearTable: true) : state.copyWith(tableId: id, orderType: 'dine_in');
+    if (!state.isEmpty) _persist();
+  }
+
+  /// Opens the unsettled order of a table (or starts a fresh cart for it).
+  Future<void> openTable(String tableId, {String? orderId}) async {
+    await flush();
+    if (orderId != null) {
+      final d = await _pos.loadDraft(orderId);
+      if (d != null) {
+        state = CartState(items: d.items, orderType: d.orderType, draftId: orderId, config: d.config, customerId: d.customerId, tableId: d.tableId);
+        return;
+      }
+    }
+    state = CartState(orderType: 'dine_in', tableId: tableId);
+  }
+
+  /// Prints a kitchen ticket with only what was added since the last one, then remembers what the kitchen has.
+  /// Returns false when nothing new (or no kitchen printer) so the UI can say so.
+  Future<bool> sendToKitchen(PrintService printer) async {
+    await flush();
+    final id = state.draftId;
+    if (id == null) return false;
+    final jobs = await printer.queueKot(id, onlyNew: true);
+    if (jobs.isEmpty) return false;
+    final d = await _pos.loadDraft(id);
+    // adopt the "sent" quantities, unless the cart changed while we were printing
+    if (d != null && d.items.length == state.items.length) {
+      final items = [
+        for (var i = 0; i < state.items.length; i++)
+          CartItem(productId: state.items[i].productId, name: state.items[i].name, qtyMilli: state.items[i].qtyMilli, unitPriceMinor: state.items[i].unitPriceMinor, variantId: state.items[i].variantId, modifiers: state.items[i].modifiers, lineDiscountMinor: state.items[i].lineDiscountMinor, taxRateBp: state.items[i].taxRateBp, taxInclusive: state.items[i].taxInclusive, note: state.items[i].note, station: state.items[i].station, kotSentMilli: d.items[i].kotSentMilli)
+      ];
+      state = state.copyWith(items: items);
+    }
+    printer.processQueue();
+    return true;
+  }
+
+  /// Parks the current order and clears the screen for the next customer.
+  Future<void> hold() async {
+    await flush();
+    final s = state;
+    if (s.isEmpty) return;
+    await _pos.saveDraft(DraftOrder(id: s.draftId, orderType: s.orderType, items: s.items, config: s.config, tableId: s.tableId, customerId: s.customerId, held: true), staffId: ref.read(sessionProvider)?.staffId);
+    state = CartState(orderType: s.orderType);
+  }
+
+  Future<void> resume(String orderId) async {
+    await flush();
+    if (!state.isEmpty) await hold();
+    final d = await _pos.loadDraft(orderId);
+    if (d == null) return;
+    state = CartState(items: d.items, orderType: d.orderType, draftId: orderId, config: d.config, customerId: d.customerId, tableId: d.tableId);
+    _persist(); // back to a normal (non-held) draft
   }
 
   void setConfig(BillConfig c) {

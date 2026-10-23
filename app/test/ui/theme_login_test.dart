@@ -27,8 +27,7 @@ void main() {
     await seedBusiness(db);
     await pumpApp(t, db: db);
     await signIn(t, 'Ali', '1234');
-    await t.tap(find.text('Settings'));
-    await t.pumpAndSettle();
+    await openTab(t, 'settings', 'Settings');
     await t.ensureVisible(find.byKey(const ValueKey('theme-ocean')));
     await t.tap(find.byKey(const ValueKey('theme-ocean')));
     await t.pumpAndSettle();
@@ -65,8 +64,7 @@ void main() {
     await seedBusiness(db);
     await pumpApp(t, db: db);
     await signIn(t, 'Ali', '1234');
-    await t.tap(find.text('Settings'));
-    await t.pumpAndSettle();
+    await openTab(t, 'settings', 'Settings');
     await t.ensureVisible(find.byKey(const ValueKey('theme-mode')));
     await t.tap(find.text('Dark'));
     await t.pumpAndSettle();

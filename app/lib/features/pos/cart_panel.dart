@@ -5,11 +5,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/format.dart';
 import '../../app/providers.dart';
 import '../../app/strings.dart';
+import '../../data/pos_service.dart';
 import '../../domain/bill.dart';
 import '../../domain/money.dart';
+import '../common/dialogs.dart';
+import '../customers/customers_screen.dart';
 import 'cart.dart';
 import 'checkout_sheet.dart';
 import 'shift_dialogs.dart';
+
+final heldOrdersProvider = FutureProvider.autoDispose<List<HeldOrder>>((ref) => ref.watch(posServiceProvider).listHeld());
+final _customerNameProvider = FutureProvider.autoDispose.family<String?, String?>((ref, id) async {
+  if (id == null) return null;
+  return (await ref.watch(dbHelperProvider).one('SELECT name FROM customer WHERE id = ?', [id]))?['name'] as String?;
+});
+final _tableLabelProvider = FutureProvider.autoDispose.family<String?, String?>((ref, id) async {
+  if (id == null) return null;
+  return (await ref.watch(dbHelperProvider).one('SELECT label FROM dining_table WHERE id = ?', [id]))?['label'] as String?;
+});
 
 class CartPanel extends ConsumerWidget {
   const CartPanel({super.key, this.inSheet = false});
@@ -59,6 +72,36 @@ class CartPanel extends ConsumerWidget {
               onSelectionChanged: (s) => notifier.setOrderType(s.first),
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+            child: Row(children: [
+              Expanded(
+                child: ActionChip(
+                  key: const ValueKey('pick-customer'),
+                  avatar: const Icon(Icons.person_outline, size: 18),
+                  label: Text(ref.watch(_customerNameProvider(cart.customerId)).value ?? t['walk_in'], overflow: TextOverflow.ellipsis),
+                  onPressed: () async {
+                    final id = await pickCustomer(context, ref);
+                    if (id != null) notifier.setCustomer(id.isEmpty ? null : id);
+                  },
+                ),
+              ),
+              if (cart.orderType == 'dine_in') ...[
+                const SizedBox(width: 8),
+                ActionChip(
+                  key: const ValueKey('pick-table'),
+                  avatar: const Icon(Icons.table_restaurant_outlined, size: 18),
+                  label: Text(ref.watch(_tableLabelProvider(cart.tableId)).value ?? t['table']),
+                  onPressed: () async {
+                    final free = (await ref.read(tableServiceProvider).tables()).where((x) => x.status == 'free' || x.id == cart.tableId).toList();
+                    if (!context.mounted) return;
+                    final picked = await showDialog<String>(context: context, builder: (ctx) => SimpleDialog(title: Text(t['tables']), children: [for (final x in free) SimpleDialogOption(key: ValueKey('cart-table-${x.label}'), onPressed: () => Navigator.pop(ctx, x.id), child: Text(x.label))]));
+                    if (picked != null) notifier.setTable(picked);
+                  },
+                ),
+              ],
+            ]),
+          ),
           const SizedBox(height: 6),
           Expanded(
             child: cart.isEmpty
@@ -93,12 +136,32 @@ class CartPanel extends ConsumerWidget {
             child: Column(children: [
               ...totals,
               const SizedBox(height: 10),
-              Row(children: [
-                Expanded(child: OutlinedButton(key: const ValueKey('clear-cart'), onPressed: cart.isEmpty ? null : notifier.clear, child: FittedBox(fit: BoxFit.scaleDown, child: Text(t['clear'])))),
-                if (session.can('discount.apply')) ...[
-                  const SizedBox(width: 8),
-                  Expanded(child: OutlinedButton(key: const ValueKey('discount'), onPressed: cart.isEmpty ? null : () => _discountDialog(context, ref), child: FittedBox(fit: BoxFit.scaleDown, child: Text(t['discount'])))),
-                ],
+              Wrap(spacing: 8, runSpacing: 6, alignment: WrapAlignment.center, children: [
+                OutlinedButton(key: const ValueKey('clear-cart'), onPressed: cart.isEmpty ? null : notifier.clear, child: Text(t['clear'])),
+                if (session.can('discount.apply')) OutlinedButton(key: const ValueKey('discount'), onPressed: cart.isEmpty ? null : () => _discountDialog(context, ref), child: Text(t['discount'])),
+                OutlinedButton(
+                  key: const ValueKey('hold'),
+                  onPressed: cart.isEmpty ? null : () async {
+                    await notifier.hold();
+                    ref.invalidate(heldOrdersProvider);
+                  },
+                  child: Text(t['hold']),
+                ),
+                Badge(
+                  isLabelVisible: (ref.watch(heldOrdersProvider).value?.length ?? 0) > 0,
+                  label: Text('${ref.watch(heldOrdersProvider).value?.length ?? 0}'),
+                  child: OutlinedButton(key: const ValueKey('held'), onPressed: () => _heldSheet(context, ref), child: Text(t['held_orders'])),
+                ),
+                if (cart.orderType == 'dine_in' || cart.orderType == 'takeaway' || cart.orderType == 'delivery')
+                  OutlinedButton.icon(
+                    key: const ValueKey('send-kitchen'),
+                    onPressed: cart.isEmpty ? null : () async {
+                      final sent = await notifier.sendToKitchen(ref.read(printServiceProvider));
+                      if (context.mounted) showMessage(context, sent ? t['kitchen_sent'] : t['no_printer']);
+                    },
+                    icon: const Icon(Icons.soup_kitchen_outlined, size: 18),
+                    label: Text(t['send_kitchen']),
+                  ),
               ]),
               const SizedBox(height: 8),
               SizedBox(width: double.infinity, child: FilledButton(key: const ValueKey('charge'), onPressed: cart.isEmpty ? null : () => showCheckout(context, ref, closeParent: inSheet), child: Text('${t['charge']}  ·  ${ref.money(bill.totalMinor)}'))),
@@ -107,6 +170,28 @@ class CartPanel extends ConsumerWidget {
         ]),
       ),
     );
+  }
+
+  Future<void> _heldSheet(BuildContext context, WidgetRef ref) async {
+    final t = Strings.of(context);
+    final held = await ref.read(posServiceProvider).listHeld();
+    if (!context.mounted) return;
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: held.isEmpty
+            ? Padding(padding: const EdgeInsets.all(28), child: Text(t['no_held'], textAlign: TextAlign.center))
+            : ListView(shrinkWrap: true, children: [
+                ListTile(title: Text(t['held_orders'], style: const TextStyle(fontWeight: FontWeight.w700))),
+                for (final h in held)
+                  ListTile(key: ValueKey('held-${h.id}'), leading: const Icon(Icons.pause_circle_outline), title: Text(ref.money(h.totalMinor), style: const TextStyle(fontWeight: FontWeight.w800)), subtitle: Text('${h.itemCount} · ${t[h.orderType]}${h.table != null ? ' ${h.table}' : ''}'), trailing: Text(t['resume']), onTap: () => Navigator.pop(ctx, h.id)),
+              ]),
+      ),
+    );
+    if (picked != null) {
+      await ref.read(cartProvider.notifier).resume(picked);
+      ref.invalidate(heldOrdersProvider);
+    }
   }
 
   Future<void> _discountDialog(BuildContext context, WidgetRef ref) async {

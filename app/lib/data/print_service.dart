@@ -117,11 +117,14 @@ class PrintService {
 
   /// Queues kitchen tickets: items are grouped by station and sent to the printer for that station
   /// (a kot printer with no station receives everything not claimed by a station printer).
-  Future<List<String>> queueKot(String orderId, {bool reprint = false}) async {
+  Future<List<String>> queueKot(String orderId, {bool reprint = false, bool onlyNew = false}) async {
     final printers = await _select("SELECT * FROM printer WHERE enabled = 1 AND deleted_at IS NULL AND role IN ('kot','both') ORDER BY name");
     if (printers.isEmpty) return [];
     final o = (await _select('SELECT * FROM "order" WHERE id = ?', [orderId])).first;
-    final items = await _select("SELECT * FROM order_item WHERE order_id = ? AND status = 'active' ORDER BY rowid", [orderId]);
+    var items = await _select("SELECT * FROM order_item WHERE order_id = ? AND status = 'active' ${onlyNew ? 'AND qty_milli > kot_qty_milli' : ''} ORDER BY rowid", [orderId]);
+    if (items.isEmpty) return [];
+    // only what the kitchen does not have yet: 2 burgers sent, 3 now on the order -> print 1
+    if (onlyNew) items = [for (final i in items) {...i, 'qty_milli': (i['qty_milli'] as int) - (i['kot_qty_milli'] as int)}];
     final byStation = <String, List<Map<String, Object?>>>{};
     final claimed = {for (final p in printers) if (p['station'] != null) p['station'] as String};
     for (final i in items) {
@@ -150,6 +153,10 @@ class PrintService {
         isReprint: reprint,
       );
       ids.add(await _enqueue(p['id'] as String, 'kot', orderId, bytes, reprint));
+    }
+    if (onlyNew && ids.isNotEmpty) {
+      // remember what the kitchen already has, so the next "send" only prints what was added since
+      await db.customStatement("UPDATE order_item SET kot_qty_milli = qty_milli, kot_sent_at = ? WHERE order_id = ? AND status = 'active' AND qty_milli > kot_qty_milli", [_ts, orderId]);
     }
     return ids;
   }

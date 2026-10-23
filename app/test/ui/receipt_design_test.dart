@@ -19,8 +19,7 @@ Uint8List logoPng() {
 }
 
 Future<void> openDesigner(WidgetTester t) async {
-  await t.tap(find.text('Settings'));
-  await t.pumpAndSettle();
+  await openTab(t, 'settings', 'Settings');
   await t.ensureVisible(find.byKey(const ValueKey('receipt-design-tile')));
   await t.tap(find.byKey(const ValueKey('receipt-design-tile')));
   await t.pumpAndSettle();

@@ -35,6 +35,7 @@ class CartItem {
     this.taxInclusive = false,
     this.note,
     this.station,
+    this.kotSentMilli = 0,
   });
   final String productId;
   final String? variantId;
@@ -47,6 +48,9 @@ class CartItem {
   final bool taxInclusive;
   final String? note;
   final String? station;
+
+  /// Quantity already sent to the kitchen (see KOT printing).
+  final int kotSentMilli;
   int get modifiersMinor => modifiers.fold(0, (s, m) => s + m.priceMinor);
 }
 
@@ -91,6 +95,16 @@ class SettledOrder {
 
   /// True when the call hit an already-settled order and returned the existing result (safe retry).
   final bool alreadySettled;
+}
+
+class HeldOrder {
+  const HeldOrder({required this.id, required this.totalMinor, required this.updatedAt, required this.orderType, this.table, required this.itemCount});
+  final String id;
+  final int totalMinor;
+  final int updatedAt;
+  final String orderType;
+  final String? table;
+  final int itemCount;
 }
 
 class SalesReport {
@@ -214,8 +228,8 @@ class PosService {
           final r = bill.lines[i];
           final itemId = _newId();
           await _exec(
-              'INSERT INTO order_item(id, order_id, product_id, variant_id, name, qty_milli, unit_price_minor, discount_minor, tax_rate_bp, tax_inclusive, tax_minor, line_total_minor, note, station) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-              [itemId, id, it.productId, it.variantId, it.name, it.qtyMilli, it.unitPriceMinor, it.lineDiscountMinor, it.taxRateBp, it.taxInclusive ? 1 : 0, r.taxMinor, r.totalMinor, it.note, it.station]);
+              'INSERT INTO order_item(id, order_id, product_id, variant_id, name, qty_milli, unit_price_minor, discount_minor, tax_rate_bp, tax_inclusive, tax_minor, line_total_minor, note, station, kot_qty_milli) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+              [itemId, id, it.productId, it.variantId, it.name, it.qtyMilli, it.unitPriceMinor, it.lineDiscountMinor, it.taxRateBp, it.taxInclusive ? 1 : 0, r.taxMinor, r.totalMinor, it.note, it.station, it.kotSentMilli > it.qtyMilli ? it.qtyMilli : it.kotSentMilli]);
           for (final m in it.modifiers) {
             await _exec('INSERT INTO order_item_modifier(id, order_item_id, option_id, name, price_minor) VALUES (?,?,?,?,?)', [_newId(), itemId, m.optionId, m.name, m.priceMinor]);
           }
@@ -261,6 +275,7 @@ class PosService {
         taxInclusive: (r['tax_inclusive'] as int) == 1,
         note: r['note'] as String?,
         station: r['station'] as String?,
+        kotSentMilli: r['kot_qty_milli'] as int,
       ));
     }
     return DraftOrder(
@@ -276,6 +291,12 @@ class PosService {
       held: o['status'] == 'held',
     );
   }
+
+  /// Orders put on hold, newest first.
+  Future<List<HeldOrder>> listHeld() async => [
+        for (final r in await _select("SELECT o.id, o.total_minor, o.updated_at, o.order_type, t.label AS tbl, (SELECT COUNT(*) FROM order_item i WHERE i.order_id = o.id) AS items FROM \"order\" o LEFT JOIN dining_table t ON t.id = o.table_id WHERE o.status = 'held' ORDER BY o.updated_at DESC"))
+          HeldOrder(id: r['id'] as String, totalMinor: r['total_minor'] as int, updatedAt: r['updated_at'] as int, orderType: r['order_type'] as String, table: r['tbl'] as String?, itemCount: r['items'] as int)
+      ];
 
   /// Removes an unsettled draft (cart emptied or cancelled). Settled orders can never be deleted.
   Future<void> discardDraft(String id) => db.transaction(() async {

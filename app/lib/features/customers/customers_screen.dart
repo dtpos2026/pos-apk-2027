@@ -1,0 +1,209 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../app/format.dart';
+import '../../app/providers.dart';
+import '../../app/strings.dart';
+import '../../data/customer_service.dart';
+import '../../data/pos_service.dart';
+import '../../domain/money.dart';
+import '../common/dialogs.dart';
+
+final customersProvider = FutureProvider.autoDispose.family<List<CustomerRow>, String>((ref, q) => ref.watch(customerServiceProvider).list(search: q));
+
+Future<String?> addCustomerDialog(BuildContext context, WidgetRef ref, {CustomerRow? existing}) async {
+  final s = Strings.of(context);
+  String? id;
+  final v = await showFormDialog(
+    context,
+    title: existing == null ? s['add_customer'] : s['edit'],
+    fields: [
+      FieldSpec('name', s['name'], initial: existing?.name ?? ''),
+      FieldSpec('phone', s['phone'], initial: existing?.phone ?? '', required: false),
+      FieldSpec('address', s['address'], initial: existing?.address ?? '', required: false),
+      FieldSpec('limit', s['credit_limit'], initial: existing == null ? '0' : formatMinor(existing.creditLimitMinor, currency: ref.currency, symbol: false).replaceAll(',', ''), number: true, required: false),
+    ],
+    validate: (v) async {
+      try {
+        id = await ref.read(customerServiceProvider).save(
+            id: existing?.id, name: v['name']!, phone: v['phone'], address: v['address'], creditLimitMinor: parseMinor(v['limit']!.isEmpty ? '0' : v['limit']!, currency: ref.currency) ?? 0, staffId: ref.read(sessionProvider)!.staffId);
+        return null;
+      } on PosException catch (e) {
+        return e.message;
+      }
+    },
+  );
+  if (v == null) return null;
+  ref.invalidate(customersProvider);
+  return id;
+}
+
+class CustomersScreen extends ConsumerStatefulWidget {
+  const CustomersScreen({super.key});
+  @override
+  ConsumerState<CustomersScreen> createState() => _CustomersScreenState();
+}
+
+class _CustomersScreenState extends ConsumerState<CustomersScreen> {
+  String _q = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final s = Strings.of(context);
+    final list = ref.watch(customersProvider(_q));
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      floatingActionButton: FloatingActionButton.extended(key: const ValueKey('add-customer'), onPressed: () => addCustomerDialog(context, ref), icon: const Icon(Icons.person_add_alt_1), label: Text(s['add_customer'])),
+      body: Column(children: [
+        Padding(padding: const EdgeInsets.all(12), child: TextField(decoration: InputDecoration(prefixIcon: const Icon(Icons.search), hintText: s['search_items'], isDense: true), onChanged: (v) => setState(() => _q = v))),
+        Expanded(
+          child: list.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Center(child: Text('$e')),
+            data: (rows) => rows.isEmpty
+                ? Center(child: Text(s['no_customers']))
+                : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 90),
+                    itemCount: rows.length,
+                    itemBuilder: (_, i) {
+                      final c = rows[i];
+                      return Card(
+                        child: ListTile(
+                          key: ValueKey('customer-${c.name}'),
+                          leading: CircleAvatar(child: Text(c.name.characters.first.toUpperCase())),
+                          title: Text(c.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                          subtitle: Text(c.phone ?? ''),
+                          trailing: c.balanceMinor > 0
+                              ? Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.end, children: [Text(s['owes'], style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.error)), Text(ref.money(c.balanceMinor), style: TextStyle(fontWeight: FontWeight.w800, color: Theme.of(context).colorScheme.error))])
+                              : null,
+                          onTap: () async {
+                            await showDialog<void>(context: context, builder: (_) => _CustomerDialog(c.id));
+                            ref.invalidate(customersProvider);
+                          },
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+class _CustomerDialog extends ConsumerStatefulWidget {
+  const _CustomerDialog(this.id);
+  final String id;
+  @override
+  ConsumerState<_CustomerDialog> createState() => _CustomerDialogState();
+}
+
+class _CustomerDialogState extends ConsumerState<_CustomerDialog> {
+  CustomerRow? _c;
+  List<LedgerEntry> _ledger = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final svc = ref.read(customerServiceProvider);
+    final all = await svc.list();
+    final led = await svc.ledger(widget.id);
+    if (!mounted) return;
+    setState(() {
+      _c = all.firstWhere((c) => c.id == widget.id);
+      _ledger = led;
+    });
+  }
+
+  Future<void> _receive() async {
+    final s = Strings.of(context);
+    final methods = (await ref.read(paymentMethodsProvider.future)).where((m) => m.kind != 'credit').toList();
+    if (!mounted) return;
+    var method = methods.first.id;
+    final v = await showFormDialog(
+      context,
+      title: s['receive_payment'],
+      fields: [FieldSpec('amount', s['amount'], number: true, initial: formatMinor(_c!.balanceMinor, currency: ref.currency, symbol: false).replaceAll(',', ''))],
+      extra: (set) => DropdownButtonFormField<String>(key: const ValueKey('recv-method'), initialValue: method, items: [for (final m in methods) DropdownMenuItem(value: m.id, child: Text(m.name))], onChanged: (x) => set(() => method = x ?? method)),
+      validate: (v) async {
+        try {
+          await ref.read(customerServiceProvider).receivePayment(customerId: widget.id, amountMinor: parseMinor(v['amount']!, currency: ref.currency) ?? 0, methodId: method, staffId: ref.read(sessionProvider)!.staffId);
+          return null;
+        } on PosException catch (e) {
+          return e.message;
+        }
+      },
+    );
+    if (v != null) _load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = Strings.of(context);
+    final c = _c;
+    return AlertDialog(
+      title: Text(c?.name ?? ''),
+      content: SizedBox(
+        width: 380,
+        child: c == null
+            ? const SizedBox(height: 80, child: Center(child: CircularProgressIndicator()))
+            : Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('${s['balance']}: ${ref.money(c.balanceMinor)}', key: const ValueKey('cust-balance'), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+                Text('${s['credit_limit']}: ${ref.money(c.creditLimitMinor)}'),
+                const Divider(),
+                Flexible(
+                  child: _ledger.isEmpty
+                      ? Padding(padding: const EdgeInsets.all(8), child: Text(s['no_ledger']))
+                      : ListView(shrinkWrap: true, children: [
+                          for (final e in _ledger)
+                            ListTile(dense: true, contentPadding: EdgeInsets.zero, title: Text(e.kind == 'sale_credit' ? s['owes'] : (e.kind == 'recovery' ? s['receive_payment'] : e.kind)), subtitle: Text(DateTime.fromMillisecondsSinceEpoch(e.at).toString().substring(0, 16)), trailing: Text(ref.money(e.amountMinor), style: TextStyle(fontWeight: FontWeight.w700, color: e.amountMinor < 0 ? Colors.green.shade700 : null))),
+                        ]),
+                ),
+              ]),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(s['close'])),
+        TextButton(onPressed: c == null ? null : () async {
+          if (await addCustomerDialog(context, ref, existing: c) != null) _load();
+        }, child: Text(s['edit'])),
+        if (c != null && c.balanceMinor > 0) FilledButton(key: const ValueKey('receive-payment'), onPressed: _receive, child: Text(s['receive_payment'])),
+      ],
+    );
+  }
+}
+
+/// Bottom sheet used by the cart to attach a customer to the order (needed for credit sales).
+Future<String?> pickCustomer(BuildContext context, WidgetRef ref) {
+  return showModalBottomSheet<String>(context: context, isScrollControlled: true, useSafeArea: true, builder: (_) => const _CustomerPicker());
+}
+
+class _CustomerPicker extends ConsumerStatefulWidget {
+  const _CustomerPicker();
+  @override
+  ConsumerState<_CustomerPicker> createState() => _CustomerPickerState();
+}
+
+class _CustomerPickerState extends ConsumerState<_CustomerPicker> {
+  String _q = '';
+  @override
+  Widget build(BuildContext context) {
+    final s = Strings.of(context);
+    final list = ref.watch(customersProvider(_q)).value ?? const [];
+    return FractionallySizedBox(
+      heightFactor: 0.8,
+      child: Column(children: [
+        ListTile(title: Text(s['select_customer'], style: const TextStyle(fontWeight: FontWeight.w700)), trailing: IconButton(key: const ValueKey('picker-add'), icon: const Icon(Icons.person_add_alt_1), onPressed: () async {
+          final id = await addCustomerDialog(context, ref);
+          if (id != null && context.mounted) Navigator.pop(context, id);
+        })),
+        Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: TextField(decoration: InputDecoration(prefixIcon: const Icon(Icons.search), hintText: s['search_items'], isDense: true), onChanged: (v) => setState(() => _q = v))),
+        ListTile(key: const ValueKey('pick-walkin'), leading: const Icon(Icons.person_outline), title: Text(s['walk_in']), onTap: () => Navigator.pop(context, '')),
+        Expanded(child: ListView(children: [for (final c in list) ListTile(key: ValueKey('pick-${c.name}'), leading: CircleAvatar(child: Text(c.name.characters.first.toUpperCase())), title: Text(c.name), subtitle: Text(c.phone ?? ''), trailing: c.balanceMinor > 0 ? Text(ref.money(c.balanceMinor)) : null, onTap: () => Navigator.pop(context, c.id))])),
+      ]),
+    );
+  }
+}
