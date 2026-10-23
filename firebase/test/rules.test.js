@@ -135,3 +135,18 @@ describe('invoices', () => {
     await assertFails(deleteDoc(doc(as('u1'), 'invoices/i1')));
   });
 });
+
+describe('audit log', () => {
+  const entry = (uid) => ({ at: serverTimestamp(), adminUid: uid, adminEmail: 'a@b.c', action: 'account.status', accountUid: 'u1', details: { status: 'active' } });
+  it('admins append with the server time; nobody edits or deletes; others cannot read or write', async () => {
+    await makeAdmin('adm');
+    await assertSucceeds(setDoc(doc(as('adm'), 'auditLog/e1'), entry('adm')));
+    await assertFails(setDoc(doc(as('adm'), 'auditLog/e2'), { ...entry('adm'), at: new Date('2020-01-01') }));
+    await assertFails(setDoc(doc(as('adm'), 'auditLog/e3'), entry('someone-else')));
+    await assertFails(updateDoc(doc(as('adm'), 'auditLog/e1'), { action: 'x' }));
+    await assertFails(deleteDoc(doc(as('adm'), 'auditLog/e1')));
+    await assertFails(setDoc(doc(as('u1'), 'auditLog/e4'), entry('u1')));
+    await assertFails(getDoc(doc(as('u1'), 'auditLog/e1')));
+    await assertSucceeds(getDoc(doc(as('adm'), 'auditLog/e1')));
+  });
+});

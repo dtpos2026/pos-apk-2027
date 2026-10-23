@@ -4,13 +4,14 @@ import { loadConfig } from './config';
 import { createFirebaseApi } from './firebaseApi';
 import { Dashboard, Restaurants, RestaurantPage } from './pages1';
 import { Invoices, Phones, Reminders, Support } from './pages2';
-import { Admins, Settings } from './pages3';
-import { Err, msg } from './ui';
+import { Admins, Audit, Settings } from './pages3';
+import { Icon } from './icons';
+import { Err, fmtDate, msg } from './ui';
 import { money } from './domain';
 
 export function Root() {
   const [st, setSt] = useState<{ api?: AdminApi; problem?: string } | null>(null);
-  useEffect(() => { loadConfig().then(r => setSt(r.config ? { api: createFirebaseApi(r.config) } : { problem: r.problem })); }, []);
+  useEffect(() => { loadConfig().then(r => setSt(r.config ? { api: createFirebaseApi(r.config, r.config.useEmulators ? { host: window.location.hostname, authPort: 9099, firestorePort: 8080 } : undefined) } : { problem: r.problem })); }, []);
   if (!st) return <div className="center">Loading…</div>;
   if (!st.api) return <SetupNeeded problem={st.problem ?? ''} />;
   const m = window.location.pathname.match(/^\/verify\/([\w-]+)/);
@@ -29,10 +30,10 @@ export function Verify({ api, token }: { api: AdminApi; token: string }) {
   return (<div className="center"><div className="card"><h2>Invoice verification</h2><Err text={err} />
     {r === undefined && !err && <p>Checking…</p>}
     {r === null && <p className="err">This invoice could not be verified.</p>}
-    {r && <p>Invoice <b>{r.number}</b> for <b>{r.businessName}</b><br />Amount {money(r.amountMinor, r.currency)} · status <b>{r.status}</b><br />Issued {r.issuedAt.toISOString().slice(0, 10)}</p>}</div></div>);
+    {r && <p>Invoice <b>{r.number}</b> for <b>{r.businessName}</b><br />Amount {money(r.amountMinor, r.currency)} · status <b>{r.status}</b><br />Issued {fmtDate(r.issuedAt)}</p>}</div></div>);
 }
 
-const PAGES = ['Dashboard', 'Restaurants', 'Invoices', 'Support', 'Phones', 'Reminders', 'Settings', 'Admins'] as const;
+const PAGES = ['Dashboard', 'Restaurants', 'Invoices', 'Support', 'Phones', 'Reminders', 'Settings', 'Admins', 'Audit'] as const;
 
 export function App({ api }: { api: AdminApi }) {
   const [user, setUser] = useState<{ uid: string; email: string } | null | undefined>(undefined);
@@ -45,21 +46,28 @@ export function App({ api }: { api: AdminApi }) {
   if (!admin) return <NoAccess api={api} uid={user.uid} email={user.email} onClaimed={() => setAdmin(true)} />;
   const go = (p: string, a?: string) => { setPage(p); setArg(a); };
   const props = { api, go, arg };
-  return (<div className="shell"><nav><h1>DT Food POS<br /><small>Super Admin</small></h1>
-    {PAGES.map(p => <button key={p} className={p === page || (page === 'Restaurant' && p === 'Restaurants') ? 'on' : ''} onClick={() => go(p)}>{p}</button>)}
-    <button onClick={() => api.signOut()}>Sign out</button></nav>
+  return (<div className="shell"><nav>
+    <div className="brand"><img src="/dt-mark-white.png" alt="" width={30} height={30} /><div><b>DT Food POS</b><small>Super Admin</small></div></div>
+    {PAGES.map(p => <button key={p} className={p === page || (page === 'Restaurant' && p === 'Restaurants') ? 'on' : ''} aria-current={p === page ? 'page' : undefined} onClick={() => go(p)}><Icon name={p} /><span>{p === 'Audit' ? 'Audit log' : p}</span></button>)}
+    <div className="spacer" />
+    <div className="who">{user.email}</div>
+    <button onClick={() => api.signOut()}><Icon name="Sign out" /><span>Sign out</span></button>
+    <div className="powered">Powered by Digital Target</div></nav>
     <main>{page === 'Dashboard' && <Dashboard {...props} />}{page === 'Restaurants' && <Restaurants {...props} />}{page === 'Restaurant' && <RestaurantPage {...props} />}
       {page === 'Invoices' && <Invoices key={arg} {...props} />}{page === 'Support' && <Support {...props} />}{page === 'Phones' && <Phones {...props} />}
-      {page === 'Reminders' && <Reminders {...props} />}{page === 'Settings' && <Settings {...props} />}{page === 'Admins' && <Admins {...props} me={user.uid} />}</main></div>);
+      {page === 'Reminders' && <Reminders {...props} />}{page === 'Settings' && <Settings {...props} />}{page === 'Admins' && <Admins {...props} me={user.uid} />}
+      {page === 'Audit' && <Audit {...props} />}</main></div>);
 }
 
 function Login({ api }: { api: AdminApi }) {
   const [email, setEmail] = useState(''); const [pw, setPw] = useState(''); const [err, setErr] = useState(''); const [info, setInfo] = useState('');
-  return (<div className="center"><div className="card"><h2>DT Food POS · Super Admin</h2>
-    <div className="row"><input aria-label="Email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} /></div>
-    <div className="row"><input aria-label="Password" type="password" placeholder="Password" value={pw} onChange={e => setPw(e.target.value)} /></div>
-    <button className="act" onClick={async () => { setErr(''); try { await api.signIn(email, pw); } catch (e) { setErr(msg(e)); } }}>Sign in</button>{' '}
-    <a onClick={async () => { setErr(''); setInfo(''); try { if (!email) throw new Error('Type your email first'); await api.resetPassword(email); setInfo('Password reset email sent.'); } catch (e) { setErr(msg(e)); } }}>Forgot password?</a>
+  return (<div className="center"><div className="card login"><img src="/logo.png" alt="DT Food POS" width={64} height={64} /><h2>DT Food POS</h2><p className="mut">Super Admin · Digital Target</p>
+    <form onSubmit={async e => { e.preventDefault(); setErr(''); try { await api.signIn(email, pw); } catch (x) { setErr(msg(x)); } }}>
+      <div className="row"><input aria-label="Email" type="email" autoComplete="username" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} /></div>
+      <div className="row"><input aria-label="Password" type="password" autoComplete="current-password" placeholder="Password" value={pw} onChange={e => setPw(e.target.value)} /></div>
+      <button className="act wide" type="submit">Sign in</button>
+    </form>
+    <p><a onClick={async () => { setErr(''); setInfo(''); try { if (!email) throw new Error('Type your email first'); await api.resetPassword(email); setInfo('Password reset email sent.'); } catch (e) { setErr(msg(e)); } }}>Forgot password?</a></p>
     <Err text={err} />{info && <p>{info}</p>}</div></div>);
 }
 

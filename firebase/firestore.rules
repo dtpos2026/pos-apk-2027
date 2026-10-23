@@ -90,5 +90,13 @@ service cloud.firestore {
     }
     match /invoiceVerify/{token} { allow get: if true; allow list: if isAdmin(); allow write: if isAdmin(); }
     match /counters/{id} { allow read, write: if isAdmin(); }
+
+    // ---- audit trail of admin actions: append-only, stamped by the server clock, cannot be edited or deleted ----
+    match /auditLog/{id} {
+      allow read: if isAdmin();
+      allow create: if isAdmin() && request.resource.data.adminUid == me() && request.resource.data.at == request.time
+        && request.resource.data.keys().hasOnly(['at', 'adminUid', 'adminEmail', 'action', 'accountUid', 'details'])
+        && request.resource.data.action is string;
+    }
   }
 }

@@ -14,8 +14,9 @@ export interface Thread { uid: string; businessName: string; lastMessage: string
 export interface Message { id: string; sender: 'business' | 'admin'; text: string; at: Date | null }
 export interface Branding { appName: string; contact: string; whatsapp: string; email: string; supportMessage: string }
 export interface AppControl { offlineDays: number; notice: string; latestVersion: string; minVersion: string; updateLink: string }
-export interface Billing { company: string; address: string; bank: string; accountTitle: string; accountNo: string; terms: string; paymentQr: string; signature: string; reminderTemplate: string }
+export interface Billing { company: string; address: string; bank: string; accountTitle: string; accountNo: string; terms: string; paymentQr: string; signature: string; reminderTemplate: string; planPrices: Record<string, number> }
 export interface AdminUser { uid: string }
+export interface AuditEntry { id: string; at: Date | null; adminEmail: string; action: string; accountUid: string | null; details: Record<string, unknown> }
 
 export type AccountPatch = Partial<Omit<Account, 'uid'>>;
 
@@ -58,4 +59,5 @@ export interface AdminApi {
   getAppControl(): Promise<AppControl>; setAppControl(a: AppControl): Promise<void>;
   getBilling(): Promise<Billing>; setBilling(b: Billing): Promise<void>;
   admins(): Promise<AdminUser[]>; addAdmin(uid: string): Promise<void>; removeAdmin(uid: string): Promise<void>;
+  auditLog(): Promise<AuditEntry[]>;
 }

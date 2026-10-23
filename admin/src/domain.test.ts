@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addMonths, customerId, daysLeft, effectiveStatus, expiryFor, fillTemplate, invoiceNumber, isOnline, parseMoneyToMinor, whatsappLink } from './domain';
+import { localDate, sumByCurrency, addMonths, customerId, daysLeft, effectiveStatus, expiryFor, fillTemplate, invoiceNumber, isOnline, parseMoneyToMinor, whatsappLink } from './domain';
 
 const d = (s: string) => new Date(s + 'T12:00:00');
 
@@ -45,5 +45,13 @@ describe('ids, money, messages', () => {
     expect(isOnline(new Date(1_000_000), new Date(1_000_000 + 299_000))).toBe(true);
     expect(isOnline(new Date(1_000_000), new Date(1_000_000 + 301_000))).toBe(false);
     expect(isOnline(null, new Date())).toBe(false);
+  });
+});
+
+describe('dates and currencies', () => {
+  it('local date keys do not shift to UTC', () => { expect(localDate(new Date(2026, 0, 2, 0, 30))).toBe('2026-01-02'); });
+  it('never adds PKR and AED together', () => {
+    expect(sumByCurrency([{ minor: 100000, currency: 'PKR' }, { minor: 5000, currency: 'AED' }, { minor: 20000, currency: 'PKR' }])).toBe('AED 50.00 · PKR 1,200.00');
+    expect(sumByCurrency([])).toBe('0');
   });
 });

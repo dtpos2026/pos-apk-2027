@@ -78,3 +78,16 @@ export function whatsappLink(phone: string, text: string): string {
 
 export const ONLINE_WINDOW_MS = 5 * 60_000;
 export function isOnline(lastSeen: Date | null, now: Date) { return !!lastSeen && now.getTime() - lastSeen.getTime() <= ONLINE_WINDOW_MS; }
+
+/** YYYY-MM-DD in the browser's local time zone (the app also keys days by local date). */
+export function localDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** Totals per currency, never added across currencies: "PKR 1,200.00 · AED 50.00". */
+export function sumByCurrency(rows: { minor: number; currency: string }[]): string {
+  const m = new Map<string, number>();
+  for (const r of rows) m.set(r.currency, (m.get(r.currency) ?? 0) + r.minor);
+  if (m.size === 0) return '0';
+  return [...m.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([c, v]) => money(v, c)).join(' · ');
+}

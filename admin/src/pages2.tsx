@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import type { AdminApi, Billing, Invoice, Message } from './api';
 import { PLANS, daysLeft, effectiveStatus, fillTemplate, isOnline, money, parseMoneyToMinor, whatsappLink, type PlanId } from './domain';
-import { Badge, Err, ago, fmtDate, fmtDateTime, useAction, useLoad } from './ui';
+import { Badge, Err, ago, fmtDate, fmtDateTime, useAction, useLoad, usePaged } from './ui';
 import type { PageProps } from './pages1';
 
 export function Invoices({ api, arg }: PageProps) {
@@ -11,7 +11,8 @@ export function Invoices({ api, arg }: PageProps) {
   const act = useAction(() => inv.reload());
   const [uid, setUid] = useState(arg ?? ''); const [amt, setAmt] = useState(''); const [disc, setDisc] = useState(''); const [due, setDue] = useState('');
   const [plan, setPlan] = useState<PlanId | ''>('monthly'); const [view, setView] = useState<Invoice | null>(null);
-  if (view) return <InvoiceView api={api} inv={view} onBack={() => setView(null)} />;
+  const paged = usePaged(inv.data ?? []);
+  if (view) return <InvoiceView api={api} inv={view} phone={acc.data?.find(a => a.uid === view.accountUid)?.phone ?? ''} onBack={() => setView(null)} />;
   return (<><h2>Invoices</h2><Err text={inv.err || acc.err || act.err} />
     <div className="card"><h3>New invoice</h3><div className="row">
       <select aria-label="Restaurant" value={uid} onChange={e => setUid(e.target.value)}><option value="">Restaurant…</option>{(acc.data ?? []).filter(a => a.status !== 'pending' && a.status !== 'rejected').map(a => <option key={a.uid} value={a.uid}>{a.businessName}</option>)}</select>
@@ -24,15 +25,15 @@ export function Invoices({ api, arg }: PageProps) {
         setAmt(''); setDisc(''); setView(created);
       })}>Create</button></div></div>
     <table><thead><tr><th>No.</th><th>Restaurant</th><th>Total</th><th>Due</th><th>Status</th><th /></tr></thead><tbody>
-      {(inv.data ?? []).map(i => <tr key={i.id}><td>{i.number}</td><td>{i.businessName}</td><td>{money(i.amountMinor - i.discountMinor, i.currency)}</td><td>{fmtDate(i.dueAt)}</td>
+      {paged.rows.map(i => <tr key={i.id}><td>{i.number}</td><td>{i.businessName}</td><td>{money(i.amountMinor - i.discountMinor, i.currency)}</td><td>{fmtDate(i.dueAt)}</td>
         <td><Badge tone={i.status === 'paid' ? 'ok' : i.status === 'void' ? '' : 'warn'}>{i.status}</Badge></td>
         <td><button className="act sec" onClick={() => setView(i)}>Open</button>{' '}
           {i.status === 'unpaid' && <button className="act" disabled={act.busy} onClick={() => act.run(() => api.recordPayment(i.id))}>Record payment</button>}{' '}
           {i.status === 'unpaid' && <button className="act danger" onClick={() => act.run(() => api.voidInvoice(i.id))}>Void</button>}</td></tr>)}
-    </tbody></table>{inv.data && inv.data.length === 0 && <p>No invoices yet.</p>}</>);
+    </tbody></table>{paged.pager}{inv.data && inv.data.length === 0 && <p className="empty">No invoices yet. Create one above.</p>}</>);
 }
 
-export function InvoiceView({ api, inv, onBack }: { api: AdminApi; inv: Invoice; onBack: () => void }) {
+export function InvoiceView({ api, inv, phone, onBack }: { api: AdminApi; inv: Invoice; phone: string; onBack: () => void }) {
   const bill = useLoad<Billing>(() => api.getBilling(), [api]);
   const [qr, setQr] = useState('');
   const link = `${window.location.origin}/verify/${inv.verifyToken}`;
@@ -53,7 +54,7 @@ export function InvoiceView({ api, inv, onBack }: { api: AdminApi; inv: Invoice;
       <div className="row" style={{ marginTop: 12 }}>{qr && <img src={qr} alt="Scan to verify" width={90} />}<small>Scan to verify this invoice</small>
         {b?.signature && <img src={b.signature} alt="Signature" height={50} style={{ marginLeft: 'auto' }} />}</div>
     </div>
-    <p className="noprint"><a href={whatsappLink('', `Invoice ${inv.number}: ${money(total, inv.currency)}. Verify: ${link}`).replace('wa.me/', 'wa.me/')} target="_blank" rel="noreferrer">Share on WhatsApp (choose contact)</a></p>
+    <p className="noprint"><a className="btn" href={whatsappLink(phone, `Invoice ${inv.number} for ${inv.businessName}: ${money(total, inv.currency)}, due ${fmtDate(inv.dueAt)}. Verify: ${link}`)} target="_blank" rel="noreferrer">Send on WhatsApp{phone ? ` (${phone})` : ''}</a></p>
   </>);
 }
 

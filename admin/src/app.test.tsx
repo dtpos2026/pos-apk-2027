@@ -22,8 +22,8 @@ function fake(over: Partial<AdminApi> = {}): AdminApi {
     clearChat: nope, deleteChat: nope,
     getBranding: async () => ({ appName: '', contact: '', whatsapp: '', email: '', supportMessage: '' }), setBranding: nope,
     getAppControl: async () => ({ offlineDays: 7, notice: '', latestVersion: '', minVersion: '', updateLink: '' }), setAppControl: nope,
-    getBilling: async () => ({ company: '', address: '', bank: '', accountTitle: '', accountNo: '', terms: '', paymentQr: '', signature: '', reminderTemplate: '' }), setBilling: nope,
-    admins: async () => [{ uid: 'adm' }], addAdmin: nope, removeAdmin: nope,
+    getBilling: async () => ({ company: '', address: '', bank: '', accountTitle: '', accountNo: '', terms: '', paymentQr: '', signature: '', reminderTemplate: '', planPrices: { monthly: 250000 } }), setBilling: nope,
+    admins: async () => [{ uid: 'adm' }], addAdmin: nope, removeAdmin: nope, auditLog: async () => [],
     ...over,
   };
 }

@@ -1,4 +1,6 @@
-export interface FirebaseWebConfig { apiKey: string; authDomain: string; projectId: string; appId: string; storageBucket?: string; messagingSenderId?: string }
+export interface FirebaseWebConfig { apiKey: string; authDomain: string; projectId: string; appId: string; storageBucket?: string; messagingSenderId?: string;
+  /** Local development only: talk to the Firebase emulators on this machine instead of the real project. */
+  useEmulators?: boolean }
 
 export function validateConfig(raw: unknown): { config?: FirebaseWebConfig; problem?: string } {
   if (!raw || typeof raw !== 'object') return { problem: 'The Firebase config is empty.' };

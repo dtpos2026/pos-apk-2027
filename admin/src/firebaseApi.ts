@@ -2,10 +2,10 @@ import { initializeApp } from 'firebase/app';
 import { connectAuthEmulator, createUserWithEmailAndPassword, getAuth, onAuthStateChanged, sendPasswordResetEmail, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import {
   Timestamp, arrayRemove, arrayUnion, collection, connectFirestoreEmulator, deleteDoc, doc, getDoc, getDocs, getFirestore, orderBy, query, runTransaction, serverTimestamp,
-  setDoc, updateDoc, writeBatch, type DocumentData, type Firestore,
+  limit, setDoc, updateDoc, writeBatch, type DocumentData, type Firestore, type Transaction, type WriteBatch,
 } from 'firebase/firestore';
 import type {
-  Account, AccountPatch, AdminApi, AppControl, Billing, Branding, DayTotal, Device, Invoice, Message, Thread,
+  Account, AccountPatch, AdminApi, AppControl, AuditEntry, Billing, Branding, DayTotal, Device, Invoice, Message, Thread,
 } from './api';
 import type { FirebaseWebConfig } from './config';
 import { customerId, expiryFor, invoiceNumber, type PlanId, type Status } from './domain';
@@ -40,6 +40,17 @@ export function createFirebaseApi(cfg: FirebaseWebConfig, emulator?: { host: str
   const db: Firestore = getFirestore(app);
   if (emulator) { connectAuthEmulator(auth, `http://${emulator.host}:${emulator.authPort}`, { disableWarnings: true }); connectFirestoreEmulator(db, emulator.host, emulator.firestorePort); }
   const cfgDoc = async <T,>(name: string, defaults: T): Promise<T> => ({ ...defaults, ...((await getDoc(doc(db, 'config', name))).data() as Partial<T> | undefined) });
+  // Every privileged change is written together with an audit entry, in the same batch or transaction.
+  const auditEntry = (action: string, accountUid: string | null, details: DocumentData = {}) => ({
+    at: serverTimestamp(), adminUid: auth.currentUser?.uid ?? '', adminEmail: auth.currentUser?.email ?? '', action, accountUid, details,
+  });
+  const audited = async (action: string, accountUid: string | null, details: DocumentData, fill: (b: WriteBatch) => void) => {
+    const b = writeBatch(db);
+    fill(b);
+    b.set(doc(collection(db, 'auditLog')), auditEntry(action, accountUid, details));
+    await b.commit();
+  };
+  const auditTx = (tx: Transaction, action: string, accountUid: string | null, details: DocumentData = {}) => tx.set(doc(collection(db, 'auditLog')), auditEntry(action, accountUid, details));
   const nextCounter = (name: string) => runTransaction(db, async tx => {
     const ref = doc(db, 'counters', name);
     const n = num((await tx.get(ref)).data()?.next, 1);
@@ -86,14 +97,17 @@ export function createFirebaseApi(cfg: FirebaseWebConfig, emulator?: { host: str
           licenseId: 'DTL-' + rid(), maxPhones, approvedPhones: a.phoneRequests.slice(0, maxPhones), phoneRequests: a.phoneRequests.slice(maxPhones),
           adminMessage: '', approvedAt: serverTimestamp(),
         });
+        auditTx(tx, 'account.approve', uid, { plan, feeMinor, expiresAt: expiresAt ? expiresAt.toISOString() : null, customerId: customerId(n) });
       });
     },
     async patchAccount(uid, patch: AccountPatch) {
       const data: DocumentData = { ...patch };
       if ('expiresAt' in patch) data.expiresAt = patch.expiresAt ? Timestamp.fromDate(patch.expiresAt) : null;
-      await updateDoc(doc(db, 'accounts', uid), data);
+      const details: DocumentData = { ...patch };
+      if ('expiresAt' in patch) details.expiresAt = patch.expiresAt ? patch.expiresAt.toISOString() : null;
+      await audited('account.update', uid, details, b => b.update(doc(db, 'accounts', uid), data));
     },
-    async setStatus(uid, status, message) { await updateDoc(doc(db, 'accounts', uid), { status, adminMessage: message }); },
+    async setStatus(uid, status, message) { await audited('account.status', uid, { status, message }, b => b.update(doc(db, 'accounts', uid), { status, adminMessage: message })); },
     async approvePhone(uid, phoneId) {
       await runTransaction(db, async tx => {
         const ref = doc(db, 'accounts', uid);
@@ -101,9 +115,10 @@ export function createFirebaseApi(cfg: FirebaseWebConfig, emulator?: { host: str
         if (a.approvedPhones.includes(phoneId)) return;
         if (a.approvedPhones.length >= a.maxPhones) throw new Error(`This account allows ${a.maxPhones} phone(s). Raise the phone limit or remove a phone first.`);
         tx.update(ref, { approvedPhones: arrayUnion(phoneId), phoneRequests: arrayRemove(phoneId) });
+        auditTx(tx, 'phone.approve', uid, { phoneId });
       });
     },
-    async removePhone(uid, phoneId) { await updateDoc(doc(db, 'accounts', uid), { approvedPhones: arrayRemove(phoneId), phoneRequests: arrayRemove(phoneId) }); },
+    async removePhone(uid, phoneId) { await audited('phone.remove', uid, { phoneId }, b => b.update(doc(db, 'accounts', uid), { approvedPhones: arrayRemove(phoneId), phoneRequests: arrayRemove(phoneId) })); },
     async notes(uid) { return str((await getDoc(doc(db, 'adminNotes', uid))).data()?.text); },
     async setNotes(uid, text) { await setDoc(doc(db, 'adminNotes', uid), { text, at: serverTimestamp() }); },
     async days(uid): Promise<DayTotal[]> {
@@ -119,9 +134,9 @@ export function createFirebaseApi(cfg: FirebaseWebConfig, emulator?: { host: str
       }; });
     },
     async setDeviceBlocked(uid, phoneId, blocked) {
-      await updateDoc(doc(db, 'accounts', uid), { blockedPhones: blocked ? arrayUnion(phoneId) : arrayRemove(phoneId) });
+      await audited(blocked ? 'phone.block' : 'phone.unblock', uid, { phoneId }, b => b.update(doc(db, 'accounts', uid), { blockedPhones: blocked ? arrayUnion(phoneId) : arrayRemove(phoneId) }));
     },
-    async deleteDevice(id) { await deleteDoc(doc(db, 'devices', id)); },
+    async deleteDevice(id) { await audited('device.delete', id.split('__')[0] || null, { device: id }, b => b.delete(doc(db, 'devices', id))); },
 
     async invoices() {
       const s = await getDocs(query(collection(db, 'invoices'), orderBy('issuedAt', 'desc')));
@@ -141,6 +156,7 @@ export function createFirebaseApi(cfg: FirebaseWebConfig, emulator?: { host: str
       const b = writeBatch(db);
       b.set(ref, { ...base, issuedAt: Timestamp.fromDate(now), dueAt: Timestamp.fromDate(dueAt) });
       b.set(doc(db, 'invoiceVerify', token), { number, businessName: acc.businessName, amountMinor: amountMinor - discountMinor, currency: acc.currency, status: 'unpaid', issuedAt: Timestamp.fromDate(now) });
+      b.set(doc(collection(db, 'auditLog')), auditEntry('invoice.create', uid, { number, amountMinor, discountMinor }));
       await b.commit();
       return toInvoice(ref.id, { ...base, issuedAt: Timestamp.fromDate(now), dueAt: Timestamp.fromDate(dueAt) });
     },
@@ -153,6 +169,7 @@ export function createFirebaseApi(cfg: FirebaseWebConfig, emulator?: { host: str
         const acc = toAccount(inv.accountUid, (await tx.get(aref)).data() ?? {});
         const now = new Date();
         tx.update(iref, { status: 'paid', paidAt: serverTimestamp() });
+        auditTx(tx, 'invoice.paid', inv.accountUid, { number: inv.number, amountMinor: inv.amountMinor - inv.discountMinor });
         tx.update(doc(db, 'invoiceVerify', inv.verifyToken), { status: 'paid' });
         const plan = inv.plan ?? acc.plan;
         if (plan && plan !== 'custom') {
@@ -168,6 +185,7 @@ export function createFirebaseApi(cfg: FirebaseWebConfig, emulator?: { host: str
       const b = writeBatch(db);
       b.update(iref, { status: 'void' });
       b.update(doc(db, 'invoiceVerify', inv.verifyToken), { status: 'void' });
+      b.set(doc(collection(db, 'auditLog')), auditEntry('invoice.void', inv.accountUid, { number: inv.number }));
       await b.commit();
     },
     async verifyInvoice(token) {
@@ -198,17 +216,28 @@ export function createFirebaseApi(cfg: FirebaseWebConfig, emulator?: { host: str
       for (let i = 0; i < s.docs.length; i += 400) { const b = writeBatch(db); s.docs.slice(i, i + 400).forEach(d => b.delete(d.ref)); await b.commit(); }
       await setDoc(doc(db, 'support', uid), { lastMessage: '', unreadForAdmin: false }, { merge: true });
     },
-    async deleteChat(uid) { await this.clearChat(uid); await deleteDoc(doc(db, 'support', uid)); },
+    async deleteChat(uid) { await this.clearChat(uid); await audited('support.delete', uid, {}, b => b.delete(doc(db, 'support', uid))); },
 
     getBranding: () => cfgDoc<Branding>('branding', { appName: 'DT Food POS', contact: '', whatsapp: '', email: '', supportMessage: '' }),
-    setBranding: b => setDoc(doc(db, 'config', 'branding'), b),
+    setBranding: v => audited('settings.branding', null, {}, b => b.set(doc(db, 'config', 'branding'), v)),
     getAppControl: () => cfgDoc<AppControl>('app', { offlineDays: 7, notice: '', latestVersion: '', minVersion: '', updateLink: '' }),
-    setAppControl: a => setDoc(doc(db, 'config', 'app'), a),
-    getBilling: () => cfgDoc<Billing>('billing', { company: '', address: '', bank: '', accountTitle: '', accountNo: '', terms: '', paymentQr: '', signature: '', reminderTemplate: 'Assalam o Alaikum {owner}, your DT Food POS subscription for {business} (ID {customerId}) needs attention. Amount due: {amount}. Expiry: {expiry}. Thank you.' }),
-    setBilling: b => setDoc(doc(db, 'config', 'billing'), b),
+    setAppControl: v => audited('settings.app', null, { ...v }, b => b.set(doc(db, 'config', 'app'), v)),
+    getBilling: () => cfgDoc<Billing>('billing', { company: '', address: '', bank: '', accountTitle: '', accountNo: '', terms: '', paymentQr: '', signature: '', reminderTemplate: 'Assalam o Alaikum {owner}, your DT Food POS subscription for {business} (ID {customerId}) needs attention. Amount due: {amount}. Expiry: {expiry}. Thank you.', planPrices: {} }),
+    setBilling: v => audited('settings.billing', null, {}, b => b.set(doc(db, 'config', 'billing'), v)),
 
     async admins() { return (await getDocs(collection(db, 'admins'))).docs.map(d => ({ uid: d.id })); },
-    async addAdmin(uid) { if (!uid.trim()) throw new Error('Enter the UID'); await setDoc(doc(db, 'admins', uid.trim()), { at: serverTimestamp() }); },
-    async removeAdmin(uid) { await deleteDoc(doc(db, 'admins', uid)); },
+    async addAdmin(uid) {
+      const id = uid.trim();
+      if (!id) throw new Error('Enter the UID');
+      await audited('admin.add', null, { uid: id }, b => b.set(doc(db, 'admins', id), { at: serverTimestamp() }));
+    },
+    async removeAdmin(uid) {
+      if (uid === auth.currentUser?.uid) throw new Error('You cannot remove yourself');
+      await audited('admin.remove', null, { uid }, b => b.delete(doc(db, 'admins', uid)));
+    },
+    async auditLog(): Promise<AuditEntry[]> {
+      const s = await getDocs(query(collection(db, 'auditLog'), orderBy('at', 'desc'), limit(500)));
+      return s.docs.map(d => ({ id: d.id, at: date(d.data().at), adminEmail: str(d.data().adminEmail), action: str(d.data().action), accountUid: d.data().accountUid ?? null, details: (d.data().details ?? {}) as Record<string, unknown> }));
+    },
   };
 }

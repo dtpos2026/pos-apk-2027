@@ -97,6 +97,20 @@ describe.skipIf(!on)('FirebaseApi on the emulator', () => {
     await api.addAdmin('someone');
     expect((await api.admins()).map(x => x.uid).sort()).toEqual([adminUid, 'someone'].sort());
 
+    // every privileged change left an audit entry, stamped with the admin's email
+    const log = await api.auditLog();
+    const actions = log.map(e => e.action);
+    for (const a of ['account.approve', 'account.update', 'phone.approve', 'phone.block', 'invoice.create', 'invoice.paid', 'account.status', 'support.delete', 'settings.app', 'admin.add']) {
+      expect(actions).toContain(a);
+    }
+    expect(log.every(e => e.adminEmail === 'digitaltarget.digital@gmail.com')).toBe(true);
+    expect(log.find(e => e.action === 'account.status')!.details).toMatchObject({ status: 'suspended', message: 'Please pay' });
+    await expect(api.removeAdmin(adminUid)).rejects.toThrow(/yourself/);
+
+    // plan prices round-trip through billing settings
+    await api.setBilling({ ...(await api.getBilling()), planPrices: { monthly: 250000, yearly: 2400000 } });
+    expect((await api.getBilling()).planPrices).toEqual({ monthly: 250000, yearly: 2400000 });
+
     // a second person cannot become admin by claiming
     const other = await restaurant('rest2', 'other@x.pk');
     await expect(setDoc(doc(other.db, 'admins', other.uid), { at: Timestamp.now() })).rejects.toThrow();
