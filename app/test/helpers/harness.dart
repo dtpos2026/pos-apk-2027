@@ -31,7 +31,9 @@ Future<void> loadAppFonts() async {
   await naskh.load();
   final mono = FontLoader('JetBrainsMono')..addFont(bytes('assets/fonts/JetBrainsMono-Regular.ttf'));
   await mono.load();
-  final flutterRoot = Platform.environment['FLUTTER_ROOT'] ?? '/opt/flutter-sdk/flutter';
+  // flutter_tester lives at <sdk>/bin/cache/artifacts/engine/<platform>/flutter_tester
+  final exe = Platform.resolvedExecutable;
+  final flutterRoot = Platform.environment['FLUTTER_ROOT'] ?? (exe.contains('/bin/cache/') ? exe.substring(0, exe.indexOf('/bin/cache/')) : '/opt/flutter-sdk/flutter');
   final icons = FontLoader('MaterialIcons')..addFont(bytes('$flutterRoot/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf'));
   await icons.load();
   _fontsLoaded = true;
