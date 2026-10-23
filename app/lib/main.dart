@@ -9,11 +9,12 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'app/app.dart';
-import 'app/bluetooth_printing.dart';
+import 'app/device_channel.dart';
 import 'app/providers.dart';
 import 'cloud/access_controller.dart';
 import 'cloud/cloud_gateway.dart';
 import 'cloud/firebase_gateway.dart';
+import 'cloud/location_consent.dart';
 import 'features/cloud/cloud_reporter.dart';
 import 'data/db/database.dart';
 import 'features/splash/animated_splash_screen.dart';
@@ -38,6 +39,9 @@ Future<void> main() async {
       appVersionProvider.overrideWithValue(info.version),
       printerTransportProvider.overrideWithValue(appTransport),
       bluetoothScannerProvider.overrideWithValue(const SystemBluetoothScanner()),
+      platformPhoneIdProvider.overrideWithValue(const DeviceChannel().phoneId),
+      locationSourceProvider.overrideWithValue(const DeviceChannel().location),
+      locationPermissionProvider.overrideWithValue(() => const DeviceChannel().requestPermissions(DeviceChannel.locationPermissions)),
       deviceDescriptionProvider.overrideWith((ref) async {
         try {
           final a = await DeviceInfoPlugin().androidInfo;

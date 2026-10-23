@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/strings.dart';
 import '../../cloud/access_controller.dart';
 import '../../cloud/cloud_gateway.dart';
+import '../../cloud/location_consent.dart';
 import '../../domain/account_gate.dart';
 import '../login/brand_footer.dart';
 import 'support_screen.dart';
@@ -278,5 +279,43 @@ class AccessBanner extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Text(lines.join('\n'), style: TextStyle(color: Theme.of(context).colorScheme.onTertiaryContainer)),
     );
+  }
+}
+
+/// Asks the owner once, after sign-in, whether Digital Target may see this phone's location. Renders nothing.
+class LocationAsk extends ConsumerStatefulWidget {
+  const LocationAsk({super.key});
+  @override
+  ConsumerState<LocationAsk> createState() => _LocationAskState();
+}
+
+class _LocationAskState extends ConsumerState<LocationAsk> {
+  bool _asked = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final consent = ref.watch(locationConsentProvider);
+    final access = ref.watch(accessProvider);
+    if (!_asked && ref.watch(locationSourceProvider) != null && access is AccessDecided && access.decision.allowed && consent.hasValue && consent.value == null) {
+      _asked = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        final t = Strings.of(context);
+        final yes = await showDialog<bool>(
+          context: context,
+          builder: (c) => AlertDialog(
+            icon: const Icon(Icons.location_on_outlined),
+            title: Text(t['location_ask_title']),
+            content: Text(t['location_ask_body']),
+            actions: [
+              TextButton(key: const Key('location-no'), onPressed: () => Navigator.pop(c, false), child: Text(t['not_now'])),
+              FilledButton(key: const Key('location-yes'), onPressed: () => Navigator.pop(c, true), child: Text(t['allow'])),
+            ],
+          ),
+        );
+        await ref.read(locationConsentProvider.notifier).set(yes == true);
+      });
+    }
+    return const SizedBox.shrink();
   }
 }

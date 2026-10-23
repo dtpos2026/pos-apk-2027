@@ -66,7 +66,7 @@ class HomeShell extends ConsumerWidget {
         IconButton(key: const ValueKey('support'), tooltip: t['support'], icon: const Icon(Icons.support_agent), onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SupportScreen()))),
       IconButton(key: const ValueKey('sign-out'), tooltip: t['sign_out'], icon: const Icon(Icons.logout), onPressed: () => ref.read(sessionProvider.notifier).signOut())
     ];
-    final body = Column(children: [const AccessBanner(), Expanded(child: KeyedSubtree(key: ValueKey(current.key), child: current.builder()))]);
+    final body = Column(children: [const AccessBanner(), if (session.can('settings.manage')) const LocationAsk(), Expanded(child: KeyedSubtree(key: ValueKey(current.key), child: current.builder()))]);
 
     if (wide) {
       return Scaffold(

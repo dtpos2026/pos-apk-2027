@@ -21,7 +21,7 @@ import '../data/queries.dart';
 import '../data/receipt_settings.dart';
 import '../domain/receipt_doc.dart';
 import '../domain/receipt_template.dart';
-import 'bluetooth_printing.dart' show BluetoothPrinterScanner;
+import 'device_channel.dart' show BluetoothPrinterScanner;
 import 'import_picker.dart';
 import 'logo_picker.dart';
 import 'share_service.dart';

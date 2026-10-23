@@ -1,5 +1,8 @@
 import 'package:dt_food_pos/cloud/access_controller.dart';
+import 'package:dt_food_pos/app/device_channel.dart';
+import 'package:dt_food_pos/cloud/location_consent.dart';
 import 'package:dt_food_pos/data/pos_service.dart';
+import 'package:dt_food_pos/data/queries.dart' show getSetting;
 import 'package:dt_food_pos/features/cloud/cloud_reporter.dart';
 import 'package:dt_food_pos/domain/account_gate.dart';
 import 'package:flutter/material.dart';
@@ -187,6 +190,76 @@ void main() {
     final d = cloud.pastDays.singleWhere((x) => x.date == '2026-01-10');
     expect(d.bills, 1);
     expect(d.netMinor, greaterThanOrEqualTo(45000));
+    await t.pumpWidget(const SizedBox());
+    h.container.dispose();
+  });
+
+  testWidgets('reinstalling the app on an approved phone does not ask for approval again (stable phone id)', (t) async {
+    final cloud = FakeCloud();
+    final db = newDb(); // a fresh install: nothing stored locally
+    await seedBusiness(db);
+    final h = await pumpApp(t, db: db, cloud: cloud, platformPhoneId: 'a1b2c3d4e5f6a7b8c9d0');
+    await cloud.signInDirect('owner@cafe.pk');
+    cloud.serverAccount(account(ok: ['a1b2c3d4e5f6a7b8c9d0']));
+    await settle(t);
+    expect(await h.container.read(accessProvider.notifier).phoneId(), 'a1b2c3d4e5f6a7b8c9d0');
+    expect(find.text('New phone needs approval'), findsNothing);
+    expect(cloud.requestedPhones, isEmpty);
+    expect(find.byKey(const ValueKey('staff-Ali')), findsOneWidget);
+    await t.pumpWidget(const SizedBox());
+    h.container.dispose();
+  });
+
+  testWidgets('location: asked once after sign-in; shared only when allowed; can be switched off', (t) async {
+    final cloud = FakeCloud();
+    final db = newDb();
+    await seedBusiness(db);
+    var permissionAsked = 0;
+    final h = await pumpApp(t, db: db, cloud: cloud, extra: [
+      locationSourceProvider.overrideWithValue(() async => PhoneLocation(31.52, 74.35, 12, testNow)),
+      locationPermissionProvider.overrideWithValue(() async { permissionAsked++; return true; }),
+    ]);
+    await cloud.signInDirect('owner@cafe.pk');
+    final phoneId = await h.container.read(accessProvider.notifier).phoneId();
+    cloud.serverAccount(account(ok: [phoneId]));
+    await settle(t);
+    await signIn(t, 'Ali', '1234');
+    await settle(t);
+    expect(find.text('Share location?'), findsOneWidget);
+    await t.tap(find.byKey(const Key('location-yes')));
+    await settle(t);
+    expect(permissionAsked, 1);
+    await t.runAsync(() => h.container.read(cloudReporterProvider).reportNow());
+    expect(cloud.devices.last.locationAllowed, isTrue);
+    expect(cloud.devices.last.lat, 31.52);
+
+    await t.runAsync(() => h.container.read(locationConsentProvider.notifier).set(false));
+    await t.runAsync(() => h.container.read(cloudReporterProvider).reportNow());
+    expect(cloud.devices.last.locationAllowed, isFalse);
+    expect(cloud.devices.last.lat, isNull);
+    await t.pumpWidget(const SizedBox());
+    h.container.dispose();
+  });
+
+  testWidgets('location: "Not now" shares nothing and does not ask again', (t) async {
+    final cloud = FakeCloud();
+    final db = newDb();
+    await seedBusiness(db);
+    final h = await pumpApp(t, db: db, cloud: cloud, extra: [
+      locationSourceProvider.overrideWithValue(() async => PhoneLocation(1, 2, 3, testNow)),
+    ]);
+    await cloud.signInDirect('owner@cafe.pk');
+    final phoneId = await h.container.read(accessProvider.notifier).phoneId();
+    cloud.serverAccount(account(ok: [phoneId]));
+    await settle(t);
+    await signIn(t, 'Ali', '1234');
+    await settle(t);
+    await t.tap(find.byKey(const Key('location-no')));
+    await settle(t);
+    await t.runAsync(() => h.container.read(cloudReporterProvider).reportNow());
+    expect(cloud.devices.last.locationAllowed, isFalse);
+    expect(cloud.devices.last.lat, isNull);
+    expect(await t.runAsync(() => getSetting(db, LocationConsentNotifier.key)), '0');
     await t.pumpWidget(const SizedBox());
     h.container.dispose();
   });

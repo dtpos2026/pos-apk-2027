@@ -4,7 +4,7 @@ import 'dart:ui' as ui;
 import 'package:drift/native.dart';
 
 import 'package:dt_food_pos/app/app.dart';
-import 'package:dt_food_pos/app/bluetooth_printing.dart';
+import 'package:dt_food_pos/app/device_channel.dart';
 import 'package:dt_food_pos/data/print_service.dart';
 import 'package:dt_food_pos/cloud/access_controller.dart';
 import 'package:dt_food_pos/cloud/cloud_gateway.dart';
@@ -20,6 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 
 final _boundary = GlobalKey();
@@ -89,7 +90,7 @@ class FakeLogoPicker implements LogoPicker {
   Future<Uint8List?> pick() async => bytes;
 }
 
-Future<Harness> pumpApp(WidgetTester t, {AppDatabase? db, bool tablet = false, Locale? locale, Directory? backupDir, LogoPicker? logoPicker, Directory? logoDir, ShareService? share, ImportFilePicker? importPicker, CloudGateway? cloud, BluetoothPrinterScanner? btScanner, TransportFactory? transport}) async {
+Future<Harness> pumpApp(WidgetTester t, {AppDatabase? db, bool tablet = false, Locale? locale, Directory? backupDir, LogoPicker? logoPicker, Directory? logoDir, ShareService? share, ImportFilePicker? importPicker, CloudGateway? cloud, BluetoothPrinterScanner? btScanner, TransportFactory? transport, String? platformPhoneId, List<Override> extra = const []}) async {
   await t.runAsync(loadAppFonts);
   setSize(t, tablet: tablet);
   final database = db ?? newDb();
@@ -105,8 +106,10 @@ Future<Harness> pumpApp(WidgetTester t, {AppDatabase? db, bool tablet = false, L
     if (importPicker != null) importFilePickerProvider.overrideWithValue(importPicker),
     if (cloud != null) cloudGatewayProvider.overrideWithValue(cloud),
     if (btScanner != null) bluetoothScannerProvider.overrideWithValue(btScanner),
+    if (platformPhoneId != null) platformPhoneIdProvider.overrideWithValue(() async => platformPhoneId),
     if (transport != null) printerTransportProvider.overrideWithValue(transport),
     appVersionProvider.overrideWithValue('1.0.0'),
+    ...extra,
   ]);
   addTearDown(container.dispose);
   if (locale != null) container.read(localeProvider.notifier).state = locale;

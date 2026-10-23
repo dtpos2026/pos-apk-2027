@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:dt_food_pos/app/bluetooth_printing.dart';
+import 'package:dt_food_pos/app/device_channel.dart';
 import 'package:dt_food_pos/app/providers.dart';
 import 'package:dt_food_pos/app/theme.dart';
 import 'package:dt_food_pos/data/print_service.dart';

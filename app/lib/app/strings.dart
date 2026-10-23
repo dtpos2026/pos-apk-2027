@@ -343,6 +343,13 @@ class Strings {
     'choose_paired': 'Choose paired printer',
     'no_paired': 'No paired Bluetooth device. Pair the printer in Android Bluetooth settings first.',
     'export_pdf': 'Export PDF',
+    'share_location': 'Share this phone\'s location with Digital Target',
+    'share_location_hint': 'Helps support find your restaurant. Sent only while the app is open. You can switch it off any time.',
+    'location_denied': 'Location permission was not given, so nothing is shared.',
+    'location_ask_title': 'Share location?',
+    'location_ask_body': 'Digital Target can see where this phone is, to help with support and installation. Only while the app is open; you can turn it off in Settings.',
+    'allow': 'Allow',
+    'not_now': 'Not now',
 };
 
   static const _ur = <String, String>{
@@ -668,6 +675,13 @@ class Strings {
     'choose_paired': 'جوڑا ہوا پرنٹر منتخب کریں',
     'no_paired': 'کوئی جوڑا ہوا بلوٹوتھ ڈیوائس نہیں۔ پہلے اینڈرائیڈ کی بلوٹوتھ سیٹنگ میں پرنٹر جوڑیں۔',
     'export_pdf': 'پی ڈی ایف بنائیں',
+    'share_location': 'اس فون کی لوکیشن ڈیجیٹل ٹارگٹ کو دکھائیں',
+    'share_location_hint': 'سپورٹ کو آپ کا ریسٹورنٹ ڈھونڈنے میں مدد ملتی ہے۔ صرف جب ایپ کھلی ہو۔ کبھی بھی بند کر سکتے ہیں۔',
+    'location_denied': 'لوکیشن کی اجازت نہیں ملی، اس لیے کچھ شیئر نہیں ہوا۔',
+    'location_ask_title': 'لوکیشن شیئر کریں؟',
+    'location_ask_body': 'ڈیجیٹل ٹارگٹ سپورٹ اور انسٹالیشن کے لیے یہ فون کہاں ہے دیکھ سکے گا۔ صرف جب ایپ کھلی ہو؛ سیٹنگز سے بند کر سکتے ہیں۔',
+    'allow': 'اجازت دیں',
+    'not_now': 'ابھی نہیں',
 };
 
   static const _ar = <String, String>{
@@ -995,6 +1009,13 @@ class Strings {
     'choose_paired': 'اختر الطابعة المقترنة',
     'no_paired': 'لا يوجد جهاز بلوتوث مقترن. اقرن الطابعة أولًا من إعدادات البلوتوث في أندرويد.',
     'export_pdf': 'تصدير PDF',
+    'share_location': 'مشاركة موقع هذا الهاتف مع ديجيتال تارجت',
+    'share_location_hint': 'يساعد الدعم في العثور على مطعمك. يُرسل فقط أثناء فتح التطبيق، ويمكنك إيقافه في أي وقت.',
+    'location_denied': 'لم يتم منح إذن الموقع، لذلك لم تتم مشاركة أي شيء.',
+    'location_ask_title': 'مشاركة الموقع؟',
+    'location_ask_body': 'يمكن لديجيتال تارجت رؤية مكان هذا الهاتف للمساعدة في الدعم والتركيب. فقط أثناء فتح التطبيق، ويمكنك إيقافه من الإعدادات.',
+    'allow': 'سماح',
+    'not_now': 'ليس الآن',
 };
 
   static const _all = {'en': _en, 'ur': _ur, 'ar': _ar};

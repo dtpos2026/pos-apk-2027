@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
+import { PhonesMap } from './PhonesMap';
 import type { AdminApi, Billing, Invoice, Message } from './api';
 import { PLANS, daysLeft, effectiveStatus, fillTemplate, isOnline, money, parseMoneyToMinor, whatsappLink, type PlanId } from './domain';
 import { Badge, Err, ago, fmtDate, fmtDateTime, useAction, useLoad, usePaged } from './ui';
@@ -82,18 +83,34 @@ export function Phones({ api }: PageProps) {
   const dev = useLoad(() => api.devices(), [api]);
   const acc = useLoad(() => api.accounts(), [api]);
   const act = useAction(() => { dev.reload(); acc.reload(); });
+  const [q, setQ] = useState('');
   const now = new Date();
-  const nameOf = (uid: string) => acc.data?.find(a => a.uid === uid)?.businessName ?? uid.slice(0, 8);
+  const nameOf = (uid: string) => acc.data?.find(a => a.uid === uid)?.businessName ?? 'Unknown account';
+  // one row per phone (documents are keyed restaurant+phone id, so a phone never appears twice)
+  const rows = (dev.data ?? [])
+    .filter(d => { const t = q.trim().toLowerCase(); return !t || [nameOf(d.uid), d.model, d.appVersion].some(v => v.toLowerCase().includes(t)); })
+    .sort((a, b) => (b.lastSeenAt?.getTime() ?? 0) - (a.lastSeenAt?.getTime() ?? 0));
+  const paged = usePaged(rows);
+  const located = rows.filter(d => d.locationAllowed && d.lat != null && d.lng != null);
   return (<><h2>Phones</h2><Err text={dev.err || acc.err || act.err} />
-    <p><small>Location is shown only for phones whose owner allowed it in the app.</small></p>
+    <div className="grid">
+      <div className="card stat"><b>{rows.filter(d => isOnline(d.lastSeenAt, now)).length}</b><span>online now (seen in the last 5 min)</span></div>
+      <div className="card stat"><b>{rows.length}</b><span>phones</span></div>
+      <div className="card stat"><b>{located.length}</b><span>sharing location</span></div>
+    </div>
+    <div className="card"><h3>Map</h3>
+      {located.length === 0 ? <p className="empty">No phone shares its location yet. The restaurant owner turns it on in the app (Settings › Account).</p>
+        : <PhonesMap points={located.map(d => ({ device: d, restaurant: nameOf(d.uid), online: isOnline(d.lastSeenAt, now) }))} />}
+    </div>
+    <div className="row"><input aria-label="Search phones" placeholder="Search restaurant, model, version" style={{ width: 320 }} value={q} onChange={e => setQ(e.target.value)} /></div>
     <table><thead><tr><th>Restaurant</th><th>Model</th><th>Android / app</th><th>Last seen</th><th>Location</th><th /></tr></thead><tbody>
-      {(dev.data ?? []).map(d => { const a = acc.data?.find(x => x.uid === d.uid); const blocked = !!a?.blockedPhones.includes(d.phoneId); return (
-        <tr key={d.id}><td>{nameOf(d.uid)}</td><td>{d.model}</td><td>{d.android} / {d.appVersion}</td>
+      {paged.rows.map(d => { const a = acc.data?.find(x => x.uid === d.uid); const blocked = !!a?.blockedPhones.includes(d.phoneId); const approved = !!a?.approvedPhones.includes(d.phoneId); return (
+        <tr key={d.id}><td>{nameOf(d.uid)} {blocked ? <Badge tone="bad">blocked</Badge> : approved ? <Badge tone="ok">approved</Badge> : <Badge tone="warn">not approved</Badge>}</td><td>{d.model}</td><td>{d.android} / {d.appVersion}</td>
           <td><Badge tone={isOnline(d.lastSeenAt, now) ? 'ok' : ''}>{isOnline(d.lastSeenAt, now) ? 'online' : 'offline'}</Badge> {ago(d.lastSeenAt)}</td>
-          <td>{d.locationAllowed && d.lat != null && d.lng != null ? <a href={`https://www.openstreetmap.org/?mlat=${d.lat}&mlon=${d.lng}#map=17/${d.lat}/${d.lng}`} target="_blank" rel="noreferrer">Open map (±{Math.round(d.accuracyM ?? 0)} m)</a> : d.locationAllowed ? 'allowed, none yet' : 'not allowed'}</td>
+          <td>{d.locationAllowed && d.lat != null && d.lng != null ? <a href={`https://www.openstreetmap.org/?mlat=${d.lat}&mlon=${d.lng}#map=17/${d.lat}/${d.lng}`} target="_blank" rel="noreferrer">±{Math.round(d.accuracyM ?? 0)} m, {ago(d.locationAt ?? null)}</a> : d.locationAllowed ? 'allowed, no fix yet' : <span className="mut">not shared</span>}</td>
           <td><button className="act sec" onClick={() => act.run(() => api.setDeviceBlocked(d.uid, d.phoneId, !blocked))}>{blocked ? 'Unblock' : 'Block'}</button>{' '}
-            <button className="act danger" onClick={() => act.run(() => api.deleteDevice(d.id))}>Delete</button></td></tr>); })}
-    </tbody></table>{dev.data && dev.data.length === 0 && <p>No phone has reported yet.</p>}</>);
+            <button className="act danger" onClick={() => { if (confirm('Delete this phone record? It reappears if the phone reports again.')) act.run(() => api.deleteDevice(d.id)); }}>Delete</button></td></tr>); })}
+    </tbody></table>{paged.pager}{dev.data && dev.data.length === 0 && <p className="empty">No phone has reported yet.</p>}</>);
 }
 
 export function Reminders({ api }: PageProps) {

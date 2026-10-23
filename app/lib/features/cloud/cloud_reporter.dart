@@ -8,6 +8,7 @@ import '../../app/providers.dart';
 import '../../app/strings.dart';
 import '../../cloud/access_controller.dart';
 import '../../cloud/cloud_gateway.dart';
+import '../../cloud/location_consent.dart';
 import '../../data/queries.dart';
 
 /// Where the phone model and Android version come from. Overridden in main() (device_info_plus) and in tests.
@@ -51,7 +52,13 @@ class CloudReporter {
     try {
       final dev = await ref.read(deviceDescriptionProvider.future);
       final phoneId = await ref.read(accessProvider.notifier).phoneId();
-      await gw.reportDevice(uid, DeviceInfoReport(phoneId: phoneId, model: dev.model, android: dev.android, appVersion: version));
+      final share = await getSetting(ref.read(databaseProvider), LocationConsentNotifier.key) == '1';
+      final source = ref.read(locationSourceProvider);
+      final loc = share && source != null ? await source().catchError((_) => null) : null;
+      await gw.reportDevice(uid, DeviceInfoReport(
+        phoneId: phoneId, model: dev.model, android: dev.android, appVersion: version,
+        locationAllowed: share, lat: loc?.lat, lng: loc?.lng, accuracyM: loc?.accuracyM, locationAt: loc?.at,
+      ));
       final today = await totalsFor(now);
       if (today != null) await gw.reportSales(uid, today, version);
       final past = <DayTotals>[];

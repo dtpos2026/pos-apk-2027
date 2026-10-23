@@ -5,8 +5,11 @@ import 'package:uuid/uuid.dart';
 import '../../app/themes.dart';
 import 'receipt_design_screen.dart';
 
-import '../../app/bluetooth_printing.dart' show PairedPrinter;
+import '../../app/device_channel.dart' show PairedPrinter;
 import '../../app/providers.dart';
+import '../../cloud/access_controller.dart';
+import '../../cloud/location_consent.dart';
+import '../common/dialogs.dart';
 import '../../app/strings.dart';
 import '../../data/backup_service.dart';
 import '../../data/queries.dart';
@@ -71,6 +74,21 @@ class SettingsScreen extends ConsumerWidget {
         for (final p in printers) ListTile(dense: true, leading: const Icon(Icons.print_outlined), title: Text('${p['name']}'), subtitle: Text('${p['connection']} · ${p['address']} · ${p['paper_mm']} mm · ${p['role']}')),
         Align(alignment: AlignmentDirectional.centerStart, child: TextButton.icon(key: const ValueKey('add-printer'), onPressed: () => _addPrinter(context, ref), icon: const Icon(Icons.add), label: Text(t['add_printer']))),
       ]),
+      if (ref.watch(cloudGatewayProvider) != null)
+        _Section(t['account_section'], [
+          SwitchListTile(
+            key: const ValueKey('share-location'),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 6),
+            secondary: const Icon(Icons.location_on_outlined),
+            title: Text(t['share_location']),
+            subtitle: Text(t['share_location_hint']),
+            value: ref.watch(locationConsentProvider).value ?? false,
+            onChanged: (v) async {
+              final ok = await ref.read(locationConsentProvider.notifier).set(v);
+              if (v && !ok && context.mounted) showMessage(context, t['location_denied']);
+            },
+          ),
+        ]),
       _Section(t['backup'], [
         FilledButton.tonalIcon(key: const ValueKey('backup-now'), onPressed: () => _backup(context, ref), icon: const Icon(Icons.backup_outlined), label: Text(t['backup_now'])),
       ]),

@@ -55,11 +55,18 @@ class DayTotals {
 }
 
 class DeviceInfoReport {
-  const DeviceInfoReport({required this.phoneId, required this.model, required this.android, required this.appVersion});
+  const DeviceInfoReport({required this.phoneId, required this.model, required this.android, required this.appVersion, this.locationAllowed = false, this.lat, this.lng, this.accuracyM, this.locationAt});
   final String phoneId;
   final String model;
   final String android;
   final String appVersion;
+
+  /// Only true when the owner switched location sharing on and Android permission was given.
+  final bool locationAllowed;
+  final double? lat;
+  final double? lng;
+  final double? accuracyM;
+  final DateTime? locationAt;
 }
 
 /// A problem with a human-readable message, already in plain words.

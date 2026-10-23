@@ -18,6 +18,10 @@ final cloudInitErrorProvider = Provider<String?>((ref) => null);
 
 final appVersionProvider = Provider<String>((ref) => '0.0.0');
 
+/// A phone id that survives reinstalling the app (main() reads it from Android). null = make a random one.
+/// Keeping it stable means an approved phone is not shown again as a new phone after a reinstall.
+final platformPhoneIdProvider = Provider<Future<String?> Function()>((ref) => () async => null);
+
 sealed class AccessState {
   const AccessState();
 }
@@ -89,7 +93,7 @@ class AccessController extends Notifier<AccessState> {
     if (_phoneId != null) return _phoneId!;
     var id = await getSetting(_db, 'cloud.phone_id');
     if (id == null) {
-      id = const Uuid().v4().replaceAll('-', '').substring(0, 20);
+      id = await ref.read(platformPhoneIdProvider)() ?? const Uuid().v4().replaceAll('-', '').substring(0, 20);
       await setSetting(_db, 'cloud.phone_id', id, ref.read(clockProvider)().millisecondsSinceEpoch);
     }
     return _phoneId = id;
