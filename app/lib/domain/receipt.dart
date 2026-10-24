@@ -96,16 +96,25 @@ ReceiptDoc buildBillDoc(ReceiptData d, {BillDesign template = BillDesign.default
   final h = t.headerAlign;
   final body = L.rtl ? PrintAlign.right : PrintAlign.left;
   final style = t.style;
-  final rule = style == 'modern' ? const RRule('- ') : (style == 'boxed' ? const RRule('=') : const RRule());
+  final grid = style == 'grid';
+  final RLine rule = switch (style) {
+    'modern' => const RRule('- '),
+    'boxed' || 'restaurant' || 'bold' => const RRule('='),
+    'grid' => const RRule('+'),
+    'luxury' => const RRule('*'),
+    'ticket' => const RRule('. '),
+    'minimal' => const RFeed(),
+    _ => const RRule(),
+  };
   final lines = <RLine>[];
   // label on the reading-start side, value on the other: flipped for right-to-left bills
-  RLine row(String label, String value, {bool bold = false, int height = 1}) => L.rtl ? RRow(value, label, bold: bold, height: height) : RRow(label, value, bold: bold, height: height);
+  RLine row(String label, String value, {bool bold = false, int height = 1}) => L.rtl ? RRow(value, label, bold: bold, height: height, box: grid) : RRow(label, value, bold: bold, height: height, box: grid);
   String typeLabel(String code) => switch (code) { 'Dine-in' => L['dine_in'], 'Takeaway' => L['takeaway'], 'Delivery' => L['delivery_type'], 'Counter' => L['counter'], _ => code };
   String money(int v) => _m(v, d.currency);
 
   if (d.isDuplicate) lines.add(RText(L['duplicate'], align: PrintAlign.center, bold: true));
   if (t.showLogo && d.logo != null) lines.add(RImage(d.logo!, align: t.logoAt));
-  final name = style == 'modern' ? '- ${d.businessName} -' : d.businessName;
+  final name = style == 'modern' ? '- ${d.businessName} -' : d.businessName.toUpperCase() == d.businessName && style == 'luxury' ? d.businessName : d.businessName;
   lines.add(RText(name, align: t.nameAt, bold: true, width: t.nameSize, height: t.nameSize));
   for (final l in t.headerLines.where((l) => l.trim().isNotEmpty)) {
     lines.add(RText(l, align: h));
@@ -118,7 +127,7 @@ ReceiptDoc buildBillDoc(ReceiptData d, {BillDesign template = BillDesign.default
   if (t.title.trim().isNotEmpty) {
     lines
       ..add(rule)
-      ..add(RText(t.title.trim(), align: PrintAlign.center, bold: true))
+      ..add(RText(t.title.trim(), align: PrintAlign.center, bold: true, box: grid))
       ..add(rule);
   } else {
     lines.add(rule);
@@ -139,17 +148,24 @@ ReceiptDoc buildBillDoc(ReceiptData d, {BillDesign template = BillDesign.default
   lines.add(rule);
 
   // items
-  final table = style == 'boxed' && !L.rtl;
+  final numbered = style == 'retail' || style == 'tax' || grid;
+  final table = (style == 'boxed' || numbered) && !L.rtl;
   if (table) {
-    lines.add(RCols([L['item'], L['qty'], L['rate'], L['amount']], const [5, 7, 9], bold: true));
-    lines.add(const RRule());
+    lines.add(RCols([numbered ? 'Sr  ${L['item']}' : L['item'], L['qty'], L['rate'], L['amount']], const [5, 7, 9], bold: true, box: grid));
+    lines.add(grid ? const RRule('+') : const RRule());
   }
   var n = 0;
   for (final l in d.lines) {
     n++;
     final qty = formatQty(l.qtyMilli);
     if (table) {
-      lines.add(RCols([l.name, qty, money(l.unitPriceMinor), money(l.totalMinor)], const [5, 7, 9]));
+      lines.add(RCols([numbered ? '$n  ${l.name}' : l.name, qty, money(l.unitPriceMinor), money(l.totalMinor)], const [5, 7, 9], box: grid));
+    } else if (style == 'ticket') {
+      lines.add(RText(L.rtl ? '${l.name} x $qty' : '$qty x ${l.name}', align: body, bold: true));
+    } else if (style == 'minimal') {
+      lines.add(row(L.rtl ? '${l.name} $qty' : '$qty ${l.name}', money(l.totalMinor)));
+    } else if (style == 'bold') {
+      lines.add(row(L.rtl ? '${l.name} x $qty' : '$qty x ${l.name}', money(l.totalMinor), bold: true));
     } else if (style == 'modern') {
       lines.add(row(L.rtl ? '${l.name} x $qty  .$n' : '$n  ${l.name} x $qty', money(l.totalMinor)));
     } else {
@@ -167,10 +183,11 @@ ReceiptDoc buildBillDoc(ReceiptData d, {BillDesign template = BillDesign.default
     lines.add(row('${L['items']}: ${formatQty((count * 1000).round())}', ''));
   }
   final onlySubtotal = d.discountMinor == 0 && d.serviceChargeMinor == 0 && d.deliveryChargeMinor == 0 && d.taxMinor == 0 && d.tipMinor == 0 && d.roundingMinor == 0;
-  if (!(style == 'compact' && onlySubtotal)) lines.add(row(L['subtotal'], money(d.subtotalMinor)));
+  if (style != 'ticket' && !(style == 'compact' && onlySubtotal)) lines.add(row(style == 'tax' ? 'Gross Amount' : L['subtotal'], money(d.subtotalMinor)));
   if (d.discountMinor > 0) lines.add(row(L['discount'], '-${money(d.discountMinor)}'));
   if (d.serviceChargeMinor > 0) lines.add(row(L['service'], money(d.serviceChargeMinor)));
   if (d.deliveryChargeMinor > 0) lines.add(row(L['delivery'], money(d.deliveryChargeMinor)));
+  if (style == 'tax' && d.taxMinor > 0) lines.add(row('Value excl. tax', money(d.totalMinor - d.taxMinor)));
   if (d.taxMinor > 0) lines.add(row(L['tax'], money(d.taxMinor)));
   if (d.tipMinor > 0) lines.add(row(L['tip'], money(d.tipMinor)));
   if (d.roundingMinor != 0) lines.add(row(L['rounding'], money(d.roundingMinor)));
@@ -178,10 +195,17 @@ ReceiptDoc buildBillDoc(ReceiptData d, {BillDesign template = BillDesign.default
     case 'boxed':
       lines.add(rule);
       lines.add(row('${L['net_bill']} ${d.currency.code}', money(d.totalMinor), bold: true, height: 2));
-    case 'modern':
+    case 'modern' || 'bold' || 'luxury':
       lines.add(rule);
       lines.add(RText('${L['total']} ${d.currency.code}', align: PrintAlign.center, bold: true));
       lines.add(RText(money(d.totalMinor), align: PrintAlign.center, bold: true, width: 2, height: 2));
+    case 'grid':
+      lines.add(row('GRAND TOTAL', money(d.totalMinor), bold: true, height: 2));
+    case 'tax':
+      lines.add(rule);
+      lines.add(row('NET PAYABLE', '${d.currency.code} ${money(d.totalMinor)}', bold: true, height: 2));
+    case 'minimal':
+      lines.add(row('${L['total']} ${d.currency.code}', money(d.totalMinor), bold: true));
     default:
       lines.add(row('${L['total']} ${d.currency.code}', money(d.totalMinor), bold: true, height: 2));
   }
@@ -198,7 +222,7 @@ ReceiptDoc buildBillDoc(ReceiptData d, {BillDesign template = BillDesign.default
     lines.add(RText(l, align: PrintAlign.center));
   }
   if (style == 'modern') lines.add(rule);
-  final qr = t.qrText ?? d.qrData;
+  final qr = t.qrText ?? d.qrData ?? (style == 'tax' ? d.invoiceNo : null);
   if (qr != null && qr.isNotEmpty) {
     lines.add(const RFeed());
     lines.add(RQr(qr));

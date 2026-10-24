@@ -67,6 +67,9 @@ const themePresets = <ThemePreset>[
   ThemePreset('navy', Color(0xFF1E2A78), 'theme_navy', accent: Color(0xFFFF5A1F)),
   ThemePreset('teal', Color(0xFF0F766E), 'theme_teal', accent: Color(0xFFFF5A1F)),
   ThemePreset('rose', Color(0xFFBE185D), 'theme_rose', accent: Color(0xFF0F766E)),
+  // Luxury looks, from the DT Salon palette: plum and champagne, rose gold.
+  ThemePreset('royalgold', Color(0xFF4B1590), 'theme_royalgold', accent: Color(0xFFC9A24B), background: Color(0xFFF7F4FC), header: Color(0xFF2A0757), nav: Color(0xFFFFFFFF), cardStyle: 'shadow', radius: 18),
+  ThemePreset('rosegold', Color(0xFF9A4B5E), 'theme_rosegold', accent: Color(0xFFA56E43), background: Color(0xFFFDF5F6), header: Color(0xFF7A2F42), cardStyle: 'shadow', radius: 18),
   ThemePreset('slate', Color(0xFF334155), 'theme_slate', accent: Color(0xFFFF5A1F)),
 ];
 

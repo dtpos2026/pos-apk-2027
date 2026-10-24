@@ -48,7 +48,7 @@ counter of the coupon item (e.g. "Coupon"), add a *Prepaid coupon* type with tha
 
 ## 3. Designs and the editor
 
-Seven ready-made designs, all genuinely different (checked by test): **Classic Food Token**, **Product-Wise Token**,
+Twelve ready-made designs, all genuinely different (checked by test); the first seven are for food counters, the last five (**Retail · Classic, Boxed, Bold Number, Minimal, Ticket**) are the token designs of DT Retail POS: **Classic Food Token**, **Product-Wise Token**,
 **Itemized Price Receipt**, **Tandoor / Roti Token**, **Food Court / Stall Token**, **Premium Branded Token** (logo, star frame, prices, QR),
 and **Prepaid Coupon**.
 

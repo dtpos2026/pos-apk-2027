@@ -311,10 +311,10 @@ class TokenDesign {
   /// What the preview shows by default.
   final TokenKind sampleKind;
 
-  static const borders = ['none', 'line', 'double', 'dots', 'stars'];
+  static const borders = ['none', 'line', 'double', 'dots', 'stars', 'box'];
   static const languages = ['en', 'ur', 'both'];
 
-  String get ruleChar => switch (border) { 'double' => '=', 'dots' => '.', 'stars' => '*', _ => '-' };
+  String get ruleChar => switch (border) { 'double' => '=', 'dots' => '.', 'stars' => '*', 'box' => '+', _ => '-' };
 
   TokenDesign copyWith({String? id, String? name, List<TokenBlock>? blocks, String? lang, String? border, int? topFeed, int? bottomFeed, bool? builtIn}) => TokenDesign(
       id: id ?? this.id,
@@ -450,6 +450,56 @@ final Map<String, TokenDesign> builtInTemplates = {
     TokenBlock(BlockType.text, text: 'Thank you for dining with us', bold: true),
     TokenBlock(BlockType.powered),
   ]),
+  // DT Retail POS token designs: Classic, Boxed, Bold Number, Minimal, Ticket.
+  'r_classic': const TokenDesign(id: 'r_classic', name: 'Retail · Classic', builtIn: true, blocks: [
+    TokenBlock(BlockType.business, bold: true),
+    TokenBlock(BlockType.rule),
+    TokenBlock(BlockType.title, text: 'TOKEN', bold: true),
+    TokenBlock(BlockType.token, size: 5, bold: true),
+    TokenBlock(BlockType.rule),
+    TokenBlock(BlockType.orderType),
+    TokenBlock(BlockType.dateTime),
+    TokenBlock(BlockType.cashier, show: false),
+    TokenBlock(BlockType.text, text: 'Thank you! Please wait for your number.'),
+    TokenBlock(BlockType.powered),
+  ]),
+  'r_boxed': const TokenDesign(id: 'r_boxed', name: 'Retail · Boxed', builtIn: true, border: 'box', blocks: [
+    TokenBlock(BlockType.rule),
+    TokenBlock(BlockType.business, bold: true),
+    TokenBlock(BlockType.rule),
+    TokenBlock(BlockType.title, text: 'TOKEN NO.', bold: true),
+    TokenBlock(BlockType.token, size: 4, bold: true),
+    TokenBlock(BlockType.rule),
+    TokenBlock(BlockType.items, align: PrintAlign.left, flags: {'qty': true, 'modifiers': true}),
+    TokenBlock(BlockType.rule),
+    TokenBlock(BlockType.orderType),
+    TokenBlock(BlockType.dateTime),
+    TokenBlock(BlockType.rule),
+    TokenBlock(BlockType.powered),
+  ]),
+  'r_bold': const TokenDesign(id: 'r_bold', name: 'Retail · Bold Number', builtIn: true, blocks: [
+    TokenBlock(BlockType.token, size: 5, bold: true),
+    TokenBlock(BlockType.orderType, size: 2, bold: true),
+    TokenBlock(BlockType.dateTime),
+    TokenBlock(BlockType.powered),
+  ]),
+  'r_minimal': const TokenDesign(id: 'r_minimal', name: 'Retail · Minimal', builtIn: true, bottomFeed: 1, blocks: [
+    TokenBlock(BlockType.token, size: 3, bold: true),
+    TokenBlock(BlockType.dateTime),
+    TokenBlock(BlockType.powered),
+  ]),
+  'r_ticket': const TokenDesign(id: 'r_ticket', name: 'Retail · Ticket', builtIn: true, border: 'dots', blocks: [
+    TokenBlock(BlockType.business, bold: true),
+    TokenBlock(BlockType.rule),
+    TokenBlock(BlockType.title, text: 'TICKET', bold: true),
+    TokenBlock(BlockType.token, size: 4, bold: true),
+    TokenBlock(BlockType.items, align: PrintAlign.left, flags: {'qty': true}),
+    TokenBlock(BlockType.rule),
+    TokenBlock(BlockType.orderType),
+    TokenBlock(BlockType.dateTime),
+    TokenBlock(BlockType.text, text: 'Keep this slip until your number is called', bold: true),
+    TokenBlock(BlockType.powered),
+  ]),
   // 7. Prepaid coupon.
   'coupon': const TokenDesign(id: 'coupon', name: 'Prepaid Coupon', builtIn: true, sampleKind: TokenKind.coupon, border: 'dots', blocks: [
     TokenBlock(BlockType.logo),
@@ -466,8 +516,8 @@ final Map<String, TokenDesign> builtInTemplates = {
   ]),
 };
 
-/// The designs offered in the order shown in the app.
-const builtInTemplateOrder = ['classic', 'product', 'price', 'tandoor', 'stall', 'premium', 'coupon'];
+/// The designs offered in the order shown in the app: seven for food counters, then the five token designs of DT Retail POS.
+const builtInTemplateOrder = ['classic', 'product', 'price', 'tandoor', 'stall', 'premium', 'coupon', 'r_classic', 'r_boxed', 'r_bold', 'r_minimal', 'r_ticket'];
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Printing

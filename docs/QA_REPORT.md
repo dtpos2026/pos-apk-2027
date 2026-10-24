@@ -6,7 +6,7 @@ Version **0.4.0** · date 2026-10-24 · prepared from actual test runs (commands
 
 | Area | Result | How it was checked |
 |---|---|---|
-| Android app logic and screens | **PASS** (402 automated tests) | `flutter test` — real SQLite, real widgets, fonts loaded |
+| Android app logic and screens | **PASS** (496 automated tests) | `flutter test` — real SQLite, real widgets, fonts loaded |
 | Static analysis | **PASS** (0 issues) | `flutter analyze` |
 | Firestore security rules | **PASS** (13 tests) | Firebase emulator, `npm test` in `firebase/` |
 | Super Admin panel | **PASS** (25 unit/UI + 1 end-to-end, 26 with emulator) | Vitest; end-to-end runs the real panel code against Auth + Firestore emulators |
@@ -49,6 +49,9 @@ Version **0.4.0** · date 2026-10-24 · prepared from actual test runs (commands
 | 31 | **App themes**: 13 presets + custom builder, every theme readable (contrast checks), remembered after restart, dark mode, data never changes | PASS |
 | 32 | **Super Admin theme**: assign a theme or custom colours per business, optional lock; app uses it as default or forced, keeps it offline; unknown id ignored | PASS (`admin_theme_test.dart`, panel UI + emulator tests) |
 | 33 | **Receipt**: logo, business name and address lines each left / centre / right; saved; old designs unchanged | PASS |
+| 34 | **Real-phone fixes** (from the owner's screenshots): splash logo animation showed a blank receipt and the screen had a side strip; item pictures missing on the compact selling tile; Confirm / Share buttons under the Android navigation bar; TOTAL row overlapping in previews | FIXED + tests (`device_fit_test.dart`, `day_close_test.dart`, `receipt_dialog_test.dart`) |
+| 35 | Dashboard (today's sales, cash, udhaar, tables, 7-day chart, top items, quick actions) from real sales; profile menu + account page; report slip preview / print / PNG save / share | PASS (`dashboard_test.dart`, `profile_test.dart`) |
+| 36 | 12 bill designs (the 11 DT Retail POS designs + Table/words) and 12 token designs (7 food + 5 Retail) fit 58/80 mm | PASS |
 | 22 | Panel end-to-end: register → approve (DTC-0001) → phone limit → block → sales → invoice → payment extends expiry → suspend → chat → settings → admins → audit entries | PASS |
 
 ## 3. Defects found during QC and fixed

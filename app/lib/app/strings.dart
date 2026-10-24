@@ -18,6 +18,17 @@ class Strings {
       (_all[locale.languageCode] ?? _en)[key] ?? _en[key] ?? key;
 
   static const _en = <String, String>{
+    'theme_royalgold': 'Royal Plum & Gold',
+    'theme_rosegold': 'Rose Gold',
+    'bill_style_minimal': 'Minimal',
+    'bill_style_restaurant': 'Restaurant',
+    'bill_style_retail': 'Retail invoice',
+    'bill_style_grid': 'Boxed grid',
+    'bill_style_bold': 'Bold restaurant',
+    'bill_style_tax': 'Tax invoice + QR',
+    'bill_style_luxury': 'Luxury',
+    'bill_style_ticket': 'Ticket',
+    'border_box': 'Box ++++',
     'dashboard': 'Dashboard',
     'good_morning': 'Good morning',
     'good_afternoon': 'Good afternoon',
@@ -106,7 +117,7 @@ class Strings {
     'counter_station': 'Counter / station',
     'counter_station_hint': 'e.g. Tandoor, Tea, BBQ. Used for kitchen tickets and tokens.',
     'printer_station_hint': 'Tokens and kitchen tickets of this counter print here (e.g. Tandoor).',
-    'designs_intro': 'Seven ready-made designs. Edit any of them, copy it, or build your own. Edits are saved on this phone; "Reset" brings back the original.',
+    'designs_intro': 'Twelve ready-made designs (seven for food counters, five from DT Retail POS). Edit any of them, copy it, or build your own. Edits are saved on this phone; "Reset" brings back the original.',
     'design_builtin': 'Ready-made',
     'design_own': 'Your design',
     'design_used_by': 'Used by',
@@ -631,6 +642,17 @@ class Strings {
 };
 
   static const _ur = <String, String>{
+    'theme_royalgold': 'رائل پلم اور گولڈ',
+    'theme_rosegold': 'روز گولڈ',
+    'bill_style_minimal': 'سادہ',
+    'bill_style_restaurant': 'ریسٹورنٹ',
+    'bill_style_retail': 'ریٹیل انوائس',
+    'bill_style_grid': 'باکس گرڈ',
+    'bill_style_bold': 'بولڈ ریسٹورنٹ',
+    'bill_style_tax': 'ٹیکس انوائس + QR',
+    'bill_style_luxury': 'لگژری',
+    'bill_style_ticket': 'ٹکٹ',
+    'border_box': 'باکس ++++',
     'dashboard': 'ڈیش بورڈ',
     'good_morning': 'صبح بخیر',
     'good_afternoon': 'دوپہر بخیر',
@@ -1241,6 +1263,17 @@ class Strings {
 };
 
   static const _ar = <String, String>{
+    'theme_royalgold': 'أرجواني وذهبي ملكي',
+    'theme_rosegold': 'ذهبي وردي',
+    'bill_style_minimal': 'بسيط',
+    'bill_style_restaurant': 'مطعم',
+    'bill_style_retail': 'فاتورة تجزئة',
+    'bill_style_grid': 'شبكة',
+    'bill_style_bold': 'مطعم بخط عريض',
+    'bill_style_tax': 'فاتورة ضريبية + QR',
+    'bill_style_luxury': 'فاخر',
+    'bill_style_ticket': 'تذكرة',
+    'border_box': 'إطار ++++',
     'dashboard': 'لوحة التحكم',
     'good_morning': 'صباح الخير',
     'good_afternoon': 'مساء الخير',

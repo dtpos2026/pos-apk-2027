@@ -173,7 +173,7 @@ void main() {
     expect((await t.runAsync(() => h.container.read(tokenServiceProvider).rawConfig()))!.rules, hasLength(1), reason: 'settings are kept');
   });
 
-  testWidgets('designs: seven ready-made designs; edit, reorder, save, reopen, reset, duplicate, rename, export, import, delete', (t) async {
+  testWidgets('designs: all twelve ready-made designs; edit, reorder, save, reopen, reset, duplicate, rename, export, import, delete', (t) async {
     final db = newDb();
     await seedBusiness(db);
     final h = await pumpApp(t, db: db, tablet: true);
@@ -182,8 +182,10 @@ void main() {
     await t.tap(find.byKey(const ValueKey('tab-designs')));
     await t.pumpAndSettle();
     for (final id in builtInTemplateOrder) {
+      await t.scrollUntilVisible(find.byKey(ValueKey('design-$id')), 200, scrollable: verticalScroll);
       expect(find.byKey(ValueKey('design-$id')), findsOneWidget, reason: id);
     }
+    await t.scrollUntilVisible(find.byKey(const ValueKey('design-classic')), -200, scrollable: verticalScroll);
     await shot(t, '63_designs');
 
     // open the classic design: the preview shows the real slip
@@ -274,6 +276,7 @@ void main() {
     await go(t, 'design-menu-premium');
     await t.tap(find.text('Duplicate'));
     await t.pumpAndSettle();
+    await t.scrollUntilVisible(find.byKey(const ValueKey('design-import')), 300, scrollable: verticalScroll);
     expect(find.textContaining('Premium Branded Token copy'), findsOneWidget);
     final own = (await t.runAsync(() => h.container.read(tokenServiceProvider).templates()))!.firstWhere((d) => !d.builtIn);
     await go(t, 'design-${own.id}');
@@ -282,6 +285,7 @@ void main() {
     await tapKey(t, 'td-save');
     await t.pageBack();
     await t.pumpAndSettle();
+    await t.scrollUntilVisible(find.byKey(const ValueKey('design-import')), 300, scrollable: verticalScroll);
     expect(find.text('Eid token'), findsOneWidget);
 
     String? copied;

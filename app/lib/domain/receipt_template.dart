@@ -5,7 +5,8 @@ import 'escpos.dart';
 /// Bill looks, from the receipts restaurants in Pakistan actually use:
 /// classic (name x qty .... amount), boxed (pre-payment slip: Item | Qty | Rate | Amount table, big NET BILL, amount
 /// in words), modern (dashed lines, numbered items, large total, QR) and compact (fewest lines, saves paper).
-const billStyles = ['classic', 'boxed', 'modern', 'compact'];
+/// The eleven designs of DT Retail POS plus the older "boxed" look, so the same bill designs exist on the phone and on the Windows POS.
+const billStyles = ['classic', 'modern', 'minimal', 'restaurant', 'retail', 'compact', 'grid', 'bold', 'tax', 'luxury', 'ticket', 'boxed'];
 
 /// Kitchen ticket looks: classic, big (large item text, token in front) and compact.
 const kotStyles = ['classic', 'big', 'compact'];
@@ -143,6 +144,14 @@ class BillDesign {
         'boxed' => copyWith(style: s, title: title.isEmpty ? 'PRE-PAYMENT BILL' : title, showItemCount: true, amountInWords: true, nameSize: 2),
         'modern' => copyWith(style: s, showItemCount: false, amountInWords: false, nameSize: 2),
         'compact' => copyWith(style: s, title: '', showItemCount: false, amountInWords: false, nameSize: 1, showCashier: false),
+        'minimal' => copyWith(style: s, title: '', showItemCount: false, amountInWords: false, nameSize: 1, showCashier: false),
+        'restaurant' => copyWith(style: s, title: '', showItemCount: false, amountInWords: false, nameSize: 2),
+        'retail' => copyWith(style: s, title: 'INVOICE', showItemCount: true, amountInWords: true, nameSize: 1),
+        'grid' => copyWith(style: s, title: 'CASH MEMO / RECEIPT', showItemCount: true, amountInWords: false, nameSize: 1),
+        'bold' => copyWith(style: s, title: '', showItemCount: false, amountInWords: false, nameSize: 3),
+        'tax' => copyWith(style: s, title: 'TAX INVOICE', showItemCount: true, amountInWords: true, nameSize: 1),
+        'luxury' => copyWith(style: s, title: '', showItemCount: false, amountInWords: false, nameSize: 2, headerAlign: PrintAlign.center),
+        'ticket' => copyWith(style: s, title: '', showItemCount: false, amountInWords: false, nameSize: 1, showCashier: false),
         _ => copyWith(style: 'classic', showItemCount: false, amountInWords: false),
       };
 

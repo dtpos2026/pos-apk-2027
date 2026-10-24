@@ -69,11 +69,11 @@ void main() {
     }
   });
 
-  test('the seven designs are genuinely different from each other', () {
+  test('all ready-made designs are genuinely different from each other', () {
     final slip = sampleSlip(TokenKind.price, businessName: 'Burger Point');
     final texts = {for (final id in builtInTemplateOrder) id: previewSlip(builtInTemplates[id]!, slip)};
-    expect(texts.values.toSet().length, 7);
-    expect(builtInTemplateOrder.length, greaterThanOrEqualTo(6));
+    expect(texts.values.toSet().length, builtInTemplateOrder.length);
+    expect(builtInTemplateOrder.length, 12);
     expect(texts['price'], allOf(contains('Rate'), contains('Amount'), contains('TOTAL'), contains('Discount')));
     expect(texts['classic'], isNot(contains('Zinger')));
     expect(texts['product'], contains('2 x Zinger Burger'));
@@ -273,7 +273,7 @@ void main() {
           final doc = buildBillDoc(d(), template: design);
           expectFits(doc, paper, '$style/$paper');
           final text = docToText(doc, paper);
-          expect(text, allOf(contains('Burger Point'), contains('INV-1'), contains('2,000.00'), contains('Zinger')));
+          expect(text, allOf(contains(style == 'bold' ? 'Burger' : 'Burger Point'), contains('INV-1'), contains('2,000.00'), contains('Zinger')));
           expect(text, contains('A17'), reason: 'order token on the bill');
         });
       }

@@ -331,7 +331,7 @@ void main() {
   group('designs', () {
     test('built-in designs are listed, edits are saved, reset returns the original, own designs can be duplicated, renamed, deleted', () async {
       var all = await tokens.templates();
-      expect(all.map((t) => t.id).take(7), builtInTemplateOrder);
+      expect(all.map((t) => t.id).take(builtInTemplateOrder.length), builtInTemplateOrder);
       final classic = all.first;
       await tokens.saveTemplate(classic.copyWith(name: 'My token', blocks: [for (final b in classic.blocks) b.type == BlockType.title ? b.copyWith(text: 'NUMBER') : b]));
       var changed = await tokens.template('classic');
@@ -349,7 +349,7 @@ void main() {
       expect((await tokens.template('classic')).name, 'Classic Food Token');
       await configure([order.copyWith(templateId: copy.id)]);
       await tokens.deleteOrResetTemplate(copy.id);
-      expect((await tokens.templates()).length, 7);
+      expect((await tokens.templates()).length, builtInTemplateOrder.length);
       expect((await tokens.config()).rule('o')!.templateId, '', reason: 'a rule never points at a deleted design');
     });
 

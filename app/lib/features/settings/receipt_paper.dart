@@ -81,7 +81,8 @@ class ReceiptPaper extends StatelessWidget {
               child: Transform(
                 transform: Matrix4.diagonal3Values(1, l.height.toDouble(), 1),
                 alignment: Alignment.topLeft,
-                child: SizedBox(height: fontSize * 1.3, child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(line, softWrap: false, style: TextStyle(fontWeight: weight)))),
+                // Align loosens the tight height from the SizedBox above, so the line keeps ONE line of height and the transform doubles it
+                child: Align(alignment: Alignment.topLeft, child: SizedBox(width: textWidth, height: fontSize * 1.3, child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(line, softWrap: false, style: TextStyle(fontWeight: weight))))),
               ),
             ),
         ]);

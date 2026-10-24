@@ -117,6 +117,8 @@ export const APP_THEMES: { id: string; label: string; main: string; accent: stri
   { id: 'navy', label: 'Navy', main: '#1E2A78', accent: '#FF5A1F', bg: '#F4F5FB' },
   { id: 'teal', label: 'Teal', main: '#0F766E', accent: '#FF5A1F', bg: '#F1F8F7' },
   { id: 'rose', label: 'Rose', main: '#BE185D', accent: '#0F766E', bg: '#FDF2F7' },
+  { id: 'royalgold', label: 'Royal Plum & Gold', main: '#4B1590', accent: '#C9A24B', bg: '#F7F4FC' },
+  { id: 'rosegold', label: 'Rose Gold', main: '#9A4B5E', accent: '#A56E43', bg: '#FDF5F6' },
   { id: 'slate', label: 'Slate', main: '#334155', accent: '#FF5A1F', bg: '#F3F5F8' },
 ];
 
