@@ -400,20 +400,43 @@ void main() {
     await add(t, 'Zinger Burger', times: 2);
     await send(1);
     expect(got.single, contains('2 x Zinger Burger'));
+    // sent: the cart is clear for the next customer, and the order is RUNNING (same order as its bill), in the kitchen exactly once
+    expect(h.container.read(cartProvider).items, isEmpty);
+    expect(await n(h, "SELECT COUNT(*) AS n FROM \"order\" WHERE status = 'new'"), 1);
+    expect(await n(h, "SELECT COUNT(*) AS n FROM \"order\""), 1, reason: 'one order, not a bill plus a separate kitchen copy');
+
+    Future<void> continueRunning() async {
+      await openTab(t, 'bills', 'Bills');
+      await tapKey(t, 'billtab-running');
+      await t.tap(find.byWidgetPredicate((w) => w.key is ValueKey && (w.key as ValueKey).value.toString().startsWith('bill-#')));
+      await t.pumpAndSettle();
+      await tapKey(t, 'running-resume');
+    }
+
+    // continue the running order, add Fries: only the new item goes to the kitchen
+    await continueRunning();
+    expect(h.container.read(cartProvider).items.single.qtyMilli, 2000);
     await add(t, 'Fries');
     await send(2);
     expect(got.last, contains('1 x Fries'));
     expect(got.last, isNot(contains('Zinger')));
+    expect(await n(h, "SELECT COUNT(*) AS n FROM \"order\""), 1, reason: 'still the same single order');
+
     // more of an item already sent: only the extra portion is printed
+    await continueRunning();
     await add(t, 'Zinger Burger');
     await send(3);
     expect(got.last, contains('1 x Zinger Burger'));
     expect(got.last, isNot(contains('2 x Zinger')));
     expect(got.last, isNot(contains('Fries')));
-    await tapKey(t, 'send-kitchen'); // nothing new: nothing printed
+
+    // nothing new on a resumed order: nothing is printed (a double tap or retry never makes a second ticket)
+    await continueRunning();
+    await tapKey(t, 'send-kitchen');
     await t.runAsync(() async => Future<void>.delayed(const Duration(milliseconds: 300)));
     await t.pump(const Duration(milliseconds: 50));
     expect(got.length, 3);
+    expect(find.text('Nothing new to send to the kitchen'), findsOneWidget);
   });
 }
 

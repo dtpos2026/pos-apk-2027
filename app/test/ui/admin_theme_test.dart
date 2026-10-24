@@ -44,8 +44,8 @@ void main() {
     await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
     await t.pumpAndSettle();
     expect(find.byKey(const ValueKey('theme-locked-note')), findsOneWidget);
-    await showThemeCard(t, 'theme-red');
-    await t.tap(find.byKey(const ValueKey('theme-red')), warnIfMissed: false);
+    await showThemeCard(t, 'theme-green');
+    await t.tap(find.byKey(const ValueKey('theme-green')), warnIfMissed: false);
     await t.pumpAndSettle();
     expect(h.container.read(effectiveThemeIdProvider), 'custom:0B5FA5,F59F00,,,shadow,20');
     await t.pumpWidget(const SizedBox());
@@ -54,7 +54,7 @@ void main() {
 
   testWidgets('an unknown assigned theme is ignored; nothing assigned changes nothing', (t) async {
     final h = await start(t, themeId: 'does-not-exist', locked: true);
-    expect(h.container.read(effectiveThemeIdProvider), 'dt');
+    expect(h.container.read(effectiveThemeIdProvider), 'red');
     await t.pumpWidget(const SizedBox());
     h.container.dispose();
   });

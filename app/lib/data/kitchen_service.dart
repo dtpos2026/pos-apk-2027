@@ -10,12 +10,16 @@ class KitchenLine {
 }
 
 class KitchenTicket {
-  const KitchenTicket({required this.orderId, required this.label, required this.status, required this.sentAt, required this.lines, this.tableLabel, this.orderType = 'counter', this.token});
+  const KitchenTicket({this.paid = false, this.sentBy, required this.orderId, required this.label, required this.status, required this.sentAt, required this.lines, this.tableLabel, this.orderType = 'counter', this.token});
   final String orderId;
   final String label;
 
-  /// new | preparing | ready
+  /// new | preparing | ready | served
   final String status;
+
+  /// The bill is already paid (the kitchen still has to prepare it, or it is done and kept as history).
+  final bool paid;
+  final String? sentBy;
   final int sentAt;
   final String? tableLabel;
   final String orderType;
@@ -30,11 +34,18 @@ class KitchenService {
 
   static const flow = ['new', 'preparing', 'ready'];
 
-  Future<List<KitchenTicket>> tickets() async {
-    final orders = await h.q('''SELECT * FROM (SELECT o.id, o.invoice_no, o.status, o.order_type, t.label AS table_label,
+  /// The kitchen state of every order is its latest row in the append-only kitchen history, so it does not depend on
+  /// whether the bill was paid, voided or cancelled in the meantime. [status] is one of new / preparing / ready / served.
+  /// Orders called off (cancelled / void / refunded) leave the board.
+  Future<List<KitchenTicket>> tickets({String status = 'new'}) async {
+    final startOfDay = DateTime.fromMillisecondsSinceEpoch(h.ts);
+    final since = status == 'served' ? DateTime(startOfDay.year, startOfDay.month, startOfDay.day).millisecondsSinceEpoch : 0;
+    final orders = await h.q('''SELECT o.id, o.invoice_no, o.status AS ostatus, o.order_type, t.label AS table_label, e.at AS since,
         (SELECT MIN(kot_sent_at) FROM order_item i WHERE i.order_id = o.id AND i.kot_sent_at IS NOT NULL) AS sent
-      FROM "order" o LEFT JOIN dining_table t ON t.id = o.table_id
-      WHERE o.status IN ('new','preparing','ready')) WHERE sent IS NOT NULL ORDER BY sent''');
+      FROM kitchen_event e JOIN "order" o ON o.id = e.order_id LEFT JOIN dining_table t ON t.id = o.table_id
+      WHERE e.id = (SELECT k.id FROM kitchen_event k WHERE k.order_id = e.order_id ORDER BY k.at DESC, k.rowid DESC LIMIT 1)
+        AND e.status = ? AND e.at >= ? AND o.status NOT IN ('cancelled','void','refunded','draft')
+      ORDER BY e.at''', [status, since]);
     final out = <KitchenTicket>[];
     for (final o in orders) {
       final items = await h.q("SELECT id, name, qty_milli, note FROM order_item WHERE order_id = ? AND status = 'active' AND kot_sent_at IS NOT NULL ORDER BY rowid", [o['id']]);
@@ -46,9 +57,10 @@ class KitchenService {
       final id = o['id'] as String;
       out.add(KitchenTicket(
         orderId: id,
-        label: (o['invoice_no'] as String?) ?? '#${id.substring(0, 4)}',
-        status: o['status'] as String,
-        sentAt: o['sent'] as int,
+        label: (o['invoice_no'] as String?) ?? '#${id.substring(0, 4).toUpperCase()}',
+        status: status,
+        paid: o['ostatus'] == 'paid',
+        sentAt: (o['since'] as int?) ?? (o['sent'] as int? ?? 0),
         tableLabel: o['table_label'] as String?,
         orderType: o['order_type'] as String,
         lines: lines,
@@ -57,13 +69,26 @@ class KitchenService {
     return out;
   }
 
-  /// new -> preparing -> ready -> served (served leaves the board; the bill is still open for payment).
-  Future<void> advance(String orderId) async {
-    final r = await h.one('SELECT status FROM "order" WHERE id = ?', [orderId]);
-    if (r == null) throw PosException('not_found', 'Order not found');
+  /// How many orders are waiting in each state (for the tab counters and the "ready" badge).
+  Future<Map<String, int>> counts() async {
+    final out = {for (final s in [...flow, 'served']) s: 0};
+    for (final s in out.keys.toList()) {
+      out[s] = (await tickets(status: s)).length;
+    }
+    return out;
+  }
+
+  /// new -> preparing -> ready -> served (completed). Each step is recorded in the kitchen history; the bill's own status is
+  /// only touched while it is still unpaid.
+  Future<void> advance(String orderId, {String? staffId}) async {
+    final r = await h.one('SELECT status FROM kitchen_event WHERE order_id = ? ORDER BY at DESC, rowid DESC LIMIT 1', [orderId]);
+    if (r == null) throw PosException('not_in_kitchen', 'The order is not in the kitchen');
     final i = flow.indexOf(r['status'] as String);
-    if (i < 0) throw PosException('not_in_kitchen', 'The order is not in the kitchen');
+    if (i < 0) throw PosException('already_served', 'This order is already completed');
     final next = i + 1 < flow.length ? flow[i + 1] : 'served';
-    await h.exec('UPDATE "order" SET status = ?, updated_at = ?, version = version + 1 WHERE id = ?', [next, h.ts, orderId]);
+    await h.db.transaction(() async {
+      await h.exec('INSERT INTO kitchen_event(id, order_id, status, at, staff_id) VALUES (?,?,?,?,?)', [h.id, orderId, next, h.ts, staffId]);
+      await h.exec("UPDATE \"order\" SET status = ?, updated_at = ?, version = version + 1 WHERE id = ? AND status IN ('new','preparing','ready','served')", [next, h.ts, orderId]);
+    });
   }
 }

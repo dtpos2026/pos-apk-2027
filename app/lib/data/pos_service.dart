@@ -314,6 +314,10 @@ class PosService {
         final rows = await _select('SELECT status, table_id FROM "order" WHERE id = ?', [id]);
         if (rows.isEmpty) return;
         if (!{'draft', 'held', 'new', 'preparing', 'ready', 'served'}.contains(rows.first['status'])) throw PosException('not_editable', 'Only unsettled orders can be discarded');
+        // what the kitchen has been sent is history: such an order is cancelled (kept), never deleted
+        if ((await _select('SELECT 1 AS x FROM order_item WHERE order_id = ? AND kot_sent_at IS NOT NULL LIMIT 1', [id])).isNotEmpty) {
+          throw PosException('sent_to_kitchen', 'This order was sent to the kitchen: cancel it instead of deleting it');
+        }
         await _exec('DELETE FROM order_item_modifier WHERE order_item_id IN (SELECT id FROM order_item WHERE order_id = ?)', [id]);
         await _exec('DELETE FROM order_item WHERE order_id = ?', [id]);
         await _exec('DELETE FROM "order" WHERE id = ?', [id]);
@@ -321,6 +325,26 @@ class PosService {
           await _exec("UPDATE dining_table SET status='free', updated_at=?, version=version+1 WHERE id=? AND NOT EXISTS (SELECT 1 FROM \"order\" WHERE table_id = ? AND status IN ('draft','held','new','preparing','ready','served'))",
               [_ts, rows.first['table_id'], rows.first['table_id']]);
         }
+      });
+
+  /// Calls off an UNPAID order. Never sent to the kitchen: it is simply removed. Sent to the kitchen: it is kept with the
+  /// status 'cancelled' (the kitchen history stays; it is never counted as a sale) and its table is freed.
+  Future<void> cancelOrder(String id, {required String staffId, String? reason}) => db.transaction(() async {
+        await _require(staffId, 'bill.void');
+        final rows = await _select('SELECT status, table_id FROM "order" WHERE id = ?', [id]);
+        if (rows.isEmpty) return;
+        if (!{'draft', 'held', 'new', 'preparing', 'ready', 'served'}.contains(rows.first['status'])) throw PosException('not_editable', 'Only an unpaid order can be cancelled');
+        final sent = (await _select('SELECT 1 AS x FROM order_item WHERE order_id = ? AND kot_sent_at IS NOT NULL LIMIT 1', [id])).isNotEmpty;
+        if (!sent) {
+          await discardDraft(id);
+          return;
+        }
+        await _exec("UPDATE \"order\" SET status = 'cancelled', updated_at = ?, version = version + 1 WHERE id = ?", [_ts, id]);
+        final table = rows.first['table_id'];
+        if (table != null) {
+          await _exec("UPDATE dining_table SET status='free', updated_at=?, version=version+1 WHERE id=? AND NOT EXISTS (SELECT 1 FROM \"order\" WHERE table_id = ? AND status IN ('draft','held','new','preparing','ready','served'))", [_ts, table, table]);
+        }
+        await _audit('order.cancel', staffId: staffId, entity: 'order', entityId: id, reason: reason, critical: true);
       });
 
   // ---- settlement ----

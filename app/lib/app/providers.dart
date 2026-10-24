@@ -156,7 +156,7 @@ final themeChosenProvider = NotifierProvider<ThemeChosenNotifier, bool>(ThemeCho
 
 class ThemeIdNotifier extends Notifier<String> {
   @override
-  String build() => 'dt';
+  String build() => 'red';
   Future<void> set(String id) async {
     state = id;
     ref.read(themeChosenProvider.notifier).mark();

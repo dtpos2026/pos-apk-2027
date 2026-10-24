@@ -53,13 +53,15 @@ class ThemePreset {
   Color get headerColor => header ?? seed;
 }
 
-/// The default is Royal Purple = the Digital Target logo colour.
+/// The default is Restaurant Red. Royal Purple (the Digital Target logo colour) stays available as a choice.
 const themePresets = <ThemePreset>[
+  // The DT Food POS identity: red and white. Restaurant Red is the default; Restaurant Red 2 uses #C41414.
+  ThemePreset('red', Color(0xFFC92A2A), 'theme_red', accent: Color(0xFFF59F00), background: Color(0xFFFBF5F5)),
+  ThemePreset('red2', Color(0xFFC41414), 'theme_red2', accent: Color(0xFFC41414), background: Color(0xFFFAF7F7), surface: Color(0xFFFFFFFF), nav: Color(0xFFFFFFFF)),
   ThemePreset('dt', brandPurple, 'theme_dt', accent: brandOrange),
   ThemePreset('green', Color(0xFF2B8A3E), 'theme_green', accent: Color(0xFFF08C00), background: Color(0xFFF3F8F4)),
   ThemePreset('golden', Color(0xFFB7791F), 'theme_golden', accent: Color(0xFF1F2937), background: Color(0xFFFBF8F1)),
   ThemePreset('yellow', Color(0xFFFFC107), 'theme_yellow', accent: Color(0xFFD9480F), background: Color(0xFFFFFBEB), cardStyle: 'shadow'),
-  ThemePreset('red', Color(0xFFC92A2A), 'theme_red', accent: Color(0xFFF59F00), background: Color(0xFFFBF5F5)),
   ThemePreset('coffee', Color(0xFF6F4E37), 'theme_coffee', accent: Color(0xFFC8A27A), background: Color(0xFFF7F1EA), surface: Color(0xFFFFFCF8)),
   ThemePreset('ocean', Color(0xFF0B5FA5), 'theme_ocean', accent: Color(0xFFF59F00), background: Color(0xFFF2F6FB)),
   ThemePreset('blackgold', Color(0xFFD4AF37), 'theme_blackgold', accent: Color(0xFFD4AF37), dark: true, header: Color(0xFF0E0E0E), nav: Color(0xFF0E0E0E), background: Color(0xFF121212), surface: Color(0xFF1C1C1C)),

@@ -246,7 +246,7 @@ class _ProductTile extends ConsumerWidget {
                     ]),
                     const SizedBox(height: 6),
                     Expanded(child: Text(p.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, height: 1.2))),
-                    Text(ref.money(p.priceMinor), style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w800, fontSize: 14)),
+                    Align(alignment: AlignmentDirectional.centerStart, child: PriceBadge(text: ref.money(p.priceMinor), suffix: p.unit == 'pc' ? null : '/ ${p.unit}')),
                   ])
                 : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Expanded(
@@ -263,17 +263,13 @@ class _ProductTile extends ConsumerWidget {
                         child: Text('× $inCart', style: TextStyle(color: scheme.onPrimary, fontWeight: FontWeight.w800, fontSize: 12)),
                       ),
                     ),
+                  PositionedDirectional(bottom: 6, start: 6, child: PriceBadge(text: ref.money(p.priceMinor), suffix: p.unit == 'pc' ? null : '/ ${p.unit}')),
                   if (!p.available)
                     Center(child: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3), color: Colors.black54, child: Text(Strings.of(context)['unavailable'], style: const TextStyle(color: Colors.white, fontSize: 12)))),
                 ]),
               ),
               const SizedBox(height: 8),
               Text(p.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, height: 1.2)),
-              const SizedBox(height: 2),
-              Wrap(crossAxisAlignment: WrapCrossAlignment.end, children: [
-                Text(ref.money(p.priceMinor), style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w800, fontSize: 14)),
-                if (p.unit != 'pc') Text(' / ${p.unit}', style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
-              ]),
               const SizedBox(height: 6),
               SizedBox(
                 width: double.infinity,
@@ -289,6 +285,28 @@ class _ProductTile extends ConsumerWidget {
             ]),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// The price of an item as a compact red badge with white bold text and a thin white outline: readable at a glance on
+/// a picture or a plain tile, and it shrinks instead of overflowing on a narrow tile.
+class PriceBadge extends StatelessWidget {
+  const PriceBadge({super.key, required this.text, this.suffix});
+  final String text;
+  final String? suffix;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      key: const ValueKey('price-badge'),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(color: scheme.primary, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.white.withValues(alpha: 0.9), width: 1.2)),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(suffix == null ? text : '$text $suffix', maxLines: 1, style: TextStyle(color: scheme.onPrimary, fontWeight: FontWeight.w800, fontSize: 13.5, height: 1.15)),
       ),
     );
   }

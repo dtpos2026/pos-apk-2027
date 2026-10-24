@@ -81,7 +81,7 @@ class HomeShell extends ConsumerWidget {
         IconButton(key: const ValueKey('support'), tooltip: t['support'], icon: const Icon(Icons.support_agent), onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SupportScreen()))),
       IconButton(key: const ValueKey('sign-out'), tooltip: t['sign_out'], icon: const Icon(Icons.logout), onPressed: () => ref.read(sessionProvider.notifier).signOut())
     ];
-    final body = Column(children: [const AccessBanner(), if (session.can('settings.manage')) const LocationAsk(), Expanded(child: KeyedSubtree(key: ValueKey(current.key), child: current.key == 'dashboard' ? DashboardScreen(onGo: go) : current.builder()))]);
+    final body = Column(children: [const AccessBanner(), const KitchenReadyWatcher(), if (session.can('settings.manage')) const LocationAsk(), Expanded(child: KeyedSubtree(key: ValueKey(current.key), child: current.key == 'dashboard' ? DashboardScreen(onGo: go) : current.builder()))]);
 
     if (wide) {
       return Scaffold(
@@ -140,7 +140,7 @@ class HomeShell extends ConsumerWidget {
                 if (picked != null) go(picked);
               },
               destinations: [
-                for (final d in onBar) NavigationDestination(icon: Icon(d.icon), label: t[d.label]),
+                for (final d in onBar) NavigationDestination(icon: d.key == 'kitchen' ? Badge(isLabelVisible: ref.watch(kitchenReadyCountProvider) > 0, label: Text('${ref.watch(kitchenReadyCountProvider)}'), child: Icon(d.icon)) : Icon(d.icon), label: t[d.label]),
                 if (needMore) NavigationDestination(key: const ValueKey('nav-more'), icon: const Icon(Icons.apps_rounded), label: t['more']),
               ],
             ),

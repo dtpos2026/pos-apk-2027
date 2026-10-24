@@ -172,7 +172,7 @@ CREATE TABLE "order" (
   id TEXT PRIMARY KEY,
   invoice_no TEXT UNIQUE,                   -- assigned at settlement, null while a draft/held
   order_type TEXT NOT NULL CHECK (order_type IN ('dine_in','takeaway','delivery','counter')),
-  status TEXT NOT NULL CHECK (status IN ('draft','held','new','preparing','ready','served','paid','void','refunded')),
+  status TEXT NOT NULL CHECK (status IN ('draft','held','new','preparing','ready','served','paid','void','refunded','cancelled')),
   table_id TEXT REFERENCES dining_table(id), customer_id TEXT REFERENCES customer(id),
   waiter_id TEXT REFERENCES staff(id), cashier_id TEXT REFERENCES staff(id), shift_id TEXT REFERENCES shift(id),
   guests INTEGER, note TEXT, delivery_address TEXT, source TEXT NOT NULL DEFAULT 'pos',  -- pos | online
@@ -398,3 +398,9 @@ CREATE TABLE purchase_order_line (
   qty_milli INTEGER NOT NULL CHECK (qty_milli > 0), unit_cost_minor INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX purchase_order_line_ix ON purchase_order_line(po_id);
+CREATE TABLE kitchen_event (                -- append-only kitchen history: survives payment, void and cancel of the bill
+  id TEXT PRIMARY KEY, order_id TEXT NOT NULL REFERENCES "order"(id),
+  status TEXT NOT NULL CHECK (status IN ('new','preparing','ready','served')),
+  at INTEGER NOT NULL, staff_id TEXT REFERENCES staff(id)
+);
+CREATE INDEX kitchen_event_ix ON kitchen_event(order_id, at);

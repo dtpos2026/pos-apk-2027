@@ -16,8 +16,9 @@ import '../../data/receipt_loader.dart';
 import '../../domain/money.dart';
 import '../../domain/receipt.dart';
 import '../common/dialogs.dart';
+import '../pos/cart.dart';
 
-final _billsProvider = FutureProvider.autoDispose.family<List<BillRow>, (String, String)>((ref, k) => ref.watch(billHistoryProvider).forDate(k.$1, search: k.$2));
+final _billsProvider = FutureProvider.autoDispose.family<List<BillRow>, (String, String, String)>((ref, k) => ref.watch(billHistoryProvider).forDate(k.$1, search: k.$2, tab: k.$3));
 
 /// Past bills: look up, reprint (marked DUPLICATE), share, refund or void.
 class BillsScreen extends ConsumerStatefulWidget {
@@ -29,13 +30,14 @@ class BillsScreen extends ConsumerStatefulWidget {
 class _BillsScreenState extends ConsumerState<BillsScreen> {
   late DateTime _day = ref.read(clockProvider)();
   String _search = '';
+  String _tab = 'all';
 
   String get _key => '${_day.year}-${two(_day.month)}-${two(_day.day)}';
 
   @override
   Widget build(BuildContext context) {
     final s = Strings.of(context);
-    final bills = ref.watch(_billsProvider((_key, _search)));
+    final bills = ref.watch(_billsProvider((_key, _search, _tab)));
     return Column(children: [
       Padding(
         padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
@@ -46,6 +48,16 @@ class _BillsScreenState extends ConsumerState<BillsScreen> {
         ]),
       ),
       Padding(padding: const EdgeInsets.fromLTRB(12, 0, 12, 8), child: TextField(key: const ValueKey('bill-search'), decoration: InputDecoration(prefixIcon: const Icon(Icons.search), hintText: s['search_bill'], isDense: true), onChanged: (v) => setState(() => _search = v))),
+      SizedBox(
+        height: 44,
+        child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 10), children: [
+          for (final k in const ['all', 'paid', 'running', 'kitchen', 'cancelled'])
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 3),
+              child: ChoiceChip(key: ValueKey('billtab-$k'), label: Text(s['bills_tab_$k']), selected: _tab == k, showCheckmark: false, onSelected: (_) => setState(() => _tab = k)),
+            ),
+        ]),
+      ),
       Expanded(
         child: bills.when(
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -57,7 +69,7 @@ class _BillsScreenState extends ConsumerState<BillsScreen> {
                   itemCount: list.length,
                   itemBuilder: (_, i) {
                     final b = list[i];
-                    final color = switch (b.status) { 'void' => Colors.red.shade700, 'refunded' => Colors.orange.shade800, _ => Colors.green.shade700 };
+                    final color = switch (b.status) { 'void' => Colors.red.shade700, 'refunded' => Colors.orange.shade800, 'paid' => Colors.green.shade700, 'cancelled' => Colors.grey.shade700, _ => Colors.blue.shade700 };
                     final time = DateTime.fromMillisecondsSinceEpoch(b.settledAt);
                     return Card(
                       child: ListTile(
@@ -66,10 +78,10 @@ class _BillsScreenState extends ConsumerState<BillsScreen> {
                         subtitle: Text('${two(time.hour)}:${two(time.minute)}  ·  ${s[_typeKey(b.orderType)]}${b.table != null ? ' ${b.table}' : ''}${b.customer != null ? '  ·  ${b.customer}' : ''}'),
                         trailing: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.end, children: [
                           Text(ref.money(b.totalMinor), style: const TextStyle(fontWeight: FontWeight.w800)),
-                          Text(s['${b.status}_status'], style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w700)),
+                          Text(b.running ? s['bill_running_${b.status}'] : s['${b.status}_status'], key: ValueKey('bill-status-${b.invoiceNo}'), style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w700)),
                         ]),
                         onTap: () async {
-                          await showDialog<void>(context: context, builder: (_) => _BillDialog(b));
+                          await showDialog<void>(context: context, builder: (_) => b.running || b.status == 'cancelled' ? _RunningBillDialog(b) : _BillDialog(b));
                           ref.invalidate(_billsProvider);
                         },
                       ),
@@ -82,6 +94,70 @@ class _BillsScreenState extends ConsumerState<BillsScreen> {
   }
 
   String _typeKey(String t) => switch (t) { 'dine_in' => 'dine_in', 'takeaway' => 'takeaway', 'delivery' => 'delivery', _ => 'counter' };
+}
+
+/// An unpaid bill (held, or sent to the kitchen): look at it, continue it in Sell, take payment, or cancel it.
+class _RunningBillDialog extends ConsumerStatefulWidget {
+  const _RunningBillDialog(this.bill);
+  final BillRow bill;
+  @override
+  ConsumerState<_RunningBillDialog> createState() => _RunningBillDialogState();
+}
+
+class _RunningBillDialogState extends ConsumerState<_RunningBillDialog> {
+  List<Map<String, Object?>> _items = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    ref.read(dbHelperProvider).q("SELECT name, qty_milli, line_total_minor FROM order_item WHERE order_id = ? AND status = 'active' ORDER BY rowid", [widget.bill.id]).then((r) {
+      if (mounted) setState(() => _items = r);
+    });
+  }
+
+  Future<void> _resume({required bool pay}) async {
+    await ref.read(cartProvider.notifier).resume(widget.bill.id);
+    ref.read(shellTabProvider.notifier).go('pos');
+    if (mounted) Navigator.pop(context);
+  }
+
+  Future<void> _cancel() async {
+    final s = Strings.of(context);
+    final ok = await confirmDialog(context, s['cancel_order_confirm'], okLabel: s['cancel_order']);
+    if (!ok) return;
+    try {
+      await ref.read(posServiceProvider).cancelOrder(widget.bill.id, staffId: ref.read(sessionProvider)!.staffId);
+      if (mounted) Navigator.pop(context);
+    } on PosException catch (e) {
+      if (mounted) showMessage(context, e.message);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = Strings.of(context);
+    final b = widget.bill;
+    final session = ref.watch(sessionProvider)!;
+    return AlertDialog(
+      title: Text('${b.invoiceNo} · ${b.running ? s['bill_running_${b.status}'] : s['cancelled_status']}'),
+      content: SizedBox(
+        width: 320,
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if (b.table != null) Text('${s['table']}: ${b.table}'),
+          const SizedBox(height: 6),
+          for (final i in _items) Text('${formatQty(i['qty_milli'] as int)} x ${i['name']}   ${ref.money(i['line_total_minor'] as int)}'),
+          const Divider(),
+          Text('${s['total']}: ${ref.money(b.totalMinor)}', style: const TextStyle(fontWeight: FontWeight.w800)),
+        ]),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(s['close'])),
+        if (b.running && session.can('bill.void')) TextButton(key: const ValueKey('running-cancel'), onPressed: _cancel, child: Text(s['cancel_order'])),
+        if (b.running) FilledButton.tonal(key: const ValueKey('running-resume'), onPressed: () => _resume(pay: false), child: Text(s['resume_bill'])),
+        if (b.running) FilledButton(key: const ValueKey('running-pay'), onPressed: () => _resume(pay: true), child: Text(s['take_payment'])),
+      ],
+    );
+  }
 }
 
 class _BillDialog extends ConsumerStatefulWidget {

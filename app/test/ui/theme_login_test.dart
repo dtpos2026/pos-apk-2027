@@ -14,12 +14,14 @@ import '../helpers/harness.dart';
 Color primary(WidgetTester t) => Theme.of(t.element(find.byType(Scaffold).first)).colorScheme.primary;
 
 void main() {
-  testWidgets('the default theme is the Digital Target logo purple, exactly', (t) async {
+  testWidgets('the default theme is Restaurant Red, exactly', (t) async {
     final db = newDb();
     await seedBusiness(db);
     await pumpApp(t, db: db);
-    expect(primary(t).toARGB32(), brandPurple.toARGB32());
-    expect(themePresets.first.id, 'dt');
+    expect(primary(t).toARGB32(), 0xFFC92A2A);
+    expect(themePresets.first.id, 'red');
+    expect(themePresets.map((p) => p.id), contains('red2'));
+    expect(presetById('red2').seed.toARGB32(), 0xFFC41414, reason: 'Restaurant Red 2 is #C41414');
   });
 
   testWidgets('choosing a theme recolours the whole app and is remembered after a restart', (t) async {

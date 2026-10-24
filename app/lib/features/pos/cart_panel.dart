@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/format.dart';
 import '../../app/providers.dart';
 import '../../app/strings.dart';
+import '../../cloud/access_controller.dart';
 import '../../data/pos_service.dart';
 import '../../domain/bill.dart';
 import '../../domain/money.dart';
@@ -152,12 +153,24 @@ class CartPanel extends ConsumerWidget {
                   label: Text('${ref.watch(heldOrdersProvider).value?.length ?? 0}'),
                   child: OutlinedButton(key: const ValueKey('held'), onPressed: () => _heldSheet(context, ref), child: Text(t['held_orders'])),
                 ),
-                if (cart.orderType == 'dine_in' || cart.orderType == 'takeaway' || cart.orderType == 'delivery')
+                if (ref.watch(activeModulesProvider).contains('kitchen'))
                   OutlinedButton.icon(
                     key: const ValueKey('send-kitchen'),
                     onPressed: cart.isEmpty ? null : () async {
-                      final sent = await notifier.sendToKitchen(ref.read(printServiceProvider));
-                      if (context.mounted) showMessage(context, sent ? t['kitchen_sent'] : t['no_printer']);
+                      final r = await notifier.sendToKitchen(ref.read(printServiceProvider));
+                      ref.invalidate(heldOrdersProvider);
+                      if (!context.mounted) return;
+                      switch (r) {
+                        case KitchenSend.sent:
+                          showMessage(context, t['kitchen_sent']);
+                          if (inSheet) Navigator.of(context).maybePop();
+                        case KitchenSend.nothingNew:
+                          showMessage(context, t['kitchen_nothing_new']);
+                        case KitchenSend.failed:
+                          showMessage(context, t['kitchen_failed']);
+                        case KitchenSend.busy:
+                          break;
+                      }
                     },
                     icon: const Icon(Icons.soup_kitchen_outlined, size: 18),
                     label: Text(t['send_kitchen']),

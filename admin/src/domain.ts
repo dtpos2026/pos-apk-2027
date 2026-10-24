@@ -106,11 +106,12 @@ export const APP_MODULES: { id: string; label: string; hint: string }[] = [
 
 /** The app's ready-made themes (ids match the app). main/accent/header/bg are only for the preview swatches. */
 export const APP_THEMES: { id: string; label: string; main: string; accent: string; bg: string }[] = [
-  { id: 'dt', label: 'Royal Purple (default)', main: '#3C096C', accent: '#FF5A1F', bg: '#F6F2FA' },
+  { id: 'red', label: 'Restaurant Red (default)', main: '#C92A2A', accent: '#F59F00', bg: '#FBF5F5' },
+  { id: 'red2', label: 'Restaurant Red 2', main: '#C41414', accent: '#C41414', bg: '#FAF7F7' },
+  { id: 'dt', label: 'Royal Purple', main: '#3C096C', accent: '#FF5A1F', bg: '#F6F2FA' },
   { id: 'green', label: 'Fresh Green', main: '#2B8A3E', accent: '#F08C00', bg: '#F3F8F4' },
   { id: 'golden', label: 'Golden Yellow', main: '#B7791F', accent: '#1F2937', bg: '#FBF8F1' },
   { id: 'yellow', label: 'Food Yellow', main: '#FFC107', accent: '#D9480F', bg: '#FFFBEB' },
-  { id: 'red', label: 'Restaurant Red', main: '#C92A2A', accent: '#F59F00', bg: '#FBF5F5' },
   { id: 'coffee', label: 'Coffee Brown', main: '#6F4E37', accent: '#C8A27A', bg: '#F7F1EA' },
   { id: 'ocean', label: 'Ocean Blue', main: '#0B5FA5', accent: '#F59F00', bg: '#F2F6FB' },
   { id: 'blackgold', label: 'Luxury Black & Gold', main: '#D4AF37', accent: '#D4AF37', bg: '#121212' },

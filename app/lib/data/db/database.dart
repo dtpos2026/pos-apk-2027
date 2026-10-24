@@ -64,7 +64,53 @@ Future<void> migrateToV3(AppDatabase db) async {
   qty_milli INTEGER NOT NULL CHECK (qty_milli > 0), unit_cost_minor INTEGER NOT NULL DEFAULT 0
 )""",
     'CREATE INDEX IF NOT EXISTS purchase_order_line_ix ON purchase_order_line(po_id)',
+    """CREATE TABLE IF NOT EXISTS kitchen_event (
+  id TEXT PRIMARY KEY, order_id TEXT NOT NULL REFERENCES "order"(id),
+  status TEXT NOT NULL CHECK (status IN ('new','preparing','ready','served')),
+  at INTEGER NOT NULL, staff_id TEXT REFERENCES staff(id)
+)""",
+    'CREATE INDEX IF NOT EXISTS kitchen_event_ix ON kitchen_event(order_id, at)',
   ]) {
     await db.customStatement(sql);
+  }
+  await _allowCancelledOrders(db);
+  // orders already in the kitchen get their first history row from their current state
+  await db.customStatement("""INSERT INTO kitchen_event(id, order_id, status, at)
+    SELECT 'mig-' || o.id, o.id, o.status, o.updated_at FROM "order" o
+    WHERE o.status IN ('new','preparing','ready','served') AND NOT EXISTS (SELECT 1 FROM kitchen_event k WHERE k.order_id = o.id)""");
+}
+
+/// Orders gain the status 'cancelled' (an unpaid order that was sent to the kitchen and then called off: kept for the
+/// kitchen history, never counted as a sale). SQLite cannot change a CHECK, so the table is rebuilt the documented way.
+/// Foreign keys are off while a migration runs (beforeOpen switches them on afterwards).
+Future<void> _allowCancelledOrders(AppDatabase db) async {
+  final row = await db.customSelect("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'order'").getSingleOrNull();
+  final sql = row?.data['sql'] as String?;
+  if (sql == null || sql.contains("'cancelled'")) return;
+  for (final stmt in const [
+    '''CREATE TABLE order_v3 (
+  id TEXT PRIMARY KEY,
+  invoice_no TEXT UNIQUE,
+  order_type TEXT NOT NULL CHECK (order_type IN ('dine_in','takeaway','delivery','counter')),
+  status TEXT NOT NULL CHECK (status IN ('draft','held','new','preparing','ready','served','paid','void','refunded','cancelled')),
+  table_id TEXT REFERENCES dining_table(id), customer_id TEXT REFERENCES customer(id),
+  waiter_id TEXT REFERENCES staff(id), cashier_id TEXT REFERENCES staff(id), shift_id TEXT REFERENCES shift(id),
+  guests INTEGER, note TEXT, delivery_address TEXT, source TEXT NOT NULL DEFAULT 'pos',
+  bill_config TEXT,
+  subtotal_minor INTEGER NOT NULL DEFAULT 0, discount_minor INTEGER NOT NULL DEFAULT 0,
+  service_charge_minor INTEGER NOT NULL DEFAULT 0, delivery_charge_minor INTEGER NOT NULL DEFAULT 0,
+  tax_minor INTEGER NOT NULL DEFAULT 0, tip_minor INTEGER NOT NULL DEFAULT 0,
+  rounding_minor INTEGER NOT NULL DEFAULT 0, total_minor INTEGER NOT NULL DEFAULT 0,
+  paid_minor INTEGER NOT NULL DEFAULT 0,
+  business_date TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, settled_at INTEGER,
+  version INTEGER NOT NULL DEFAULT 1
+)''',
+    'INSERT INTO order_v3 SELECT * FROM "order"',
+    'DROP TABLE "order"',
+    'ALTER TABLE order_v3 RENAME TO "order"',
+    'CREATE INDEX IF NOT EXISTS order_date_ix ON "order"(business_date, status)',
+    'CREATE INDEX IF NOT EXISTS order_table_ix ON "order"(table_id, status)',
+  ]) {
+    await db.customStatement(stmt);
   }
 }

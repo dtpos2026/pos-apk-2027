@@ -46,7 +46,7 @@ String _qty(int milli) => milli % 1000 == 0 ? '${milli ~/ 1000}' : (milli / 1000
 Future<Uint8List> buildReportPdf(ReportPdfData d, {pw.Font? script}) async {
   String money(int m) => formatMinor(m, currency: d.currency);
   final theme = pw.ThemeData.withFont(fontFallback: [?script]);
-  const brand = PdfColor.fromInt(0xFF3C096C);
+  const brand = PdfColor.fromInt(0xFFC92A2A);
   final net = d.salesMinor - d.refundsMinor;
   final doc = pw.Document(title: 'Sales report ${d.from} – ${d.to}', author: d.businessName, creator: 'DT Food POS');
 

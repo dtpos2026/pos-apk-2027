@@ -10724,7 +10724,7 @@ class Order extends Table with TableInfo<Order, OrderRow> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
     $customConstraints:
-        'NOT NULL CHECK (status IN (\'draft\', \'held\', \'new\', \'preparing\', \'ready\', \'served\', \'paid\', \'void\', \'refunded\'))',
+        'NOT NULL CHECK (status IN (\'draft\', \'held\', \'new\', \'preparing\', \'ready\', \'served\', \'paid\', \'void\', \'refunded\', \'cancelled\'))',
   );
   static const VerificationMeta _tableIdMeta = const VerificationMeta(
     'tableId',
@@ -27733,6 +27733,361 @@ class PurchaseOrderLineCompanion
   }
 }
 
+class KitchenEvent extends Table
+    with TableInfo<KitchenEvent, KitchenEventData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  KitchenEvent(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'PRIMARY KEY',
+  );
+  static const VerificationMeta _orderIdMeta = const VerificationMeta(
+    'orderId',
+  );
+  late final GeneratedColumn<String> orderId = GeneratedColumn<String>(
+    'order_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL REFERENCES "order"(id)',
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints:
+        'NOT NULL CHECK (status IN (\'new\', \'preparing\', \'ready\', \'served\'))',
+  );
+  static const VerificationMeta _atMeta = const VerificationMeta('at');
+  late final GeneratedColumn<int> at = GeneratedColumn<int>(
+    'at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  static const VerificationMeta _staffIdMeta = const VerificationMeta(
+    'staffId',
+  );
+  late final GeneratedColumn<String> staffId = GeneratedColumn<String>(
+    'staff_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'REFERENCES staff(id)',
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, orderId, status, at, staffId];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'kitchen_event';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<KitchenEventData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('order_id')) {
+      context.handle(
+        _orderIdMeta,
+        orderId.isAcceptableOrUnknown(data['order_id']!, _orderIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_orderIdMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_statusMeta);
+    }
+    if (data.containsKey('at')) {
+      context.handle(_atMeta, at.isAcceptableOrUnknown(data['at']!, _atMeta));
+    } else if (isInserting) {
+      context.missing(_atMeta);
+    }
+    if (data.containsKey('staff_id')) {
+      context.handle(
+        _staffIdMeta,
+        staffId.isAcceptableOrUnknown(data['staff_id']!, _staffIdMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  KitchenEventData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return KitchenEventData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      ),
+      orderId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}order_id'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      at: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}at'],
+      )!,
+      staffId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}staff_id'],
+      ),
+    );
+  }
+
+  @override
+  KitchenEvent createAlias(String alias) {
+    return KitchenEvent(attachedDatabase, alias);
+  }
+
+  @override
+  bool get dontWriteConstraints => true;
+}
+
+class KitchenEventData extends DataClass
+    implements Insertable<KitchenEventData> {
+  /// append-only kitchen history: survives payment, void and cancel of the bill
+  final String? id;
+  final String orderId;
+  final String status;
+  final int at;
+  final String? staffId;
+  const KitchenEventData({
+    this.id,
+    required this.orderId,
+    required this.status,
+    required this.at,
+    this.staffId,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (!nullToAbsent || id != null) {
+      map['id'] = Variable<String>(id);
+    }
+    map['order_id'] = Variable<String>(orderId);
+    map['status'] = Variable<String>(status);
+    map['at'] = Variable<int>(at);
+    if (!nullToAbsent || staffId != null) {
+      map['staff_id'] = Variable<String>(staffId);
+    }
+    return map;
+  }
+
+  KitchenEventCompanion toCompanion(bool nullToAbsent) {
+    return KitchenEventCompanion(
+      id: id == null && nullToAbsent ? const Value.absent() : Value(id),
+      orderId: Value(orderId),
+      status: Value(status),
+      at: Value(at),
+      staffId: staffId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(staffId),
+    );
+  }
+
+  factory KitchenEventData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return KitchenEventData(
+      id: serializer.fromJson<String?>(json['id']),
+      orderId: serializer.fromJson<String>(json['order_id']),
+      status: serializer.fromJson<String>(json['status']),
+      at: serializer.fromJson<int>(json['at']),
+      staffId: serializer.fromJson<String?>(json['staff_id']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String?>(id),
+      'order_id': serializer.toJson<String>(orderId),
+      'status': serializer.toJson<String>(status),
+      'at': serializer.toJson<int>(at),
+      'staff_id': serializer.toJson<String?>(staffId),
+    };
+  }
+
+  KitchenEventData copyWith({
+    Value<String?> id = const Value.absent(),
+    String? orderId,
+    String? status,
+    int? at,
+    Value<String?> staffId = const Value.absent(),
+  }) => KitchenEventData(
+    id: id.present ? id.value : this.id,
+    orderId: orderId ?? this.orderId,
+    status: status ?? this.status,
+    at: at ?? this.at,
+    staffId: staffId.present ? staffId.value : this.staffId,
+  );
+  KitchenEventData copyWithCompanion(KitchenEventCompanion data) {
+    return KitchenEventData(
+      id: data.id.present ? data.id.value : this.id,
+      orderId: data.orderId.present ? data.orderId.value : this.orderId,
+      status: data.status.present ? data.status.value : this.status,
+      at: data.at.present ? data.at.value : this.at,
+      staffId: data.staffId.present ? data.staffId.value : this.staffId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('KitchenEventData(')
+          ..write('id: $id, ')
+          ..write('orderId: $orderId, ')
+          ..write('status: $status, ')
+          ..write('at: $at, ')
+          ..write('staffId: $staffId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, orderId, status, at, staffId);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is KitchenEventData &&
+          other.id == this.id &&
+          other.orderId == this.orderId &&
+          other.status == this.status &&
+          other.at == this.at &&
+          other.staffId == this.staffId);
+}
+
+class KitchenEventCompanion extends UpdateCompanion<KitchenEventData> {
+  final Value<String?> id;
+  final Value<String> orderId;
+  final Value<String> status;
+  final Value<int> at;
+  final Value<String?> staffId;
+  final Value<int> rowid;
+  const KitchenEventCompanion({
+    this.id = const Value.absent(),
+    this.orderId = const Value.absent(),
+    this.status = const Value.absent(),
+    this.at = const Value.absent(),
+    this.staffId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  KitchenEventCompanion.insert({
+    this.id = const Value.absent(),
+    required String orderId,
+    required String status,
+    required int at,
+    this.staffId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : orderId = Value(orderId),
+       status = Value(status),
+       at = Value(at);
+  static Insertable<KitchenEventData> custom({
+    Expression<String>? id,
+    Expression<String>? orderId,
+    Expression<String>? status,
+    Expression<int>? at,
+    Expression<String>? staffId,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (orderId != null) 'order_id': orderId,
+      if (status != null) 'status': status,
+      if (at != null) 'at': at,
+      if (staffId != null) 'staff_id': staffId,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  KitchenEventCompanion copyWith({
+    Value<String?>? id,
+    Value<String>? orderId,
+    Value<String>? status,
+    Value<int>? at,
+    Value<String?>? staffId,
+    Value<int>? rowid,
+  }) {
+    return KitchenEventCompanion(
+      id: id ?? this.id,
+      orderId: orderId ?? this.orderId,
+      status: status ?? this.status,
+      at: at ?? this.at,
+      staffId: staffId ?? this.staffId,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (orderId.present) {
+      map['order_id'] = Variable<String>(orderId.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (at.present) {
+      map['at'] = Variable<int>(at.value);
+    }
+    if (staffId.present) {
+      map['staff_id'] = Variable<String>(staffId.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('KitchenEventCompanion(')
+          ..write('id: $id, ')
+          ..write('orderId: $orderId, ')
+          ..write('status: $status, ')
+          ..write('at: $at, ')
+          ..write('staffId: $staffId, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -27894,6 +28249,11 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'purchase_order_line_ix',
     'CREATE INDEX purchase_order_line_ix ON purchase_order_line (po_id)',
   );
+  late final KitchenEvent kitchenEvent = KitchenEvent(this);
+  late final Index kitchenEventIx = Index(
+    'kitchen_event_ix',
+    'CREATE INDEX kitchen_event_ix ON kitchen_event (order_id, at)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -27977,6 +28337,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     purchaseOrder,
     purchaseOrderLine,
     purchaseOrderLineIx,
+    kitchenEvent,
+    kitchenEventIx,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -30097,6 +30459,24 @@ final class $StaffReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<KitchenEvent, List<KitchenEventData>>
+  _kitchenEventRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.kitchenEvent,
+    aliasName: $_aliasNameGenerator(db.staff.id, db.kitchenEvent.staffId),
+  );
+
+  $KitchenEventProcessedTableManager get kitchenEventRefs {
+    final manager = $KitchenEventTableManager(
+      $_db,
+      $_db.kitchenEvent,
+    ).filter((f) => f.staffId.id.sqlEquals($_itemColumn<String>('id')));
+
+    final cache = $_typedResult.readTableOrNull(_kitchenEventRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $StaffFilterComposer extends Composer<_$AppDatabase, Staff> {
@@ -30431,6 +30811,31 @@ class $StaffFilterComposer extends Composer<_$AppDatabase, Staff> {
           }) => $PurchaseOrderFilterComposer(
             $db: $db,
             $table: $db.purchaseOrder,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> kitchenEventRefs(
+    Expression<bool> Function($KitchenEventFilterComposer f) f,
+  ) {
+    final $KitchenEventFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.kitchenEvent,
+      getReferencedColumn: (t) => t.staffId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $KitchenEventFilterComposer(
+            $db: $db,
+            $table: $db.kitchenEvent,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -30855,6 +31260,31 @@ class $StaffAnnotationComposer extends Composer<_$AppDatabase, Staff> {
     );
     return f(composer);
   }
+
+  Expression<T> kitchenEventRefs<T extends Object>(
+    Expression<T> Function($KitchenEventAnnotationComposer a) f,
+  ) {
+    final $KitchenEventAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.kitchenEvent,
+      getReferencedColumn: (t) => t.staffId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $KitchenEventAnnotationComposer(
+            $db: $db,
+            $table: $db.kitchenEvent,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $StaffTableManager
@@ -30882,6 +31312,7 @@ class $StaffTableManager
             bool purchaseRefs,
             bool expenseRefs,
             bool purchaseOrderRefs,
+            bool kitchenEventRefs,
           })
         > {
   $StaffTableManager(_$AppDatabase db, Staff table)
@@ -30975,6 +31406,7 @@ class $StaffTableManager
                 purchaseRefs = false,
                 expenseRefs = false,
                 purchaseOrderRefs = false,
+                kitchenEventRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -30989,6 +31421,7 @@ class $StaffTableManager
                     if (purchaseRefs) db.purchase,
                     if (expenseRefs) db.expense,
                     if (purchaseOrderRefs) db.purchaseOrder,
+                    if (kitchenEventRefs) db.kitchenEvent,
                   ],
                   addJoins:
                       <
@@ -31195,6 +31628,23 @@ class $StaffTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (kitchenEventRefs)
+                        await $_getPrefetchedData<
+                          StaffData,
+                          Staff,
+                          KitchenEventData
+                        >(
+                          currentTable: table,
+                          referencedTable: $StaffReferences
+                              ._kitchenEventRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $StaffReferences(db, table, p0).kitchenEventRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.staffId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -31227,6 +31677,7 @@ typedef $StaffProcessedTableManager =
         bool purchaseRefs,
         bool expenseRefs,
         bool purchaseOrderRefs,
+        bool kitchenEventRefs,
       })
     >;
 typedef $AttendanceCreateCompanionBuilder =
@@ -38751,6 +39202,24 @@ final class $OrderReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<KitchenEvent, List<KitchenEventData>>
+  _kitchenEventRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.kitchenEvent,
+    aliasName: $_aliasNameGenerator(db.order.id, db.kitchenEvent.orderId),
+  );
+
+  $KitchenEventProcessedTableManager get kitchenEventRefs {
+    final manager = $KitchenEventTableManager(
+      $_db,
+      $_db.kitchenEvent,
+    ).filter((f) => f.orderId.id.sqlEquals($_itemColumn<String>('id')));
+
+    final cache = $_typedResult.readTableOrNull(_kitchenEventRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $OrderFilterComposer extends Composer<_$AppDatabase, Order> {
@@ -39107,6 +39576,31 @@ class $OrderFilterComposer extends Composer<_$AppDatabase, Order> {
           }) => $CouponFilterComposer(
             $db: $db,
             $table: $db.coupon,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> kitchenEventRefs(
+    Expression<bool> Function($KitchenEventFilterComposer f) f,
+  ) {
+    final $KitchenEventFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.kitchenEvent,
+      getReferencedColumn: (t) => t.orderId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $KitchenEventFilterComposer(
+            $db: $db,
+            $table: $db.kitchenEvent,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -39690,6 +40184,31 @@ class $OrderAnnotationComposer extends Composer<_$AppDatabase, Order> {
     );
     return f(composer);
   }
+
+  Expression<T> kitchenEventRefs<T extends Object>(
+    Expression<T> Function($KitchenEventAnnotationComposer a) f,
+  ) {
+    final $KitchenEventAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.kitchenEvent,
+      getReferencedColumn: (t) => t.orderId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $KitchenEventAnnotationComposer(
+            $db: $db,
+            $table: $db.kitchenEvent,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $OrderTableManager
@@ -39716,6 +40235,7 @@ class $OrderTableManager
             bool refundRefs,
             bool tokenIssueRefs,
             bool couponRefs,
+            bool kitchenEventRefs,
           })
         > {
   $OrderTableManager(_$AppDatabase db, Order table)
@@ -39868,6 +40388,7 @@ class $OrderTableManager
                 refundRefs = false,
                 tokenIssueRefs = false,
                 couponRefs = false,
+                kitchenEventRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -39877,6 +40398,7 @@ class $OrderTableManager
                     if (refundRefs) db.refund,
                     if (tokenIssueRefs) db.tokenIssue,
                     if (couponRefs) db.coupon,
+                    if (kitchenEventRefs) db.kitchenEvent,
                   ],
                   addJoins:
                       <
@@ -40041,6 +40563,23 @@ class $OrderTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (kitchenEventRefs)
+                        await $_getPrefetchedData<
+                          OrderRow,
+                          Order,
+                          KitchenEventData
+                        >(
+                          currentTable: table,
+                          referencedTable: $OrderReferences
+                              ._kitchenEventRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $OrderReferences(db, table, p0).kitchenEventRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.orderId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -40072,6 +40611,7 @@ typedef $OrderProcessedTableManager =
         bool refundRefs,
         bool tokenIssueRefs,
         bool couponRefs,
+        bool kitchenEventRefs,
       })
     >;
 typedef $OrderItemCreateCompanionBuilder =
@@ -53056,6 +53596,409 @@ typedef $PurchaseOrderLineProcessedTableManager =
       PurchaseOrderLineData,
       PrefetchHooks Function({bool poId, bool stockItemId})
     >;
+typedef $KitchenEventCreateCompanionBuilder =
+    KitchenEventCompanion Function({
+      Value<String?> id,
+      required String orderId,
+      required String status,
+      required int at,
+      Value<String?> staffId,
+      Value<int> rowid,
+    });
+typedef $KitchenEventUpdateCompanionBuilder =
+    KitchenEventCompanion Function({
+      Value<String?> id,
+      Value<String> orderId,
+      Value<String> status,
+      Value<int> at,
+      Value<String?> staffId,
+      Value<int> rowid,
+    });
+
+final class $KitchenEventReferences
+    extends BaseReferences<_$AppDatabase, KitchenEvent, KitchenEventData> {
+  $KitchenEventReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static Order _orderIdTable(_$AppDatabase db) => db.order.createAlias(
+    $_aliasNameGenerator(db.kitchenEvent.orderId, db.order.id),
+  );
+
+  $OrderProcessedTableManager get orderId {
+    final $_column = $_itemColumn<String>('order_id')!;
+
+    final manager = $OrderTableManager(
+      $_db,
+      $_db.order,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_orderIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static Staff _staffIdTable(_$AppDatabase db) => db.staff.createAlias(
+    $_aliasNameGenerator(db.kitchenEvent.staffId, db.staff.id),
+  );
+
+  $StaffProcessedTableManager? get staffId {
+    final $_column = $_itemColumn<String>('staff_id');
+    if ($_column == null) return null;
+    final manager = $StaffTableManager(
+      $_db,
+      $_db.staff,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_staffIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $KitchenEventFilterComposer
+    extends Composer<_$AppDatabase, KitchenEvent> {
+  $KitchenEventFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get at => $composableBuilder(
+    column: $table.at,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $OrderFilterComposer get orderId {
+    final $OrderFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.orderId,
+      referencedTable: $db.order,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $OrderFilterComposer(
+            $db: $db,
+            $table: $db.order,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $StaffFilterComposer get staffId {
+    final $StaffFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.staffId,
+      referencedTable: $db.staff,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $StaffFilterComposer(
+            $db: $db,
+            $table: $db.staff,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $KitchenEventOrderingComposer
+    extends Composer<_$AppDatabase, KitchenEvent> {
+  $KitchenEventOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get at => $composableBuilder(
+    column: $table.at,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $OrderOrderingComposer get orderId {
+    final $OrderOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.orderId,
+      referencedTable: $db.order,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $OrderOrderingComposer(
+            $db: $db,
+            $table: $db.order,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $StaffOrderingComposer get staffId {
+    final $StaffOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.staffId,
+      referencedTable: $db.staff,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $StaffOrderingComposer(
+            $db: $db,
+            $table: $db.staff,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $KitchenEventAnnotationComposer
+    extends Composer<_$AppDatabase, KitchenEvent> {
+  $KitchenEventAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<int> get at =>
+      $composableBuilder(column: $table.at, builder: (column) => column);
+
+  $OrderAnnotationComposer get orderId {
+    final $OrderAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.orderId,
+      referencedTable: $db.order,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $OrderAnnotationComposer(
+            $db: $db,
+            $table: $db.order,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $StaffAnnotationComposer get staffId {
+    final $StaffAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.staffId,
+      referencedTable: $db.staff,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $StaffAnnotationComposer(
+            $db: $db,
+            $table: $db.staff,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $KitchenEventTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          KitchenEvent,
+          KitchenEventData,
+          $KitchenEventFilterComposer,
+          $KitchenEventOrderingComposer,
+          $KitchenEventAnnotationComposer,
+          $KitchenEventCreateCompanionBuilder,
+          $KitchenEventUpdateCompanionBuilder,
+          (KitchenEventData, $KitchenEventReferences),
+          KitchenEventData,
+          PrefetchHooks Function({bool orderId, bool staffId})
+        > {
+  $KitchenEventTableManager(_$AppDatabase db, KitchenEvent table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $KitchenEventFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $KitchenEventOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $KitchenEventAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String?> id = const Value.absent(),
+                Value<String> orderId = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<int> at = const Value.absent(),
+                Value<String?> staffId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => KitchenEventCompanion(
+                id: id,
+                orderId: orderId,
+                status: status,
+                at: at,
+                staffId: staffId,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                Value<String?> id = const Value.absent(),
+                required String orderId,
+                required String status,
+                required int at,
+                Value<String?> staffId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => KitchenEventCompanion.insert(
+                id: id,
+                orderId: orderId,
+                status: status,
+                at: at,
+                staffId: staffId,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) =>
+                    (e.readTable(table), $KitchenEventReferences(db, table, e)),
+              )
+              .toList(),
+          prefetchHooksCallback: ({orderId = false, staffId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (orderId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.orderId,
+                                referencedTable: $KitchenEventReferences
+                                    ._orderIdTable(db),
+                                referencedColumn: $KitchenEventReferences
+                                    ._orderIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+                    if (staffId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.staffId,
+                                referencedTable: $KitchenEventReferences
+                                    ._staffIdTable(db),
+                                referencedColumn: $KitchenEventReferences
+                                    ._staffIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $KitchenEventProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      KitchenEvent,
+      KitchenEventData,
+      $KitchenEventFilterComposer,
+      $KitchenEventOrderingComposer,
+      $KitchenEventAnnotationComposer,
+      $KitchenEventCreateCompanionBuilder,
+      $KitchenEventUpdateCompanionBuilder,
+      (KitchenEventData, $KitchenEventReferences),
+      KitchenEventData,
+      PrefetchHooks Function({bool orderId, bool staffId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -53150,4 +54093,6 @@ class $AppDatabaseManager {
       $PurchaseOrderTableManager(_db, _db.purchaseOrder);
   $PurchaseOrderLineTableManager get purchaseOrderLine =>
       $PurchaseOrderLineTableManager(_db, _db.purchaseOrderLine);
+  $KitchenEventTableManager get kitchenEvent =>
+      $KitchenEventTableManager(_db, _db.kitchenEvent);
 }

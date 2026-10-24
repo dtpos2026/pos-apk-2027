@@ -20,7 +20,7 @@ void main() {
     final p = presetById(id);
     expect(p.seed.toARGB32(), 0xFF1E2A78);
     expect(p.accent.toARGB32(), 0xFFFF5A1F);
-    expect(presetById('nope').id, 'dt');
+    expect(presetById('nope').id, 'red');
     expect(presetById('dt').accent.toARGB32(), 0xFFFF5A1F);
   });
 

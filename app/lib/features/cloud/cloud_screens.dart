@@ -9,7 +9,7 @@ import '../../domain/account_gate.dart';
 import '../login/brand_footer.dart';
 import 'support_screen.dart';
 
-/// Digital Target branded layout for the account screens: purple header (same as the splash), content on a card.
+/// Digital Target branded layout for the account screens: red header (same as the splash), content on a card.
 Widget _frame(BuildContext context, {required List<Widget> children}) {
   final top = MediaQuery.paddingOf(context).top;
   return Scaffold(
@@ -19,14 +19,14 @@ Widget _frame(BuildContext context, {required List<Widget> children}) {
           width: double.infinity,
           padding: EdgeInsets.fromLTRB(24, top + 40, 24, 84),
           decoration: const BoxDecoration(
-            gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFF5A1D96), Color(0xFF240341)]),
+            gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFFC92A2A), Color(0xFF6E0F0F)]),
           ),
           child: Column(children: [
             Image.asset('assets/brand/dt_mark_white.png', height: 52),
             const SizedBox(height: 12),
             Text(Strings.of(context)['app_name'], textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: -0.4)),
             const SizedBox(height: 4),
-            const Text('Digital Target', style: TextStyle(color: Color(0xFFCDB4F0), fontSize: 14, fontWeight: FontWeight.w500, letterSpacing: 0.6)),
+            const Text('Digital Target', style: TextStyle(color: Color(0xFFF7CFCF), fontSize: 14, fontWeight: FontWeight.w500, letterSpacing: 0.6)),
           ]),
         ),
         Transform.translate(

@@ -130,6 +130,17 @@ class PrintService {
     return ids;
   }
 
+  /// Sends what is new on the order to the kitchen: the kitchen board gets it, tickets are queued for the kitchen printers,
+  /// and the order becomes RUNNING. Calling it again with nothing new does nothing (a double tap or a retry never makes a
+  /// second ticket). [sent] is false only when there was nothing new to send.
+  Future<({bool sent, int printed})> sendToKitchen(String orderId) async {
+    final fresh = (await _select("SELECT COUNT(*) AS n FROM order_item WHERE order_id = ? AND status = 'active' AND qty_milli > kot_qty_milli", [orderId])).first['n'] as int;
+    if (fresh == 0) return (sent: false, printed: 0);
+    final ids = await queueKot(orderId, onlyNew: true);
+    await _markSentToKitchen(orderId); // also when no printer takes the items: the board must still get the order
+    return (sent: true, printed: ids.length);
+  }
+
   /// Queues kitchen tickets: items are grouped by station and sent to the printer for that station
   /// (a kot printer with no station receives everything not claimed by a station printer).
   Future<List<String>> queueKot(String orderId, {bool reprint = false, bool onlyNew = false}) async {
@@ -188,6 +199,7 @@ class PrintService {
     if (fresh == 0) return;
     await db.customStatement("UPDATE order_item SET kot_qty_milli = qty_milli, kot_sent_at = ? WHERE order_id = ? AND status = 'active' AND qty_milli > kot_qty_milli", [_ts, orderId]);
     await db.customStatement("UPDATE \"order\" SET status = 'new', updated_at = ?, version = version + 1 WHERE id = ? AND status IN ('draft','held','new','preparing','ready','served')", [_ts, orderId]);
+    await db.customStatement("INSERT INTO kitchen_event(id, order_id, status, at) VALUES (?,?,'new',?)", [const Uuid().v4(), orderId, _ts]);
   }
 
   // ---- food tokens ----

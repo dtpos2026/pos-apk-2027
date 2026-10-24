@@ -39,6 +39,9 @@ class CartState {
 
 /// The order being rung up. Every change is written to the database (as a draft), so a crash, kill or dead battery
 /// loses nothing: [restore] brings the cart back on the next start.
+/// What happened when the cashier pressed Send to kitchen.
+enum KitchenSend { sent, nothingNew, failed, busy }
+
 class CartNotifier extends Notifier<CartState> {
   Future<void> _queue = Future.value();
 
@@ -158,25 +161,28 @@ class CartNotifier extends Notifier<CartState> {
     state = CartState(orderType: 'dine_in', tableId: tableId);
   }
 
-  /// Prints a kitchen ticket with only what was added since the last one, then remembers what the kitchen has.
-  /// Returns false when nothing new (or no kitchen printer) so the UI can say so.
-  Future<bool> sendToKitchen(PrintService printer) async {
-    await flush();
-    final id = state.draftId;
-    if (id == null) return false;
-    final jobs = await printer.queueKot(id, onlyNew: true);
-    if (jobs.isEmpty) return false;
-    final d = await _pos.loadDraft(id);
-    // adopt the "sent" quantities, unless the cart changed while we were printing
-    if (d != null && d.items.length == state.items.length) {
-      final items = [
-        for (var i = 0; i < state.items.length; i++)
-          CartItem(productId: state.items[i].productId, name: state.items[i].name, qtyMilli: state.items[i].qtyMilli, unitPriceMinor: state.items[i].unitPriceMinor, variantId: state.items[i].variantId, modifiers: state.items[i].modifiers, lineDiscountMinor: state.items[i].lineDiscountMinor, taxRateBp: state.items[i].taxRateBp, taxInclusive: state.items[i].taxInclusive, note: state.items[i].note, station: state.items[i].station, kotSentMilli: d.items[i].kotSentMilli)
-      ];
-      state = state.copyWith(items: items);
+  bool _sending = false;
+
+  /// Sends the order to the kitchen: it becomes a RUNNING order (same order id as its bill) and the cart is cleared so the
+  /// cashier can start the next customer. Resume it from Bills or Tables to add more or to take payment. If anything
+  /// fails the cart stays exactly as it was. A second tap while sending is ignored, so no duplicate ticket is possible.
+  Future<KitchenSend> sendToKitchen(PrintService printer) async {
+    if (_sending) return KitchenSend.busy;
+    _sending = true;
+    try {
+      await flush();
+      final id = state.draftId;
+      if (id == null) return KitchenSend.nothingNew;
+      final r = await printer.sendToKitchen(id);
+      if (!r.sent) return KitchenSend.nothingNew;
+      printer.processQueue();
+      state = CartState(orderType: state.orderType);
+      return KitchenSend.sent;
+    } catch (_) {
+      return KitchenSend.failed;
+    } finally {
+      _sending = false;
     }
-    printer.processQueue();
-    return true;
   }
 
   /// Parks the current order and clears the screen for the next customer.
