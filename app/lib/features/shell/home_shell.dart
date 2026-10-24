@@ -1,3 +1,4 @@
+import '../dashboard/dashboard_screen.dart';
 import '../profile/app_drawer.dart';
 import '../tokens/tokens_screen.dart';
 import 'package:flutter/material.dart';
@@ -35,6 +36,7 @@ class _Dest {
 /// In priority order: the first four are always on the bottom bar of a phone; the rest live under "More".
 final _destinations = <_Dest>[
   _Dest('pos', 'pos', Icons.point_of_sale, 'pos.sell', () => const PosScreen()),
+  _Dest('dashboard', 'dashboard', Icons.dashboard_outlined, 'reports.view', () => const SizedBox.shrink()),
   _Dest('tables', 'tables', Icons.table_restaurant_outlined, 'pos.sell', () => const TablesScreen(), module: 'tables'),
   _Dest('tokens', 'tokens', Icons.confirmation_number_outlined, 'pos.sell', () => const TokensScreen(), module: 'tokens'),
   _Dest('bills', 'bills_title', Icons.receipt_long_outlined, 'pos.sell', () => const BillsScreen()),
@@ -75,7 +77,7 @@ class HomeShell extends ConsumerWidget {
         IconButton(key: const ValueKey('support'), tooltip: t['support'], icon: const Icon(Icons.support_agent), onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SupportScreen()))),
       IconButton(key: const ValueKey('sign-out'), tooltip: t['sign_out'], icon: const Icon(Icons.logout), onPressed: () => ref.read(sessionProvider.notifier).signOut())
     ];
-    final body = Column(children: [const AccessBanner(), if (session.can('settings.manage')) const LocationAsk(), Expanded(child: KeyedSubtree(key: ValueKey(current.key), child: current.builder()))]);
+    final body = Column(children: [const AccessBanner(), if (session.can('settings.manage')) const LocationAsk(), Expanded(child: KeyedSubtree(key: ValueKey(current.key), child: current.key == 'dashboard' ? DashboardScreen(onGo: go) : current.builder()))]);
 
     if (wide) {
       return Scaffold(
