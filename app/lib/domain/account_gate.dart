@@ -14,6 +14,8 @@ class AccountSnapshot {
     this.customerId,
     this.businessName = '',
     this.disabledModules = const [],
+    this.themeId = '',
+    this.themeLocked = false,
     required this.checkedAt,
   });
 
@@ -31,17 +33,23 @@ class AccountSnapshot {
   /// Modules Digital Target switched off for this restaurant (see domain/modules.dart).
   final List<String> disabledModules;
 
+  /// Theme Digital Target assigned to this business (a preset id or 'custom:…'); '' = none.
+  final String themeId;
+
+  /// True = the owner cannot change the theme in Settings.
+  final bool themeLocked;
+
   /// When the server last confirmed this copy (never the time of an offline cache read).
   final DateTime checkedAt;
 
   AccountSnapshot copyWith({DateTime? checkedAt}) => AccountSnapshot(
         status: status, plan: plan, expiresAt: expiresAt, adminMessage: adminMessage, approvedPhones: approvedPhones,
-        blockedPhones: blockedPhones, phoneRequests: phoneRequests, customerId: customerId, businessName: businessName, disabledModules: disabledModules, checkedAt: checkedAt ?? this.checkedAt,
+        blockedPhones: blockedPhones, phoneRequests: phoneRequests, customerId: customerId, businessName: businessName, disabledModules: disabledModules, themeId: themeId, themeLocked: themeLocked, checkedAt: checkedAt ?? this.checkedAt,
       );
 
   String toJson() => jsonEncode({
         'status': status, 'plan': plan, 'exp': expiresAt?.millisecondsSinceEpoch, 'msg': adminMessage, 'ok': approvedPhones, 'bl': blockedPhones,
-        'rq': phoneRequests, 'cid': customerId, 'name': businessName, 'off': disabledModules, 'chk': checkedAt.millisecondsSinceEpoch,
+        'rq': phoneRequests, 'cid': customerId, 'name': businessName, 'off': disabledModules, 'th': themeId, 'tl': themeLocked, 'chk': checkedAt.millisecondsSinceEpoch,
       });
 
   static AccountSnapshot? tryParse(String? raw) {
@@ -59,6 +67,8 @@ class AccountSnapshot {
         customerId: j['cid'] as String?,
         businessName: j['name'] as String? ?? '',
         disabledModules: ((j['off'] as List?) ?? const []).cast<String>(),
+        themeId: j['th'] as String? ?? '',
+        themeLocked: j['tl'] as bool? ?? false,
         checkedAt: DateTime.fromMillisecondsSinceEpoch(j['chk'] as int),
       );
     } catch (_) {

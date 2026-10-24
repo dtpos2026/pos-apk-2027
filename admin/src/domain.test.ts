@@ -55,3 +55,13 @@ describe('dates and currencies', () => {
     expect(sumByCurrency([])).toBe('0');
   });
 });
+
+import { APP_THEMES, customThemeId, parseCustomTheme } from './domain';
+describe('themes', () => {
+  it('ids match the app, custom ids round-trip', () => {
+    expect(APP_THEMES.map(t => t.id)).toEqual(['dt', 'green', 'golden', 'yellow', 'red', 'coffee', 'ocean', 'blackgold', 'orange', 'navy', 'teal', 'rose', 'slate']);
+    expect(parseCustomTheme(customThemeId('#1e2a78', '#ff5a1f'))).toEqual({ main: '#1E2A78', accent: '#FF5A1F' });
+    expect(parseCustomTheme('green')).toBeNull();
+    expect(parseCustomTheme('custom:zzz,1')).toBeNull();
+  });
+});

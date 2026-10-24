@@ -8,7 +8,7 @@ afterEach(cleanup);
 
 const pending: Account = {
   uid: 'u1', businessName: 'Cafe One', ownerName: 'Ali', phone: '0300', city: 'Lahore', country: 'PK', email: 'a@x.pk', status: 'pending', plan: null, feeMinor: 0, currency: 'PKR',
-  expiresAt: null, customerId: null, businessId: null, licenseId: null, approvedPhones: [], phoneRequests: ['p1'], blockedPhones: [], maxPhones: 1, disabledModules: [], adminMessage: '', createdAt: new Date('2026-10-01'), appVersion: '0.1.0', todayNetMinor: 0, todayAt: null,
+  expiresAt: null, customerId: null, businessId: null, licenseId: null, approvedPhones: [], phoneRequests: ['p1'], blockedPhones: [], maxPhones: 1, disabledModules: [], themeId: '', themeLocked: false, adminMessage: '', createdAt: new Date('2026-10-01'), appVersion: '0.1.0', todayNetMinor: 0, todayAt: null,
 };
 
 function fake(over: Partial<AdminApi> = {}): AdminApi {
@@ -71,6 +71,24 @@ describe('panel', () => {
     fireEvent.click(screen.getByLabelText('Tables (dine-in)'));
     fireEvent.click(screen.getByText('Save features'));
     await waitFor(() => expect(patch).toHaveBeenCalledWith('u1', { disabledModules: ['tables', 'tokens'] }));
+  });
+
+  it('assigns and locks an app theme, or custom colours, for one restaurant', async () => {
+    const patch = vi.fn(async () => {});
+    render(<App api={fake({ patchAccount: patch })} />);
+    fireEvent.click(await screen.findByText('Restaurants'));
+    fireEvent.click(await screen.findByText('Cafe One'));
+    await screen.findByText('App theme');
+    fireEvent.click(screen.getByLabelText('Fresh Green'));
+    fireEvent.click(screen.getByLabelText('Lock theme'));
+    fireEvent.click(screen.getByText('Save theme'));
+    await waitFor(() => expect(patch).toHaveBeenCalledWith('u1', { themeId: 'green', themeLocked: true }));
+    fireEvent.change(screen.getByLabelText('Custom main colour'), { target: { value: '#112233' } });
+    fireEvent.click(screen.getByText('Save theme'));
+    await waitFor(() => expect(patch).toHaveBeenLastCalledWith('u1', { themeId: 'custom:112233,FF5A1F,,,outline,14', themeLocked: true }));
+    fireEvent.click(screen.getByLabelText('No assigned theme'));
+    fireEvent.click(screen.getByText('Save theme'));
+    await waitFor(() => expect(patch).toHaveBeenLastCalledWith('u1', { themeId: '', themeLocked: false }));
   });
 
   it('approves a pending restaurant with the chosen plan and fee', async () => {

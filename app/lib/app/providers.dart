@@ -139,17 +139,30 @@ class LocaleNotifier extends Notifier<Locale> {
 final localeProvider = NotifierProvider<LocaleNotifier, Locale>(LocaleNotifier.new);
 
 /// Chosen colour theme id (see [themePresets]); saved in the settings table.
+/// True once the owner has picked a theme themselves (so an assigned default theme no longer overrides it).
+class ThemeChosenNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+  void mark() => state = true;
+}
+
+final themeChosenProvider = NotifierProvider<ThemeChosenNotifier, bool>(ThemeChosenNotifier.new);
+
 class ThemeIdNotifier extends Notifier<String> {
   @override
   String build() => 'dt';
   Future<void> set(String id) async {
     state = id;
+    ref.read(themeChosenProvider.notifier).mark();
     await setSetting(ref.read(databaseProvider), 'theme', id, ref.read(clockProvider)().millisecondsSinceEpoch);
   }
 
   Future<void> restore() async {
     final saved = await getSetting(ref.read(databaseProvider), 'theme');
-    if (saved != null) state = presetById(saved).id;
+    if (saved != null) {
+      state = presetById(saved).id;
+      ref.read(themeChosenProvider.notifier).mark();
+    }
   }
 
   /// A theme the owner made from two colours.

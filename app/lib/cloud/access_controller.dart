@@ -8,6 +8,7 @@ import '../app/providers.dart';
 import '../data/db/database.dart';
 import '../data/queries.dart';
 import '../domain/account_gate.dart';
+import '../app/themes.dart';
 import '../domain/modules.dart';
 import 'cloud_gateway.dart';
 
@@ -240,4 +241,21 @@ final adminDisabledModulesProvider = Provider<Set<String>>((ref) {
 });
 
 /// The modules the app shows right now.
+/// The theme Digital Target assigned (kept from the last server answer, so it also applies offline), and whether it is locked.
+final adminThemeProvider = Provider<({String id, bool locked})>((ref) {
+  final s = ref.watch(accessProvider);
+  final a = s is AccessDecided ? s.account : null;
+  return (id: a?.themeId ?? '', locked: a?.themeLocked ?? false);
+});
+
+/// The theme the app shows: the assigned one when it is locked; otherwise the owner's own choice, and until the owner
+/// has chosen one, the assigned theme (as the default). Without any assignment nothing changes.
+final effectiveThemeIdProvider = Provider<String>((ref) {
+  final admin = ref.watch(adminThemeProvider);
+  final own = ref.watch(themeIdProvider);
+  final known = admin.id.startsWith('custom:') || themePresets.any((p) => p.id == admin.id);
+  if (known && (admin.locked || !ref.watch(themeChosenProvider))) return admin.id;
+  return own;
+});
+
 final activeModulesProvider = Provider<Set<String>>((ref) => effectiveModules(ref.watch(modulesProvider), ref.watch(adminDisabledModulesProvider)));

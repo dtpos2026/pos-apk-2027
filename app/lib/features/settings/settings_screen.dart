@@ -49,17 +49,18 @@ class SettingsScreen extends ConsumerWidget {
         SizedBox(
           height: 178,
           child: ListView(scrollDirection: Axis.horizontal, children: [
-          for (final p in themePresets) _ThemeSwatch(key: ValueKey('theme-${p.id}'), preset: p, label: t[p.nameKey], selected: ref.watch(themeIdProvider) == p.id, onTap: () => ref.read(themeIdProvider.notifier).set(p.id)),
+          for (final p in themePresets) _ThemeSwatch(key: ValueKey('theme-${p.id}'), preset: p, label: t[p.nameKey], selected: ref.watch(effectiveThemeIdProvider) == p.id, onTap: ref.watch(adminThemeProvider).locked ? null : () => ref.read(themeIdProvider.notifier).set(p.id)),
           _ThemeSwatch(
             key: const ValueKey('theme-custom'),
-            preset: ref.watch(themeIdProvider).startsWith('custom:') ? presetById(ref.watch(themeIdProvider)) : const ThemePreset('custom', Color(0xFF757575), 'theme_custom', accent: Color(0xFFBDBDBD)),
+            preset: ref.watch(effectiveThemeIdProvider).startsWith('custom:') ? presetById(ref.watch(effectiveThemeIdProvider)) : const ThemePreset('custom', Color(0xFF757575), 'theme_custom', accent: Color(0xFFBDBDBD)),
             label: t['theme_custom'],
-            selected: ref.watch(themeIdProvider).startsWith('custom:'),
+            selected: ref.watch(effectiveThemeIdProvider).startsWith('custom:'),
             icon: Icons.palette_outlined,
-            onTap: () => _customTheme(context, ref),
+            onTap: ref.watch(adminThemeProvider).locked ? null : () => _customTheme(context, ref),
           ),
         ]),
         ),
+        if (ref.watch(adminThemeProvider).locked) Padding(padding: const EdgeInsets.only(top: 8), child: Text(t['theme_locked_note'], key: const ValueKey('theme-locked-note'), style: Theme.of(context).textTheme.bodySmall)),
         const SizedBox(height: 14),
         Text(t['menu_layout'], style: const TextStyle(fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
@@ -447,7 +448,7 @@ class _ThemeSwatch extends StatelessWidget {
   final ThemePreset preset;
   final String label;
   final bool selected;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final IconData? icon;
   @override
   Widget build(BuildContext context) {

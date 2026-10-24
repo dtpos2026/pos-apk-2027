@@ -18,6 +18,7 @@ class Strings {
       (_all[locale.languageCode] ?? _en)[key] ?? _en[key] ?? key;
 
   static const _en = <String, String>{
+    'theme_locked_note': 'This theme was set by Digital Target for your business.',
     'align_logo': 'Logo position',
     'align_name': 'Business name position',
     'align_details': 'Address, phone and tax lines',
@@ -592,6 +593,7 @@ class Strings {
 };
 
   static const _ur = <String, String>{
+    'theme_locked_note': 'یہ تھیم ڈیجیٹل ٹارگٹ نے آپ کے کاروبار کے لیے مقرر کی ہے۔',
     'align_logo': 'لوگو کی جگہ',
     'align_name': 'کاروبار کے نام کی جگہ',
     'align_details': 'پتہ، فون اور ٹیکس لائنیں',
@@ -1163,6 +1165,7 @@ class Strings {
 };
 
   static const _ar = <String, String>{
+    'theme_locked_note': 'هذا المظهر حدّدته Digital Target لنشاطك.',
     'align_logo': 'موضع الشعار',
     'align_name': 'موضع اسم النشاط',
     'align_details': 'العنوان والهاتف والضريبة',

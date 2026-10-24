@@ -22,7 +22,7 @@ class DtFoodPosApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final locale = ref.watch(localeProvider);
-    final preset = presetById(ref.watch(themeIdProvider));
+    final preset = presetById(ref.watch(effectiveThemeIdProvider));
     return MaterialApp(
       title: 'DT Food POS',
       debugShowCheckedModeBanner: false,

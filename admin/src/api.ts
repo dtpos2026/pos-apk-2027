@@ -7,6 +7,10 @@ export interface Account {
   approvedPhones: string[]; phoneRequests: string[]; blockedPhones: string[]; maxPhones: number;
   /** Modules Digital Target switched off for this business (the app hides them and stops using them). Empty = everything on. */
   disabledModules: string[];
+  /** Theme assigned to this business: a preset id ('green'...) or 'custom:MAIN,ACCENT,…'; '' = none. */
+  themeId: string;
+  /** True = the restaurant cannot change the theme in its app. */
+  themeLocked: boolean;
   adminMessage: string; createdAt: Date | null; appVersion: string; todayNetMinor: number; todayAt: Date | null;
 }
 export interface Device { id: string; uid: string; phoneId: string; model: string; android: string; appVersion: string; lastSeenAt: Date | null; locationAllowed: boolean; lat?: number; lng?: number; accuracyM?: number; locationAt?: Date | null }

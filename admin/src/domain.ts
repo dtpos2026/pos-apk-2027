@@ -102,3 +102,31 @@ export const APP_MODULES: { id: string; label: string; hint: string }[] = [
   { id: 'staff', label: 'Staff & roles', hint: 'Staff accounts and permissions' },
   { id: 'tokens', label: 'Food tokens & coupons', hint: 'Order/tandoor/stall tokens, prepaid coupons' },
 ];
+
+/** The app's ready-made themes (ids match the app). main/accent/header/bg are only for the preview swatches. */
+export const APP_THEMES: { id: string; label: string; main: string; accent: string; bg: string }[] = [
+  { id: 'dt', label: 'Royal Purple (default)', main: '#3C096C', accent: '#FF5A1F', bg: '#F6F2FA' },
+  { id: 'green', label: 'Fresh Green', main: '#2B8A3E', accent: '#F08C00', bg: '#F3F8F4' },
+  { id: 'golden', label: 'Golden Yellow', main: '#B7791F', accent: '#1F2937', bg: '#FBF8F1' },
+  { id: 'yellow', label: 'Food Yellow', main: '#FFC107', accent: '#D9480F', bg: '#FFFBEB' },
+  { id: 'red', label: 'Restaurant Red', main: '#C92A2A', accent: '#F59F00', bg: '#FBF5F5' },
+  { id: 'coffee', label: 'Coffee Brown', main: '#6F4E37', accent: '#C8A27A', bg: '#F7F1EA' },
+  { id: 'ocean', label: 'Ocean Blue', main: '#0B5FA5', accent: '#F59F00', bg: '#F2F6FB' },
+  { id: 'blackgold', label: 'Luxury Black & Gold', main: '#D4AF37', accent: '#D4AF37', bg: '#121212' },
+  { id: 'orange', label: 'Classic Orange', main: '#E8590C', accent: '#1E2A78', bg: '#FFF8F3' },
+  { id: 'navy', label: 'Navy', main: '#1E2A78', accent: '#FF5A1F', bg: '#F4F5FB' },
+  { id: 'teal', label: 'Teal', main: '#0F766E', accent: '#FF5A1F', bg: '#F1F8F7' },
+  { id: 'rose', label: 'Rose', main: '#BE185D', accent: '#0F766E', bg: '#FDF2F7' },
+  { id: 'slate', label: 'Slate', main: '#334155', accent: '#FF5A1F', bg: '#F3F5F8' },
+];
+
+/** 'custom:MAIN,ACCENT,HEADER,BG,card,radius' (hex without #). Only main and accent are set from the panel. */
+export function customThemeId(main: string, accent: string): string {
+  const hex = (c: string) => c.replace('#', '').toUpperCase();
+  return `custom:${hex(main)},${hex(accent)},,,outline,14`;
+}
+export function parseCustomTheme(id: string): { main: string; accent: string } | null {
+  if (!id.startsWith('custom:')) return null;
+  const p = id.slice(7).split(',');
+  return /^[0-9A-Fa-f]{6}$/.test(p[0] ?? '') && /^[0-9A-Fa-f]{6}$/.test(p[1] ?? '') ? { main: '#' + p[0].toUpperCase(), accent: '#' + p[1].toUpperCase() } : null;
+}

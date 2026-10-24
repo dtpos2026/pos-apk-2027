@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Account, AdminApi } from './api';
-import { APP_MODULES, PLANS, STATUS_LABEL, STATUSES, daysLeft, effectiveStatus, expiryFor, isOnline, localDate, money, parseMoneyToMinor, sumByCurrency, type PlanId, type Status } from './domain';
+import { APP_MODULES, APP_THEMES, customThemeId, parseCustomTheme, PLANS, STATUS_LABEL, STATUSES, daysLeft, effectiveStatus, expiryFor, isOnline, localDate, money, parseMoneyToMinor, sumByCurrency, type PlanId, type Status } from './domain';
 import { Badge, Err, ago, fmtDate, useAction, useLoad, usePaged } from './ui';
 
 export interface PageProps { api: AdminApi; go: (page: string, arg?: string) => void; arg?: string }
@@ -93,6 +93,7 @@ export function RestaurantPage({ api, go, arg }: PageProps) {
   const [msgText, setMsgText] = useState(''); const [note, setNote] = useState<string | null>(null);
   const [maxPhones, setMaxPhones] = useState('');
   const [offDraft, setOffDraft] = useState<string[] | null>(null);
+  const [themeDraft, setThemeDraft] = useState<{ id: string; locked: boolean } | null>(null);
   // pre-fill the fee from Settings > Plan prices once they load
   useEffect(() => {
     const m = billing.data?.planPrices?.monthly;
@@ -101,6 +102,8 @@ export function RestaurantPage({ api, go, arg }: PageProps) {
   const a = acc.data;
   if (acc.err) return <Err text={acc.err} />;
   if (!a) return <p>Loading…</p>;
+  const theme = themeDraft ?? { id: a.themeId, locked: a.themeLocked };
+  const custom_ = parseCustomTheme(theme.id) ?? { main: '#3C096C', accent: '#FF5A1F' };
   const off = offDraft ?? a.disabledModules;
   const setOff = setOffDraft;
   const now = new Date();
@@ -169,6 +172,23 @@ export function RestaurantPage({ api, go, arg }: PageProps) {
           {plan === 'custom' && <input aria-label="Custom date" type="date" value={custom} onChange={e => setCustom(e.target.value)} />}
           <button className="act sec" onClick={() => act.run(async () => { const e = expiryFor(plan, now, a.expiresAt, custom ? new Date(custom + 'T23:59:59') : undefined); await api.patchAccount(uid, { plan, expiresAt: e, status: 'active', adminMessage: '' }); })}>Set plan / extend</button></div>
       </div>)}
+    <div className="card"><h3>App theme</h3>
+      <p className="mut small">Choose how this restaurant's app looks. "Locked" means the restaurant cannot change it in Settings. Colours only: prices and data never change. The phone gets it the next time it is online and signs in, then keeps it offline.</p>
+      <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
+        <button className={'act ' + (theme.id === '' ? '' : 'sec')} aria-label="No assigned theme" onClick={() => setThemeDraft({ ...theme, id: '' })}>None (restaurant chooses)</button>
+        {APP_THEMES.map(t => (
+          <button key={t.id} aria-label={t.label} aria-pressed={theme.id === t.id} className={'act ' + (theme.id === t.id ? '' : 'sec')} onClick={() => setThemeDraft({ ...theme, id: t.id })}
+            style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 14, height: 14, borderRadius: 7, background: t.main, border: '1px solid #0003' }} /><span style={{ width: 14, height: 14, borderRadius: 7, background: t.accent, border: '1px solid #0003' }} />{t.label}
+          </button>))}
+      </div>
+      <div className="row">Custom colours:
+        <input type="color" aria-label="Custom main colour" value={custom_.main} onChange={e => setThemeDraft({ ...theme, id: customThemeId(e.target.value, custom_.accent) })} />
+        <input type="color" aria-label="Custom accent colour" value={custom_.accent} onChange={e => setThemeDraft({ ...theme, id: customThemeId(custom_.main, e.target.value) })} />
+        <small className="mut">{theme.id.startsWith('custom:') ? 'custom colours selected' : ''}</small></div>
+      <div className="row"><label><input type="checkbox" aria-label="Lock theme" checked={theme.locked} onChange={e => setThemeDraft({ ...theme, locked: e.target.checked })} /> Restaurant cannot change it</label>
+        <button className="act sec" onClick={() => act.run(async () => { await api.patchAccount(uid, { themeId: theme.id, themeLocked: theme.id !== '' && theme.locked }); })}>Save theme</button></div>
+    </div>
     <div className="card"><h3>App features</h3>
       <p className="mut small">Switch a feature off to hide it in this restaurant's app. Their saved data is kept. The phone learns about the change the next time it is online and signs in.</p>
       <div className="row" style={{ flexWrap: 'wrap' }}>

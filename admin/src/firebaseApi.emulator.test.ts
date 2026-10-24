@@ -53,6 +53,9 @@ describe.skipIf(!on)('FirebaseApi on the emulator', () => {
     await api.patchAccount(r.uid, { maxPhones: 2 });
     await api.patchAccount(r.uid, { disabledModules: ['tokens', 'tables'] });
     expect((await api.account(r.uid))!.disabledModules).toEqual(['tokens', 'tables']);
+    await api.patchAccount(r.uid, { themeId: 'custom:112233,FF5A1F,,,outline,14', themeLocked: true });
+    const themed = (await api.account(r.uid))!;
+    expect([themed.themeId, themed.themeLocked]).toEqual(['custom:112233,FF5A1F,,,outline,14', true]);
     await api.approvePhone(r.uid, 'ph2');
     expect((await api.account(r.uid))!.approvedPhones).toEqual(['ph1', 'ph2']);
     await api.setDeviceBlocked(r.uid, 'ph2', true);

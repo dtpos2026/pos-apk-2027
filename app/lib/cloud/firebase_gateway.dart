@@ -74,6 +74,8 @@ class FirebaseGateway implements CloudGateway {
             customerId: d['customerId'] as String?,
             businessName: (d['businessName'] as String?) ?? '',
             disabledModules: _list(d['disabledModules']),
+            themeId: (d['themeId'] as String?) ?? '',
+            themeLocked: d['themeLocked'] == true,
             checkedAt: DateTime.now(),
           ),
           fromServer: !s.metadata.isFromCache,

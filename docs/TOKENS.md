@@ -87,6 +87,7 @@ offered: blocks are dragged up/down in order (the printer prints top to bottom).
 - **Super Admin panel** → restaurant page → **App features**: switch off *Food tokens & coupons* (or any module) for one business.
   The app learns this on its next online sign-in (stored locally as `cloud.modules_off`). The token code checks it, so a hidden module
   does not keep numbering or printing; the settings and records are kept and come back when it is switched on again.
+  The panel can also assign an **App theme** (a ready-made theme or custom colours, optionally locked) per business; the phone keeps it offline.
   Token formats, printers, designs and branch settings are per phone (set in the app); they are not stored in Firebase.
 - Multi-branch: not implemented (each phone/business has its own numbering and designs; export/import of a design moves it between phones).
 

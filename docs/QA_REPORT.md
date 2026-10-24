@@ -1,15 +1,15 @@
 # DT Food POS — QC / UAT report
 
-Version **0.3.0** · date 2026-10-23 · prepared from actual test runs (commands and results below).
+Version **0.4.0** · date 2026-10-24 · prepared from actual test runs (commands and results below).
 
 ## 1. Verdict
 
 | Area | Result | How it was checked |
 |---|---|---|
-| Android app logic and screens | **PASS** (396 automated tests) | `flutter test` — real SQLite, real widgets, fonts loaded |
+| Android app logic and screens | **PASS** (402 automated tests) | `flutter test` — real SQLite, real widgets, fonts loaded |
 | Static analysis | **PASS** (0 issues) | `flutter analyze` |
 | Firestore security rules | **PASS** (13 tests) | Firebase emulator, `npm test` in `firebase/` |
-| Super Admin panel | **PASS** (23 unit/UI + 1 end-to-end) | Vitest; end-to-end runs the real panel code against Auth + Firestore emulators |
+| Super Admin panel | **PASS** (25 unit/UI + 1 end-to-end, 26 with emulator) | Vitest; end-to-end runs the real panel code against Auth + Firestore emulators |
 | Android release build (APK/AAB) | **PASS** (run 26, includes the new Android code) | GitHub Actions |
 | **Real phone, real printer, real Firebase project** | **NOT TESTED** | No device or printer is available to this build environment. Must be done by DT before giving the app to restaurants (checklist in §6). |
 
@@ -46,6 +46,9 @@ Version **0.3.0** · date 2026-10-23 · prepared from actual test runs (commands
 | 28 | **Seven designs × 58/80 mm × every token kind** fit the paper and print; editing (hide, reorder, align, size, wording, border, margins), JSON export/import, Urdu/bilingual go through the bitmap path | PASS (`token_design_test.dart`) |
 | 29 | **Token UI**: set up types, sale prints each token to its counter's printer, Tokens screen collect/reprint (REPRINT), tokens-only mode, module off, designer edit/save/reopen/drag/reset/duplicate/export/import/delete, rule test print, coupon redeem, bill styles | PASS (`tokens_flow_test.dart`) |
 | 30 | Panel: switch app features off per restaurant (saved to Firestore, persisted in emulator test) | PASS |
+| 31 | **App themes**: 13 presets + custom builder, every theme readable (contrast checks), remembered after restart, dark mode, data never changes | PASS |
+| 32 | **Super Admin theme**: assign a theme or custom colours per business, optional lock; app uses it as default or forced, keeps it offline; unknown id ignored | PASS (`admin_theme_test.dart`, panel UI + emulator tests) |
+| 33 | **Receipt**: logo, business name and address lines each left / centre / right; saved; old designs unchanged | PASS |
 | 22 | Panel end-to-end: register → approve (DTC-0001) → phone limit → block → sales → invoice → payment extends expiry → suspend → chat → settings → admins → audit entries | PASS |
 
 ## 3. Defects found during QC and fixed
@@ -87,3 +90,18 @@ A Flutter app always contains the Flutter engine (`libflutter.so`, ~11 MB uncomp
 8. Make sales, turn off internet for a day, then reconnect → panel shows both days.
 9. Panel: suspend → app shows the message within seconds (online). Activate → app works.
 10. Reports → PDF opens and prints.
+
+
+## 7. Final QC checklist for the owner (what only a real phone/printer can prove)
+
+Automated tests cannot prove these; please tick them off before giving the app to restaurants:
+
+1. Install `dt-food-pos-latest.apk` on 2 phones; check splash, login, theme switch, dark mode.
+2. Settings → Tokens & designs: add Order + Tandoor types; set an item counter to *Tandoor*; add a Bluetooth/LAN printer with counter *Tandoor*; sell; confirm the order token prints on the counter printer and the tandoor token on the tandoor printer.
+3. 58 mm and 80 mm paper: print each of the 7 designs from the design editor (Test print); check Urdu names and the QR scan with a phone.
+4. Coupons: sell one, scan/type the code in Tokens → Redeem; a second redeem must be refused.
+5. Reprint shows REPRINT; with *Only managers can reprint* a cashier is refused.
+6. Panel: assign a locked theme and switch off *Food tokens* for a test restaurant; sign in on the phone while online; then turn on airplane mode and restart the app: the theme and module settings must still apply.
+7. Backup + restore; airplane mode for a full day of sales; reconnect and check the panel totals.
+
+Known gaps: USB/Windows printers, barcode block, multi-branch, Windows POS, KDS screen, recipe-cost report, dashboard home (see PROGRESS.md).
