@@ -72,6 +72,18 @@ class ReceiptPaper extends StatelessWidget {
           );
         }
         final weight = l.bold ? FontWeight.w800 : FontWeight.w400;
+        if (l.inverse) {
+          return Container(
+            key: const ValueKey('receipt-inverse'),
+            width: textWidth,
+            color: Colors.black87,
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+            child: DefaultTextStyle.merge(
+              style: TextStyle(color: Colors.white, fontWeight: weight, fontSize: fontSize * (l.height > 1 ? 1.5 : 1)),
+              child: Row(children: [Expanded(child: Text(l.left)), Text(l.right)]),
+            ),
+          );
+        }
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           for (final line in layoutRow(l.left, l.right, cols, box: l.box))
             // double-height rows keep their width and are stretched vertically, exactly like ESC ! on the printer

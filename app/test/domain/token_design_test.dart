@@ -287,6 +287,15 @@ void main() {
       expect(const BillDesign().withStyle('classic').style, 'classic');
     });
 
+    test('DT Retail look: boxed TYPE/TOKEN cells, black TOTAL bar (reverse print), powered-by line', () {
+      final design = const BillDesign().withStyle('dtretail');
+      final text = previewBill(d(), template: design);
+      expect(text, allOf(contains('TYPE'), contains('TOKEN'), contains('#A17'), contains('TOTAL'), contains('Powered by Digital Target')));
+      final bytes = EscPosRenderer(paperMm: 58).renderSync(buildBillDoc(d(), template: design)).toBytes();
+      final at = [for (var i = 0; i < bytes.length - 2; i++) if (bytes[i] == 0x1D && bytes[i + 1] == 0x42 && bytes[i + 2] == 1) i];
+      expect(at, hasLength(1), reason: 'reverse print is switched on for the total only');
+    });
+
     test('token on the bill can be switched off', () {
       expect(previewBill(d(), template: const BillDesign(showToken: false)), isNot(contains('A17')));
     });

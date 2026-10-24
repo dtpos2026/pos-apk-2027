@@ -132,7 +132,24 @@ ReceiptDoc buildBillDoc(ReceiptData d, {BillDesign template = BillDesign.default
   } else {
     lines.add(rule);
   }
-  if (t.showToken && d.token != null) {
+  final dtr = style == 'dtretail';
+  if (dtr) {
+    // boxed TYPE / TABLE / TOKEN cells, as on the DT Retail POS slips
+    final type = typeLabel(d.orderTypeLabel).toUpperCase();
+    final hasTable = t.showTable && d.tableLabel != null;
+    if (hasTable || d.token != null) {
+      final head = [L['type'].toUpperCase(), if (hasTable) L['table'].toUpperCase(), if (d.token != null) L['token'].toUpperCase()];
+      final vals = [type, if (hasTable) d.tableLabel!, if (d.token != null) '#${d.token}'];
+      final w = [for (var i = 1; i < head.length; i++) 9];
+      lines
+        ..add(const RRule('+'))
+        ..add(RCols(head, w, box: true))
+        ..add(RCols(vals, w, bold: true, box: true))
+        ..add(const RRule('+'));
+    } else {
+      lines.add(RText(type, align: PrintAlign.center, bold: true, box: true));
+    }
+  } else if (t.showToken && d.token != null) {
     lines
       ..add(RText('${L['token']} #', align: PrintAlign.center))
       ..add(RText(d.token!, align: PrintAlign.center, bold: true, width: 3, height: 3))
@@ -140,7 +157,7 @@ ReceiptDoc buildBillDoc(ReceiptData d, {BillDesign template = BillDesign.default
   }
   lines.add(row(L['invoice'], d.invoiceNo));
   lines.add(row(L['date'], d.dateTime));
-  if (t.showOrderType) {
+  if (t.showOrderType && !dtr) {
     final type = typeLabel(d.orderTypeLabel);
     lines.add(row(L['type'], t.showTable && d.tableLabel != null ? '$type ${d.tableLabel}' : type));
   }
@@ -192,6 +209,8 @@ ReceiptDoc buildBillDoc(ReceiptData d, {BillDesign template = BillDesign.default
   if (d.tipMinor > 0) lines.add(row(L['tip'], money(d.tipMinor)));
   if (d.roundingMinor != 0) lines.add(row(L['rounding'], money(d.roundingMinor)));
   switch (style) {
+    case 'dtretail':
+      lines.add(RRow(L['total'].toUpperCase(), '${d.currency.code} ${money(d.totalMinor)}', bold: true, height: 2, inverse: true));
     case 'boxed':
       lines.add(rule);
       lines.add(row('${L['net_bill']} ${d.currency.code}', money(d.totalMinor), bold: true, height: 2));
@@ -227,7 +246,7 @@ ReceiptDoc buildBillDoc(ReceiptData d, {BillDesign template = BillDesign.default
     lines.add(const RFeed());
     lines.add(RQr(qr));
   }
-  if (t.showPoweredBy) lines.add(const RText('Powered by Digital Target', align: PrintAlign.center));
+  if (t.showPoweredBy) lines.add(RText(dtr ? 'Powered by Digital Target · DT Food POS' : 'Powered by Digital Target', align: PrintAlign.center));
   return ReceiptDoc(lines, copies: t.copies);
 }
 

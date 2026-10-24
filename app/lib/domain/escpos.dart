@@ -46,6 +46,12 @@ class EscPosBuilder {
     return this;
   }
 
+  /// White-on-black printing (GS B).
+  EscPosBuilder inverse(bool on) {
+    _raw([0x1D, 0x42, on ? 1 : 0]);
+    return this;
+  }
+
   /// Character size multiplier 1..8 for width and height.
   EscPosBuilder size({int width = 1, int height = 1}) {
     if (width < 1 || width > 8 || height < 1 || height > 8) throw ArgumentError('size must be 1..8');

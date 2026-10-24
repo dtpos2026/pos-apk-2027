@@ -54,7 +54,7 @@ sealed class RLine {
 }
 
 class RText extends RLine {
-  const RText(this.text, {this.align = PrintAlign.left, this.bold = false, this.width = 1, this.height = 1, this.box = false});
+  const RText(this.text, {this.align = PrintAlign.left, this.bold = false, this.width = 1, this.height = 1, this.box = false, this.inverse = false});
   final String text;
   final PrintAlign align;
   final bool bold;
@@ -63,16 +63,20 @@ class RText extends RLine {
 
   /// Drawn inside a text box: "| text |" (normal size only).
   final bool box;
+
+  /// White text on a black bar (ESC/POS reverse print).
+  final bool inverse;
 }
 
 /// "left ......... right" on one line.
 class RRow extends RLine {
-  const RRow(this.left, this.right, {this.bold = false, this.height = 1, this.box = false});
+  const RRow(this.left, this.right, {this.bold = false, this.height = 1, this.box = false, this.inverse = false});
   final String left;
   final String right;
   final bool bold;
   final int height;
   final bool box;
+  final bool inverse;
 }
 
 /// A table row: the first cell takes what the others leave and wraps; the others are right-aligned and never wrap.
@@ -218,19 +222,19 @@ class EscPosRenderer {
         }
         b.bold(false);
       case RText():
-        b.align(l.align).bold(l.bold).size(width: l.width, height: l.height);
+        b.align(l.align).bold(l.bold).size(width: l.width, height: l.height).inverse(l.inverse);
         // double-width text has half the columns: wrap to what fits
         final cols = (b.columns / l.width).floor();
         for (final line in EscPosBuilder.wrap(l.text, cols)) {
           b.line(line);
         }
-        b.size().bold(false).align(PrintAlign.left);
+        b.inverse(false).size().bold(false).align(PrintAlign.left);
       case RRow():
-        b.align(PrintAlign.left).bold(l.bold).size(height: l.height);
+        b.align(PrintAlign.left).bold(l.bold).size(height: l.height).inverse(l.inverse);
         for (final line in layoutRow(l.left, l.right, b.columns, box: l.box)) {
           b.line(line);
         }
-        b.size().bold(false);
+        b.inverse(false).size().bold(false);
       case RCols():
         b.align(PrintAlign.left).bold(l.bold);
         for (final line in layoutCols(l.cells, l.widths, b.columns, box: l.box)) {

@@ -6,7 +6,7 @@ import 'escpos.dart';
 /// classic (name x qty .... amount), boxed (pre-payment slip: Item | Qty | Rate | Amount table, big NET BILL, amount
 /// in words), modern (dashed lines, numbered items, large total, QR) and compact (fewest lines, saves paper).
 /// The eleven designs of DT Retail POS plus the older "boxed" look, so the same bill designs exist on the phone and on the Windows POS.
-const billStyles = ['classic', 'modern', 'minimal', 'restaurant', 'retail', 'compact', 'grid', 'bold', 'tax', 'luxury', 'ticket', 'boxed'];
+const billStyles = ['classic', 'modern', 'minimal', 'restaurant', 'retail', 'compact', 'grid', 'bold', 'tax', 'luxury', 'ticket', 'boxed', 'dtretail'];
 
 /// Kitchen ticket looks: classic, big (large item text, token in front) and compact.
 const kotStyles = ['classic', 'big', 'compact'];
@@ -141,6 +141,7 @@ class BillDesign {
 
   /// A ready-made look: sets the style and the switches that belong to it; business details and footer lines stay.
   BillDesign withStyle(String s) => switch (s) {
+        'dtretail' => copyWith(style: s, title: '', showToken: false, showItemCount: false, amountInWords: true, nameSize: 2),
         'boxed' => copyWith(style: s, title: title.isEmpty ? 'PRE-PAYMENT BILL' : title, showItemCount: true, amountInWords: true, nameSize: 2),
         'modern' => copyWith(style: s, showItemCount: false, amountInWords: false, nameSize: 2),
         'compact' => copyWith(style: s, title: '', showItemCount: false, amountInWords: false, nameSize: 1, showCashier: false),
