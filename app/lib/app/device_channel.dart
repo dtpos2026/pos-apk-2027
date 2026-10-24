@@ -65,6 +65,24 @@ class DeviceChannel {
     await _call<bool>('bluetoothPrint', {'address': address, 'bytes': bytes});
   }
 
+  /// Saves a file where the person can find it (Downloads/DT Food POS, or Pictures/DT Food POS when [gallery] so it shows in the
+  /// gallery). Returns the place it was saved. Throws [PrinterException] with a plain sentence on failure.
+  Future<String> saveFile({required String path, required String name, required String mime, required bool gallery}) async {
+    Future<String?> once() => _c.invokeMethod<String>('saveFile', {'path': path, 'name': name, 'mime': mime, 'gallery': gallery});
+    try {
+      return (await once()) ?? name;
+    } on PlatformException catch (e) {
+      if (e.code == 'permission' && await requestPermissions(const ['android.permission.WRITE_EXTERNAL_STORAGE'])) {
+        try {
+          return (await once()) ?? name;
+        } on PlatformException catch (e2) {
+          throw PrinterException(e2.message ?? e2.code);
+        }
+      }
+      throw PrinterException(e.message ?? e.code);
+    }
+  }
+
   /// Opens WhatsApp with [text] ready to send to [phoneIntl] (digits with country code). false = no app could open it.
   Future<bool> openWhatsApp(String phoneIntl, String text) async {
     try {
@@ -111,4 +129,15 @@ PrinterTransport appTransport(String connection, String? address) {
     return BluetoothPrinterTransport(address);
   }
   return defaultTransport(connection, address);
+}
+
+/// Puts a file in the phone's Downloads or gallery. A seam so tests do not need Android.
+abstract class PhoneFileSaver {
+  Future<String> save({required String path, required String name, required String mime, bool gallery = false});
+}
+
+class AndroidFileSaver implements PhoneFileSaver {
+  const AndroidFileSaver();
+  @override
+  Future<String> save({required String path, required String name, required String mime, bool gallery = false}) => const DeviceChannel().saveFile(path: path, name: name, mime: mime, gallery: gallery);
 }

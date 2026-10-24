@@ -13,6 +13,7 @@ import '../data/report_service.dart';
 import '../data/staff_service.dart';
 import '../data/attendance_service.dart';
 import '../data/kitchen_service.dart';
+import '../domain/print_settings.dart';
 import '../data/online_order_service.dart';
 import '../data/table_service.dart';
 import '../data/backup_service.dart';
@@ -28,7 +29,7 @@ import '../data/receipt_settings.dart';
 import '../domain/modules.dart';
 import '../domain/receipt_doc.dart';
 import '../domain/receipt_template.dart';
-import 'device_channel.dart' show BluetoothPrinterScanner;
+import 'device_channel.dart' show AndroidFileSaver, BluetoothPrinterScanner, PhoneFileSaver;
 import 'import_picker.dart';
 import 'logo_picker.dart';
 import 'share_service.dart';
@@ -61,6 +62,8 @@ final billHistoryProvider = Provider<BillHistory>((ref) => BillHistory(ref.watch
 final staffServiceProvider = Provider<StaffService>((ref) => StaffService(ref.watch(dbHelperProvider), ref.watch(authServiceProvider)));
 
 final importFilePickerProvider = Provider<ImportFilePicker>((ref) => const SystemImportFilePicker());
+/// Saves exports (backup, PDF, PNG) to the phone's Downloads / gallery.
+final phoneFileSaverProvider = Provider<PhoneFileSaver>((ref) => const AndroidFileSaver());
 final shareServiceProvider = Provider<ShareService>((ref) => const SystemShareService());
 
 /// Which screen the app shell shows ('pos', 'tables', ...). Other screens switch it (for example Tables opens Sell).
@@ -289,3 +292,18 @@ class ShiftNotifier extends Notifier<String?> {
 }
 
 final shiftProvider = NotifierProvider<ShiftNotifier, String?>(ShiftNotifier.new);
+
+/// The print switches (KOT / token / bill, automatic or manual, per order type). Stored in the settings table.
+class PrintSettingsNotifier extends AsyncNotifier<PrintSettings> {
+  static const key = 'print.config';
+
+  @override
+  Future<PrintSettings> build() async => PrintSettings.decode(await getSetting(ref.read(databaseProvider), key));
+
+  Future<void> save(PrintSettings s) async {
+    await setSetting(ref.read(databaseProvider), key, s.encode(), ref.read(clockProvider)().millisecondsSinceEpoch);
+    state = AsyncData(s);
+  }
+}
+
+final printSettingsProvider = AsyncNotifierProvider<PrintSettingsNotifier, PrintSettings>(PrintSettingsNotifier.new);

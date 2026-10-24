@@ -260,6 +260,30 @@ void main() {
     expect(await n(h, "SELECT COUNT(*) AS n FROM cash_movement WHERE direction = 'out' AND amount_minor = 30000"), 1);
   });
 
+  testWidgets('print settings: KOT, token and bill have separate switches; the choices are saved and the Send to kitchen menu follows them', (t) async {
+    final h = await start(t);
+    await openTab(t, 'settings', 'Settings');
+    await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+    await t.pumpAndSettle();
+    await t.scrollUntilVisible(find.byKey(const ValueKey('print-settings-tile')), 300, scrollable: verticalScroll);
+    await tapKey(t, 'print-settings-tile');
+    expect(t.widget<SwitchListTile>(find.byKey(const ValueKey('ps-kot-enabled'))).value, isTrue);
+
+    await tapKey(t, 'ps-token-auto'); // token: only by hand
+    await tapKey(t, 'ps-kot-enabled'); // KOT: never
+    var cfg = h.container.read(printSettingsProvider).value!;
+    expect([cfg.kotEnabled, cfg.autoToken, cfg.tokenEnabled, cfg.billEnabled], [false, false, true, true]);
+    expect(t.widget<SwitchListTile>(find.byKey(const ValueKey('ps-kot-auto'))).onChanged, isNull, reason: 'automatic KOT cannot be on while KOT is off');
+    final saved = await t.runAsync(() => h.db.customSelect("SELECT setting_value AS v FROM setting WHERE setting_key = 'print.config'").getSingle());
+    expect(saved!.data['v'], contains('"kotEnabled":false'));
+
+    await tapKey(t, 'ps-kot-enabled');
+    await t.scrollUntilVisible(find.byKey(const ValueKey('ps-counter-bill')), 200, scrollable: verticalScroll);
+    await tapKey(t, 'ps-counter-bill'); // counter sales: no automatic bill
+    cfg = h.container.read(printSettingsProvider).value!;
+    expect([cfg.autoKotFor('counter'), cfg.autoBillFor('counter'), cfg.autoBillFor('takeaway')], [true, false, true]);
+  });
+
   testWidgets('online orders: type in a WhatsApp order, accept it into the kitchen, then take payment in Sell', (t) async {
     final h = await start(t);
     await openTab(t, 'online', 'Online orders');
@@ -318,6 +342,36 @@ void main() {
     expect(text(t, 'po-status-PO-0001').data, 'Received');
     expect(find.byKey(const ValueKey('po-menu-PO-0001')), findsNothing);
     expect(await n(h, "SELECT COUNT(*) AS n FROM stock_movement WHERE reason = 'purchase'"), 1);
+  });
+
+  testWidgets('expenses: the category is optional (amount only is enough), saved categories are one tap, and they can be deleted', (t) async {
+    final h = await start(t);
+    await openTab(t, 'expenses', 'Expenses');
+    await tapKey(t, 'add-expense');
+    await t.enterText(find.byKey(const ValueKey('f-amount')), '120');
+    await tapKey(t, 'form-ok'); // no category, no note
+    expect(text(t, 'exp-total').data, 'PKR 120.00');
+    expect(find.text('No category'), findsOneWidget);
+    expect(await n(h, 'SELECT COUNT(*) AS n FROM expense WHERE category_id IS NULL'), 1);
+
+    await tapKey(t, 'add-expense');
+    await t.enterText(find.byKey(const ValueKey('f-amount')), '80');
+    await t.enterText(find.byKey(const ValueKey('f-category')), 'Gas');
+    await tapKey(t, 'form-ok');
+    expect(text(t, 'exp-total').data, 'PKR 200.00');
+
+    await tapKey(t, 'add-expense');
+    expect(find.byKey(const ValueKey('exp-cat-Gas')), findsOneWidget, reason: 'the saved category is one tap');
+    await tapKey(t, 'exp-cat-Gas');
+    expect(t.widget<TextField>(find.byKey(const ValueKey('f-category'))).controller!.text, 'Gas');
+    await t.tapAt(const Offset(10, 10)); // close the sheet
+    await t.pumpAndSettle();
+
+    await tapKey(t, 'manage-categories');
+    await tapKey(t, 'cat-delete-Gas');
+    expect(find.byKey(const ValueKey('cat-Gas')), findsNothing);
+    expect(await n(h, 'SELECT COUNT(*) AS n FROM expense_category WHERE deleted_at IS NULL'), 0);
+    expect(await n(h, 'SELECT COUNT(*) AS n FROM expense'), 2, reason: 'old expenses are untouched');
   });
 
   testWidgets('inventory: add stock, buy, waste, count, low-stock filter and stock value', (t) async {

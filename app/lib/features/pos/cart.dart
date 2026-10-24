@@ -166,14 +166,16 @@ class CartNotifier extends Notifier<CartState> {
   /// Sends the order to the kitchen: it becomes a RUNNING order (same order id as its bill) and the cart is cleared so the
   /// cashier can start the next customer. Resume it from Bills or Tables to add more or to take payment. If anything
   /// fails the cart stays exactly as it was. A second tap while sending is ignored, so no duplicate ticket is possible.
-  Future<KitchenSend> sendToKitchen(PrintService printer) async {
+  Future<KitchenSend> sendToKitchen(PrintService printer, {bool? printKot}) async {
     if (_sending) return KitchenSend.busy;
     _sending = true;
     try {
       await flush();
       final id = state.draftId;
       if (id == null) return KitchenSend.nothingNew;
-      final r = await printer.sendToKitchen(id);
+      // null = follow the print settings (automatic KOT on or off for this order type); true / false = the cashier chose
+      final cfg = await printer.printSettings();
+      final r = await printer.sendToKitchen(id, printKot: printKot ?? cfg.autoKotFor(state.orderType));
       if (!r.sent) return KitchenSend.nothingNew;
       printer.processQueue();
       state = CartState(orderType: state.orderType);

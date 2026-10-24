@@ -93,6 +93,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
       script: font,
     );
     final f = File('${ref.read(exportDirProvider).path}/sales-report-${_key(_from)}_${_key(_to)}.pdf')..writeAsBytesSync(bytes);
+    try {
+      final where = await ref.read(phoneFileSaverProvider).save(path: f.path, name: f.path.split('/').last, mime: 'application/pdf');
+      if (mounted) showMessage(context, '${Strings.of(context)['saved_to']}: $where');
+    } catch (_) {
+      // saving a copy is a bonus: sharing below still works
+    }
     await ref.read(shareServiceProvider).shareFile(f.path, mimeType: 'application/pdf', subject: 'Sales report');
     if (mounted) showMessage(context, Strings.of(context)['exported']);
   }

@@ -152,6 +152,8 @@ class _RunningBillDialogState extends ConsumerState<_RunningBillDialog> {
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: Text(s['close'])),
+        if (b.kitchenSent && (ref.watch(printSettingsProvider).value?.kotEnabled ?? true))
+          TextButton.icon(key: const ValueKey('running-print-kot'), onPressed: () => _printKot(context, ref, b.id), icon: const Icon(Icons.soup_kitchen_outlined, size: 18), label: Text(s['print_kot'])),
         if (b.running && session.can('bill.void')) TextButton(key: const ValueKey('running-cancel'), onPressed: _cancel, child: Text(s['cancel_order'])),
         if (b.running) FilledButton.tonal(key: const ValueKey('running-resume'), onPressed: () => _resume(pay: false), child: Text(s['resume_bill'])),
         if (b.running) FilledButton(key: const ValueKey('running-pay'), onPressed: () => _resume(pay: true), child: Text(s['take_payment'])),
@@ -275,7 +277,9 @@ class _BillDialogState extends ConsumerState<_BillDialog> {
           TextButton.icon(key: const ValueKey('bill-whatsapp'), onPressed: _whatsApp, icon: const Icon(Icons.chat_outlined, size: 18), label: const Text('WhatsApp')),
         if (_preview != null)
           TextButton.icon(key: const ValueKey('bill-image'), onPressed: _shareImage, icon: const Icon(Icons.image_outlined, size: 18), label: Text(s['share_image'])),
-        if (_hasTokens)
+        if (b.kitchenSent && (ref.watch(printSettingsProvider).value?.kotEnabled ?? true))
+          TextButton.icon(key: const ValueKey('bill-print-kot'), onPressed: () => _printKot(context, ref, b.id), icon: const Icon(Icons.soup_kitchen_outlined, size: 18), label: Text(s['print_kot'])),
+        if (_hasTokens && (ref.watch(printSettingsProvider).value?.tokenEnabled ?? true))
           TextButton.icon(
             key: const ValueKey('bill-reprint-tokens'),
             onPressed: () async {
@@ -291,6 +295,7 @@ class _BillDialogState extends ConsumerState<_BillDialog> {
             icon: const Icon(Icons.confirmation_number_outlined, size: 18),
             label: Text(s['print_tokens']),
           ),
+        if (ref.watch(printSettingsProvider).value?.billEnabled ?? true)
         TextButton.icon(
           key: const ValueKey('bill-reprint'),
           onPressed: () async {
@@ -311,4 +316,13 @@ class _BillDialogState extends ConsumerState<_BillDialog> {
       ],
     );
   }
+}
+
+/// Prints the kitchen ticket of an existing order again (marked REPRINT). It never creates a new order or a second kitchen entry.
+Future<void> _printKot(BuildContext context, WidgetRef ref, String orderId) async {
+  final s = Strings.of(context);
+  final svc = ref.read(printServiceProvider);
+  final jobs = await svc.queueKot(orderId, reprint: true);
+  if (jobs.isNotEmpty) svc.processQueue();
+  if (context.mounted) showMessage(context, jobs.isEmpty ? s['no_printer'] : s['print_queued']);
 }

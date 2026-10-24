@@ -29,6 +29,24 @@ class CartPanel extends ConsumerWidget {
   const CartPanel({super.key, this.inSheet = false});
   final bool inSheet;
 
+  /// [printKot]: null = follow the print settings, false = send without printing, true = send and print the KOT.
+  Future<void> _send(BuildContext context, WidgetRef ref, CartNotifier notifier, Strings t, bool? printKot) async {
+    final r = await notifier.sendToKitchen(ref.read(printServiceProvider), printKot: printKot);
+    ref.invalidate(heldOrdersProvider);
+    if (!context.mounted) return;
+    switch (r) {
+      case KitchenSend.sent:
+        showMessage(context, t['kitchen_sent']);
+        if (inSheet) Navigator.of(context).maybePop();
+      case KitchenSend.nothingNew:
+        showMessage(context, t['kitchen_nothing_new']);
+      case KitchenSend.failed:
+        showMessage(context, t['kitchen_failed']);
+      case KitchenSend.busy:
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = Strings.of(context);
@@ -154,27 +172,25 @@ class CartPanel extends ConsumerWidget {
                   child: OutlinedButton(key: const ValueKey('held'), onPressed: () => _heldSheet(context, ref), child: Text(t['held_orders'])),
                 ),
                 if (ref.watch(activeModulesProvider).contains('kitchen'))
-                  OutlinedButton.icon(
-                    key: const ValueKey('send-kitchen'),
-                    onPressed: cart.isEmpty ? null : () async {
-                      final r = await notifier.sendToKitchen(ref.read(printServiceProvider));
-                      ref.invalidate(heldOrdersProvider);
-                      if (!context.mounted) return;
-                      switch (r) {
-                        case KitchenSend.sent:
-                          showMessage(context, t['kitchen_sent']);
-                          if (inSheet) Navigator.of(context).maybePop();
-                        case KitchenSend.nothingNew:
-                          showMessage(context, t['kitchen_nothing_new']);
-                        case KitchenSend.failed:
-                          showMessage(context, t['kitchen_failed']);
-                        case KitchenSend.busy:
-                          break;
-                      }
-                    },
-                    icon: const Icon(Icons.soup_kitchen_outlined, size: 18),
-                    label: Text(t['send_kitchen']),
-                  ),
+                  Row(mainAxisSize: MainAxisSize.min, children: [
+                    OutlinedButton.icon(
+                      key: const ValueKey('send-kitchen'),
+                      onPressed: cart.isEmpty ? null : () => _send(context, ref, notifier, t, null),
+                      icon: const Icon(Icons.soup_kitchen_outlined, size: 18),
+                      label: Text(t['send_kitchen']),
+                    ),
+                    PopupMenuButton<bool>(
+                      key: const ValueKey('send-kitchen-menu'),
+                      enabled: !cart.isEmpty,
+                      tooltip: t['send_kitchen'],
+                      icon: const Icon(Icons.arrow_drop_down),
+                      onSelected: (print) => _send(context, ref, notifier, t, print),
+                      itemBuilder: (_) => [
+                        PopupMenuItem(key: const ValueKey('send-only'), value: false, child: Text(t['send_kitchen_only'])),
+                        if (ref.watch(printSettingsProvider).value?.kotEnabled ?? true) PopupMenuItem(key: const ValueKey('send-and-print'), value: true, child: Text(t['send_kitchen_print'])),
+                      ],
+                    ),
+                  ]),
               ]),
               const SizedBox(height: 8),
               SizedBox(width: double.infinity, child: FilledButton(key: const ValueKey('charge'), onPressed: cart.isEmpty ? null : () => showCheckout(context, ref, closeParent: inSheet), child: Text('${t['charge']}  ·  ${ref.money(bill.totalMinor)}'))),

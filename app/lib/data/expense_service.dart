@@ -15,6 +15,13 @@ class ExpenseService {
   ExpenseService(this.h);
   final DbHelper h;
 
+  /// Categories the owner can pick with one tap. Deleting one hides it from the list; old expenses keep its name.
+  Future<List<({String id, String name})>> categories() async => [
+        for (final r in await h.q('SELECT id, name FROM expense_category WHERE deleted_at IS NULL ORDER BY name')) (id: r['id'] as String, name: r['name'] as String)
+      ];
+
+  Future<void> deleteCategory(String id) => h.exec('UPDATE expense_category SET deleted_at = ? WHERE id = ?', [h.ts, id]);
+
   Future<String> categoryId(String name) async {
     final n = name.trim();
     if (n.isEmpty) throw PosException('name_required', 'Category is required');
@@ -27,21 +34,23 @@ class ExpenseService {
 
   /// Records an expense. Paid in cash while a shift is open: it also leaves the cash drawer, so the shift's
   /// expected cash and the Z report agree.
-  Future<String> add({required int amountMinor, required String category, required String methodId, String? note, required String staffId}) => h.db.transaction(() async {
+  /// The category is optional: an expense with only an amount is saved as it is (shown as "No category").
+  Future<String> add({required int amountMinor, String? category, required String methodId, String? note, required String staffId}) => h.db.transaction(() async {
         if (amountMinor <= 0) throw PosException('bad_amount', 'Amount must be positive');
         final m = await h.one('SELECT kind FROM payment_method WHERE id = ? AND enabled = 1', [methodId]);
         if (m == null) throw PosException('bad_method', 'Choose a payment method');
-        final cat = await categoryId(category);
+        final catName = (category ?? '').trim();
+        final cat = catName.isEmpty ? null : await categoryId(catName);
         final id = h.id;
         await h.exec('INSERT INTO expense(id, category_id, amount_minor, method_id, note, business_date, staff_id, created_at) VALUES (?,?,?,?,?,?,?,?)', [id, cat, amountMinor, methodId, note?.trim(), await h.openBusinessDate(), staffId, h.ts]);
         if (m['kind'] == 'cash') {
           final shift = await h.openShiftOf(staffId);
           if (shift != null) {
-            await h.exec('INSERT INTO cash_movement(id, shift_id, direction, amount_minor, reason, staff_id, created_at) VALUES (?,?,?,?,?,?,?)', [h.id, shift, 'out', amountMinor, 'Expense: ${category.trim()}', staffId, h.ts]);
+            await h.exec('INSERT INTO cash_movement(id, shift_id, direction, amount_minor, reason, staff_id, created_at) VALUES (?,?,?,?,?,?,?)', [h.id, shift, 'out', amountMinor, catName.isEmpty ? 'Expense' : 'Expense: $catName', staffId, h.ts]);
           }
         }
-        await h.audit('expense.add', staffId: staffId, entity: 'expense', entityId: id, after: {'amount': amountMinor, 'category': category.trim()});
-        await h.outbox('expense', id, 'append', {'id': id, 'amount_minor': amountMinor, 'category': category.trim(), 'date': await h.openBusinessDate()}, 'expense:$id');
+        await h.audit('expense.add', staffId: staffId, entity: 'expense', entityId: id, after: {'amount': amountMinor, 'category': catName});
+        await h.outbox('expense', id, 'append', {'id': id, 'amount_minor': amountMinor, 'category': catName, 'date': await h.openBusinessDate()}, 'expense:$id');
         return id;
       });
 

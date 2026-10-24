@@ -1,4 +1,5 @@
 import '../tokens/token_ui.dart';
+import 'package:drift/drift.dart' show Variable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,7 @@ import '../../app/format.dart';
 import '../../app/providers.dart';
 import '../../app/strings.dart';
 import '../../app/theme.dart';
+import '../../cloud/access_controller.dart';
 import '../../data/pos_service.dart';
 import '../../data/queries.dart';
 import '../../data/receipt_loader.dart';
@@ -194,15 +196,18 @@ Future<void> showReceipt(BuildContext context, WidgetRef ref, SettledOrder order
   final data = await loadReceipt(db, order.orderId);
   final printSvc = ref.read(printServiceProvider);
   final tokenCfg = await ref.read(tokenServiceProvider).config();
-  final billJobs = tokenCfg.printBill ? await printSvc.queueBill(order.orderId) : <String>[];
-  // food tokens the owner set to print automatically (numbered when the sale was saved)
-  final tokenJobs = await printSvc.queueTokens(order.orderId, autoOnly: true);
+  final cfg = await printSvc.printSettings();
+  final orderType = (await db.customSelect('SELECT order_type FROM "order" WHERE id = ?', variables: [Variable.withString(order.orderId)]).getSingle()).data['order_type'] as String;
+  // what prints by itself follows the print settings: bill, token and KOT are separate switches (and per order type)
+  final billJobs = tokenCfg.printBill && cfg.autoBillFor(orderType) ? await printSvc.queueBill(order.orderId) : <String>[];
+  final tokenJobs = cfg.autoTokenFor(orderType) ? await printSvc.queueTokens(order.orderId, autoOnly: true) : <String>[];
   final jobs = [...billJobs, ...tokenJobs];
   final issued = (await ref.read(tokenServiceProvider).forOrder(order.orderId)).where((x) => x.status != 'void').toList();
-  if (jobs.isNotEmpty) {
-    printSvc.processQueue(); // fire and forget: a missing/offline printer never blocks the sale
-    printSvc.queueKot(order.orderId, onlyNew: true).then((_) => printSvc.processQueue());
+  // the kitchen board gets the order when it is paid (if it was not sent before); the ticket prints only when KOT is automatic
+  if (ref.read(activeModulesProvider).contains('kitchen') || cfg.autoKotFor(orderType)) {
+    printSvc.sendToKitchen(order.orderId, printKot: cfg.autoKotFor(orderType)).then((_) => printSvc.processQueue());
   }
+  if (jobs.isNotEmpty) printSvc.processQueue(); // fire and forget: a missing/offline printer never blocks the sale
   if (!context.mounted) return;
   final design = await ref.read(receiptTemplateStoreProvider).load();
   if (!context.mounted) return;

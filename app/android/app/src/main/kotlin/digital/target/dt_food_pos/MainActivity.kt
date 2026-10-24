@@ -7,7 +7,12 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.content.Context
+import android.content.ContentValues
 import android.content.pm.PackageManager
+import android.media.MediaScannerConnection
+import android.os.Environment
+import android.provider.MediaStore
+import java.io.File
 import android.location.Location
 import android.location.LocationManager
 import android.os.Build
@@ -45,11 +50,61 @@ class MainActivity : FlutterActivity() {
                     "bluetoothPaired" -> bluetoothPaired(result)
                     "bluetoothPrint" -> bluetoothPrint(call, result)
                     "location" -> location(result)
+                    "saveFile" -> saveFile(call, result)
                     "openWhatsApp" -> result.success(openWhatsApp(call.argument<String>("phone") ?: "", call.argument<String>("text") ?: ""))
                     else -> result.notImplemented()
                 }
             } catch (e: Exception) {
                 result.error("device", e.message ?: e.toString(), null)
+            }
+        }
+    }
+
+    /**
+     * Copies a file the app made (backup, PDF, PNG) to a place the person can find: Downloads/DT Food POS for files, or
+     * Pictures/DT Food POS for pictures so they appear in the gallery. Android 10+ uses MediaStore (no storage permission);
+     * older Android writes the public folder and needs WRITE_EXTERNAL_STORAGE (answered as error "permission" so the app can ask).
+     * Answers with the folder/name where it was saved.
+     */
+    private fun saveFile(call: MethodCall, result: MethodChannel.Result) {
+        val path = call.argument<String>("path") ?: return result.error("device", "No file given", null)
+        val name = call.argument<String>("name") ?: File(path).name
+        val mime = call.argument<String>("mime") ?: "application/octet-stream"
+        val gallery = call.argument<Boolean>("gallery") ?: false
+        val folder = "DT Food POS"
+        io.execute {
+            try {
+                val src = File(path)
+                if (!src.exists()) throw IllegalStateException("The file to save was not found")
+                val shown: String
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    val values = ContentValues().apply {
+                        put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+                        put(MediaStore.MediaColumns.MIME_TYPE, mime)
+                        put(MediaStore.MediaColumns.RELATIVE_PATH, (if (gallery) Environment.DIRECTORY_PICTURES else Environment.DIRECTORY_DOWNLOADS) + "/" + folder)
+                        put(MediaStore.MediaColumns.IS_PENDING, 1)
+                    }
+                    val collection = if (gallery) MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY) else MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                    val uri = contentResolver.insert(collection, values) ?: throw IllegalStateException("Android did not allow saving the file")
+                    contentResolver.openOutputStream(uri)?.use { out -> src.inputStream().use { it.copyTo(out) } } ?: throw IllegalStateException("Could not write the file")
+                    val done = ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }
+                    contentResolver.update(uri, done, null, null)
+                    shown = (if (gallery) "Pictures/" else "Downloads/") + folder + "/" + name
+                } else {
+                    if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                        main.post { result.error("permission", "Storage permission is needed to save the file", null) }
+                        return@execute
+                    }
+                    val dir = File(Environment.getExternalStoragePublicDirectory(if (gallery) Environment.DIRECTORY_PICTURES else Environment.DIRECTORY_DOWNLOADS), folder)
+                    dir.mkdirs()
+                    val dst = File(dir, name)
+                    src.copyTo(dst, overwrite = true)
+                    MediaScannerConnection.scanFile(this, arrayOf(dst.absolutePath), arrayOf(mime), null)
+                    shown = (if (gallery) "Pictures/" else "Downloads/") + folder + "/" + name
+                }
+                main.post { result.success(shown) }
+            } catch (e: Exception) {
+                main.post { result.error("device", e.message ?: e.toString(), null) }
             }
         }
     }

@@ -84,7 +84,14 @@ class _SlipScreenState extends ConsumerState<SlipScreen> {
             label: Text(t['save_png']),
             onPressed: () async {
               final f = await _png();
-              if (f != null && context.mounted) showMessage(context, '${t['saved_to']}: ${f.path}');
+              if (f == null) return;
+              try {
+                // into the phone's gallery (Pictures/DT Food POS), not a hidden app folder
+                final where = await ref.read(phoneFileSaverProvider).save(path: f.path, name: f.path.split('/').last, mime: 'image/png', gallery: true);
+                if (context.mounted) showMessage(context, '${t['saved_to']}: $where');
+              } catch (e) {
+                if (context.mounted) showMessage(context, '${t['save_failed']}: $e');
+              }
             },
           ),
           OutlinedButton.icon(

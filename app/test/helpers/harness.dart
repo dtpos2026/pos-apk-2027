@@ -75,6 +75,16 @@ class FakeShare implements ShareService {
   Future<void> shareFile(String path, {String? mimeType, String? subject}) async => files.add(path);
 }
 
+/// Stands in for Android's Downloads / gallery: remembers what was saved and where.
+class FakeSaver implements PhoneFileSaver {
+  final saved = <({String name, String mime, bool gallery})>[];
+  @override
+  Future<String> save({required String path, required String name, required String mime, bool gallery = false}) async {
+    saved.add((name: name, mime: mime, gallery: gallery));
+    return '${gallery ? 'Pictures' : 'Downloads'}/DT Food POS/$name';
+  }
+}
+
 class FakeImportPicker implements ImportFilePicker {
   FakeImportPicker(this.name, this.bytes);
   final String name;
@@ -90,7 +100,7 @@ class FakeLogoPicker implements LogoPicker {
   Future<Uint8List?> pick() async => bytes;
 }
 
-Future<Harness> pumpApp(WidgetTester t, {AppDatabase? db, bool tablet = false, Locale? locale, Directory? backupDir, LogoPicker? logoPicker, Directory? logoDir, ShareService? share, ImportFilePicker? importPicker, CloudGateway? cloud, BluetoothPrinterScanner? btScanner, TransportFactory? transport, String? platformPhoneId, List<Override> extra = const []}) async {
+Future<Harness> pumpApp(WidgetTester t, {AppDatabase? db, bool tablet = false, Locale? locale, Directory? backupDir, LogoPicker? logoPicker, Directory? logoDir, ShareService? share, FakeSaver? saver, ImportFilePicker? importPicker, CloudGateway? cloud, BluetoothPrinterScanner? btScanner, TransportFactory? transport, String? platformPhoneId, List<Override> extra = const []}) async {
   await t.runAsync(loadAppFonts);
   setSize(t, tablet: tablet);
   final database = db ?? newDb();
@@ -103,6 +113,7 @@ Future<Harness> pumpApp(WidgetTester t, {AppDatabase? db, bool tablet = false, L
     logoDirProvider.overrideWithValue(logoDir ?? Directory.systemTemp.createTempSync('dtlogo')),
     if (logoPicker != null) logoPickerProvider.overrideWithValue(logoPicker),
     if (share != null) shareServiceProvider.overrideWithValue(share),
+    phoneFileSaverProvider.overrideWithValue(saver ?? FakeSaver()),
     if (importPicker != null) importFilePickerProvider.overrideWithValue(importPicker),
     if (cloud != null) cloudGatewayProvider.overrideWithValue(cloud),
     if (btScanner != null) bluetoothScannerProvider.overrideWithValue(btScanner),

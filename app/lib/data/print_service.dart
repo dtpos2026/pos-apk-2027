@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
+import '../domain/print_settings.dart';
 import '../domain/receipt.dart';
 import '../domain/receipt_doc.dart';
 import '../domain/receipt_template.dart';
@@ -133,10 +134,17 @@ class PrintService {
   /// Sends what is new on the order to the kitchen: the kitchen board gets it, tickets are queued for the kitchen printers,
   /// and the order becomes RUNNING. Calling it again with nothing new does nothing (a double tap or a retry never makes a
   /// second ticket). [sent] is false only when there was nothing new to send.
-  Future<({bool sent, int printed})> sendToKitchen(String orderId) async {
+  Future<PrintSettings> printSettings() async {
+    final r = await _select("SELECT setting_value FROM setting WHERE setting_key = 'print.config'");
+    return PrintSettings.decode(r.isEmpty ? null : r.first['setting_value'] as String?);
+  }
+
+  /// [printKot] false = the kitchen board gets the order but no ticket is printed ("Send to kitchen" without printing). A KOT is
+  /// never printed while KOT printing is switched off in the print settings.
+  Future<({bool sent, int printed})> sendToKitchen(String orderId, {bool printKot = true}) async {
     final fresh = (await _select("SELECT COUNT(*) AS n FROM order_item WHERE order_id = ? AND status = 'active' AND qty_milli > kot_qty_milli", [orderId])).first['n'] as int;
     if (fresh == 0) return (sent: false, printed: 0);
-    final ids = await queueKot(orderId, onlyNew: true);
+    final ids = printKot && (await printSettings()).kotEnabled ? await queueKot(orderId, onlyNew: true) : <String>[];
     await _markSentToKitchen(orderId); // also when no printer takes the items: the board must still get the order
     return (sent: true, printed: ids.length);
   }

@@ -71,9 +71,10 @@ void main() {
     await db.customStatement("INSERT INTO printer(id,name,connection,address,paper_mm,role,updated_at) VALUES ('p','P','lan','main',58,'bill',1)");
     final sent = <List<int>>[];
     final share = FakeShare();
+    final saver = FakeSaver();
     final dir = Directory.systemTemp.createTempSync('dtslip');
     addTearDown(() => dir.deleteSync(recursive: true));
-    await pumpApp(t, db: db, share: share, transport: (c, a) => _Sink(sent), extra: [exportDirProvider.overrideWithValue(dir)]);
+    await pumpApp(t, db: db, share: share, saver: saver, transport: (c, a) => _Sink(sent), extra: [exportDirProvider.overrideWithValue(dir)]);
     await signIn(t, 'Ali', '1234');
     await openTab(t, 'reports', 'Reports');
     await t.ensureVisible(find.byKey(const ValueKey('open-day-close')));
@@ -115,6 +116,9 @@ void main() {
       await t.pump(const Duration(milliseconds: 100));
     }
     expect(find.textContaining('Saved in'), findsOneWidget);
+    expect(find.textContaining('Pictures/DT Food POS'), findsOneWidget, reason: 'the PNG goes to the gallery folder, not a hidden app folder');
+    expect(saver.saved.single.gallery, isTrue);
+    expect(saver.saved.single.mime, 'image/png');
     await t.ensureVisible(find.byKey(const ValueKey('slip-share-text')));
     await t.pumpAndSettle();
     await tapKey(t, 'slip-share-text');

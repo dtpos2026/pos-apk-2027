@@ -23,6 +23,7 @@ import '../../domain/modules.dart';
 import '../../data/restore.dart';
 import '../../data/payment_method_service.dart';
 import 'payment_accounts.dart';
+import 'print_settings_screen.dart';
 import '../../data/queries.dart';
 
 final printersProvider = FutureProvider<List<Map<String, Object?>>>((ref) async =>
@@ -101,6 +102,7 @@ class SettingsScreen extends ConsumerWidget {
       _Section(t['business'], [
         ListTile(key: const ValueKey('business-tile'), title: Text(biz?.name ?? ''), subtitle: Text([biz?.phone, biz?.address].whereType<String>().join(' · ')), trailing: const Icon(Icons.edit_outlined), onTap: () => _editBusiness(context, ref, biz)),
         if (ref.watch(activeModulesProvider).contains('tokens')) ListTile(key: const ValueKey('tokens-settings-tile'), leading: const Icon(Icons.confirmation_number_outlined), title: Text(t['tokens_title']), subtitle: Text(t['tokens_sub']), trailing: const Icon(Icons.chevron_right), onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const TokensSettingsScreen()))),
+        ListTile(key: const ValueKey('print-settings-tile'), leading: const Icon(Icons.print_outlined), title: Text(t['print_settings']), subtitle: Text(t['print_settings_hint']), trailing: const Icon(Icons.chevron_right), onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const PrintSettingsScreen()))),
         ListTile(key: const ValueKey('receipt-design-tile'), leading: const Icon(Icons.receipt_long_outlined), title: Text(t['receipt_design']), trailing: const Icon(Icons.chevron_right), onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const ReceiptDesignScreen()))),
       ]),
       _Section(t['payment_accounts'], [
@@ -337,7 +339,14 @@ class SettingsScreen extends ConsumerWidget {
         media: {'menu_images': ref.read(menuImageDirProvider), 'logo': ref.read(logoDirProvider)},
       );
       BackupService.prune(dir);
-      messenger.showSnackBar(SnackBar(content: Text(t['backup_saved_share'])));
+      // a copy outside the app: it survives uninstalling the app (Downloads/DT Food POS)
+      String? where;
+      try {
+        where = await ref.read(phoneFileSaverProvider).save(path: f.path, name: f.path.split('/').last, mime: 'application/octet-stream');
+      } catch (e) {
+        messenger.showSnackBar(SnackBar(content: Text('${t['save_failed']}: $e')));
+      }
+      if (where != null) messenger.showSnackBar(SnackBar(content: Text('${t['backup_saved_phone']}: $where')));
       // the copy inside the app disappears if the app is uninstalled: send it to Google Drive / WhatsApp / USB
       await ref.read(shareServiceProvider).shareFile(f.path, mimeType: 'application/octet-stream', subject: f.path.split('/').last);
     } on BackupException catch (e) {

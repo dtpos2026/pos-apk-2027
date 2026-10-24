@@ -55,4 +55,30 @@ void main() {
     expect(find.text('Backup is ready'), findsOneWidget);
     expect(File('${pendingRestoreDir(docs).path}/$dbFileName').existsSync(), isTrue);
   });
+
+  testWidgets('a backup is also saved to the phone (Downloads/DT Food POS) so it survives uninstalling the app, and offered to share', (t) async {
+    final db = newDb();
+    await seedBusiness(db);
+    final docs = Directory.systemTemp.createTempSync('docs');
+    final backups = Directory('${docs.path}/backups');
+    final share = FakeShare();
+    final saver = FakeSaver();
+    await pumpApp(t, db: db, share: share, saver: saver, backupDir: backups, extra: [docsDirProvider.overrideWithValue(docs)]);
+    await signIn(t, 'Ali', '1234');
+    await _openBackup(t);
+    await tapKey(t, 'backup-now');
+    await t.enterText(find.byKey(const ValueKey('backup-pass')), 'secret123');
+    await t.runAsync(() async {
+      await t.tap(find.byKey(const ValueKey('backup-go')));
+      for (var i = 0; i < 100 && saver.saved.isEmpty; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        await t.pump();
+      }
+    });
+    await t.pump(const Duration(milliseconds: 200));
+    expect(saver.saved, hasLength(1));
+    expect(saver.saved.single.gallery, isFalse, reason: 'a backup goes to Downloads, not the gallery');
+    expect(find.textContaining('Downloads/DT Food POS'), findsWidgets);
+    expect(share.files, hasLength(1), reason: 'the share sheet is still offered');
+  });
 }
