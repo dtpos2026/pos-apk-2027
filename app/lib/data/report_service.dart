@@ -9,6 +9,19 @@ class ReportLine {
   final int bills;
 }
 
+/// One menu item's sales against what its recipe costs. [costMinor] is null when the item has no recipe (cost unknown, never guessed).
+class ProfitLine {
+  const ProfitLine({required this.label, required this.qtyMilli, required this.revenueMinor, required this.costMinor});
+  final String label;
+  final int qtyMilli;
+  final int revenueMinor;
+  final int? costMinor;
+  int? get profitMinor => costMinor == null ? null : revenueMinor - costMinor!;
+
+  /// Margin in percent of the revenue; null when there is no cost or no revenue.
+  int? get marginPct => costMinor == null || revenueMinor <= 0 ? null : ((revenueMinor - costMinor!) * 100 / revenueMinor).round();
+}
+
 /// Sales breakdowns for a date range (inclusive, business dates 'YYYY-MM-DD'). Only paid bills count here;
 /// voided bills are excluded, and refunds are reported separately in the daily summary.
 class ReportService {
@@ -21,6 +34,38 @@ class ReportService {
             [from, to]))
           ReportLine(label: r['label'] as String, qtyMilli: r['qty'] as int, amountMinor: r['amount'] as int, bills: r['bills'] as int)
       ];
+
+  /// Per item: revenue, the cost of the stock its recipe uses (at the average cost of that stock) and the profit.
+  /// Items without a recipe show revenue only.
+  Future<List<ProfitLine>> profitWise(String from, String to) async {
+    final sold = await h.q(
+        "SELECT i.name AS label, i.product_id AS pid, i.variant_id AS vid, SUM(i.qty_milli) AS qty, SUM(i.line_total_minor) AS amount FROM order_item i JOIN \"order\" o ON o.id = i.order_id WHERE o.status IN ('paid','refunded') AND i.status = 'active' AND o.business_date BETWEEN ? AND ? GROUP BY i.product_id, i.variant_id, i.name",
+        [from, to]);
+    // cost of ONE portion = sum(recipe qty x average cost per unit of that stock item)
+    final recipe = await h.q('SELECT rl.product_id AS pid, rl.variant_id AS vid, SUM(rl.qty_milli * s.avg_cost_minor_per_unit / 1000.0) AS cost FROM recipe_line rl JOIN stock_item s ON s.id = rl.stock_item_id GROUP BY rl.product_id, rl.variant_id');
+    double? portion(String pid, String? vid) {
+      final exact = recipe.where((r) => r['pid'] == pid && r['vid'] == vid).firstOrNull;
+      final base = recipe.where((r) => r['pid'] == pid && r['vid'] == null).firstOrNull;
+      final r = exact ?? base;
+      return r == null ? null : (r['cost'] as num).toDouble();
+    }
+
+    final byName = <String, (int, int, double?)>{};
+    for (final r in sold) {
+      final unit = portion(r['pid'] as String, r['vid'] as String?);
+      final qty = r['qty'] as int;
+      final cost = unit == null ? null : unit * qty / 1000;
+      final prev = byName[r['label'] as String];
+      byName[r['label'] as String] = (
+        (prev?.$1 ?? 0) + qty,
+        (prev?.$2 ?? 0) + (r['amount'] as int),
+        cost == null && prev?.$3 == null ? null : (prev?.$3 ?? 0) + (cost ?? 0),
+      );
+    }
+    final out = [for (final e in byName.entries) ProfitLine(label: e.key, qtyMilli: e.value.$1, revenueMinor: e.value.$2, costMinor: e.value.$3?.round())];
+    out.sort((a, b) => (b.profitMinor ?? b.revenueMinor).compareTo(a.profitMinor ?? a.revenueMinor));
+    return out;
+  }
 
   Future<List<ReportLine>> categoryWise(String from, String to) async => [
         for (final r in await h.q(

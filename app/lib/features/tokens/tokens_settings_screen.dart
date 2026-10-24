@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../app/providers.dart';
 import '../../app/strings.dart';
+import '../../data/queries.dart' show loadCategories, loadProducts;
 import '../../domain/money.dart';
 import '../../domain/receipt.dart';
 import '../../domain/receipt_template.dart';
@@ -149,6 +150,41 @@ class _RuleDialogState extends ConsumerState<_RuleDialog> {
     if (mounted) Navigator.pop(context);
   }
 
+  Future<List<String>?> _pickMany(String title, List<(String, String)> options, List<String> chosen) {
+    final t = Strings.of(context);
+    final sel = {...chosen};
+    return showDialog<List<String>>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, set) => AlertDialog(
+          title: Text(title),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView(shrinkWrap: true, children: [
+              for (final o in options)
+                CheckboxListTile(key: ValueKey('pick-${o.$2}'), dense: true, value: sel.contains(o.$1), title: Text(o.$2), onChanged: (v) => set(() => v == true ? sel.add(o.$1) : sel.remove(o.$1))),
+            ]),
+          ),
+          actions: [TextButton(onPressed: () => Navigator.pop(ctx, <String>[]), child: Text(t['clear'])), FilledButton(key: const ValueKey('pick-done'), onPressed: () => Navigator.pop(ctx, sel.toList()), child: Text(t['ok']))],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickCategories() async {
+    final cats = await loadCategories(ref.read(databaseProvider));
+    if (!mounted) return;
+    final v = await _pickMany(Strings.of(context)['pick_categories'], [for (final c in cats) (c.id, c.name)], r.categoryIds);
+    if (v != null) setState(() => r = r.copyWith(categoryIds: v));
+  }
+
+  Future<void> _pickItems() async {
+    final items = await loadProducts(ref.read(databaseProvider));
+    if (!mounted) return;
+    final v = await _pickMany(Strings.of(context)['pick_items'], [for (final p in items) (p.id, p.name)], r.productIds);
+    if (v != null) setState(() => r = r.copyWith(productIds: v));
+  }
+
   Future<void> _test() async {
     final t = Strings.of(context);
     final cur = ref.read(businessProvider).value?.currency ?? Currency.pkr;
@@ -202,6 +238,12 @@ class _RuleDialogState extends ConsumerState<_RuleDialog> {
             Padding(padding: const EdgeInsets.only(top: 6), child: Text('${t['rule_example']}: ${example.format(example.startAt)}, ${example.format(example.startAt + 1)}…', key: const ValueKey('rule-example'), style: const TextStyle(fontWeight: FontWeight.w700))),
             SwitchListTile(key: const ValueKey('rule-daily'), dense: true, contentPadding: EdgeInsets.zero, title: Text(t['rule_daily']), value: r.dailyReset, onChanged: (v) => setState(() => r = r.copyWith(dailyReset: v))),
             TextField(key: const ValueKey('rule-station'), controller: station, decoration: InputDecoration(labelText: needsCounter ? t['counter_station'] : '${t['counter_station']} (${t['optional']})', helperText: t['rule_station_hint'], helperMaxLines: 3), onChanged: (_) => setState(() {})),
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(child: OutlinedButton.icon(key: const ValueKey('rule-pick-categories'), onPressed: _pickCategories, icon: const Icon(Icons.category_outlined, size: 18), label: Text('${t['pick_categories']}${r.categoryIds.isEmpty ? '' : ' (${r.categoryIds.length})'}', overflow: TextOverflow.ellipsis))),
+              const SizedBox(width: 8),
+              Expanded(child: OutlinedButton.icon(key: const ValueKey('rule-pick-items'), onPressed: _pickItems, icon: const Icon(Icons.fastfood_outlined, size: 18), label: Text('${t['pick_items']}${r.productIds.isEmpty ? '' : ' (${r.productIds.length})'}', overflow: TextOverflow.ellipsis))),
+            ]),
             if (r.kind == TokenKind.product) ...[
               const SizedBox(height: 8),
               SegmentedButton<String>(

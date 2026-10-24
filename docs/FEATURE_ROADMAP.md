@@ -10,23 +10,23 @@ from the Super Admin "App features" card).
 - Tables with areas, Dine-In / Takeaway, New Order
 - Kitchen tickets (KOT, 12 designs), bills (12 styles, 58/80 mm), logo/name alignment
 - Tokens: 7 kinds, counter routing, numbering, coupons, 12 editable designs
+- Kitchen board (New / Preparing / Ready), inventory OK / Low Stock board, dashboard vs-yesterday
+- Token rules by station, categories and items
+- Recipe cost and profit report per item
 - Day close (Z report) with preview / print / share / PNG
 - Customers (address saved), dashboard, reports, themes (13 + custom, admin lock)
 - Super Admin panel: accounts, plans, modules, theme
 
 ## Partial
-- Token rules pick by station only -> add selection by categories and items
-- Kitchen display: tickets print, no on-screen New / Preparing / Ready board
-- Inventory: stock counts exist, no OK / Low Stock board or reorder level alerts
+- Tokens: department stubs (detachable per department / item / piece) not built
+- Online orders / QR menu, delivery riders: not built
 
 ## Future (in order)
-1. Kitchen board (New / Preparing / Ready) — tab in the shell, driven by order status
-2. Token rules by category / item, and detachable department stubs (department / item / piece)
-3. Low-stock board and recipe cost report
-4. Item customisation screen (modifier groups per item)
-5. Dashboard "vs yesterday" change and a sales line chart
-6. Online-order inbox (QR menu), delivery rider assignment
-7. Staff shifts and attendance, purchase orders and supplier ledger
+1. Detachable department stubs on tokens (department / item / piece)
+2. Online-order inbox (QR menu), delivery rider assignment
+3. Staff shifts and attendance, purchase orders
+4. Optional cloud sync of full data (multi-branch)
+5. Real-printer tuning from the owner's first prints
 
 ## Not planned
 CRM, quotations, proposals and other Solar-style modules.

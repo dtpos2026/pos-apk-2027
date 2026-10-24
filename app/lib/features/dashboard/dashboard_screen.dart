@@ -66,7 +66,7 @@ class DashboardScreen extends ConsumerWidget {
           error: (e, _) => Padding(padding: const EdgeInsets.all(20), child: Text('$e')),
           data: (d) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             _Kpis(items: [
-              _Kpi('dash-sales', Icons.payments_outlined, t['todays_sales'], ref.money(d.netMinor), '${d.bills} ${t['orders_word']} · ${t['avg']} ${ref.money(d.avgBillMinor)}', primary: true, onTap: () => onGo('bills')),
+              _Kpi('dash-sales', Icons.payments_outlined, t['todays_sales'], ref.money(d.netMinor), '${d.bills} ${t['orders_word']} · ${t['avg']} ${ref.money(d.avgBillMinor)}', primary: true, deltaPct: d.vsYesterdayPct, onTap: () => onGo('bills')),
               _Kpi('dash-cash', Icons.account_balance_wallet_outlined, t['cash'], ref.money(d.cashMinor), null),
               _Kpi('dash-other', Icons.credit_card, t['card_other'], ref.money(d.otherMinor), null),
               _Kpi('dash-udhaar', Icons.menu_book_outlined, t['udhaar_due'], ref.money(d.udhaarDueMinor), '${d.udhaarCustomers} ${t['customers']}', warn: d.udhaarDueMinor > 0, onTap: modules.contains('customers') ? () => onGo('customers') : null),
@@ -115,7 +115,7 @@ class DashboardScreen extends ConsumerWidget {
 }
 
 class _Kpi {
-  const _Kpi(this.key, this.icon, this.label, this.value, this.sub, {this.primary = false, this.warn = false, this.onTap});
+  const _Kpi(this.key, this.icon, this.label, this.value, this.sub, {this.primary = false, this.warn = false, this.onTap, this.deltaPct});
   final String key;
   final IconData icon;
   final String label;
@@ -124,6 +124,9 @@ class _Kpi {
   final bool primary;
   final bool warn;
   final VoidCallback? onTap;
+
+  /// Change against yesterday in percent (null = nothing to compare).
+  final int? deltaPct;
 }
 
 class _Kpis extends StatelessWidget {
@@ -161,6 +164,15 @@ class _Kpis extends StatelessWidget {
                     ]),
                     const SizedBox(height: 8),
                     FittedBox(fit: BoxFit.scaleDown, alignment: AlignmentDirectional.centerStart, child: Text(k.value, style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800, color: k.primary ? Colors.white : cs.onSurface))),
+                    if (k.deltaPct != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          '${k.deltaPct! >= 0 ? '▲' : '▼'} ${k.deltaPct!.abs()}% ${Strings.of(context)['vs_yesterday']}',
+                          key: ValueKey('${k.key}-delta'),
+                          style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: k.primary ? Colors.white : (k.deltaPct! >= 0 ? const Color(0xFF2E9E5B) : const Color(0xFFD93B3B))),
+                        ),
+                      ),
                     if (k.sub != null) Text(k.sub!, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11.5, color: k.primary ? Colors.white70 : cs.onSurfaceVariant)),
                   ]),
                 ),

@@ -181,11 +181,20 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> with SingleTi
             floatingActionButton: FloatingActionButton.extended(key: const ValueKey('add-stock'), onPressed: _addItem, icon: const Icon(Icons.add), label: Text(s['add_stock_item'])),
             body: Column(children: [
               Padding(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
                 child: Row(children: [
                   Expanded(child: Text('${s['valuation']}: ${ref.money(value)}', key: const ValueKey('stock-value'), style: const TextStyle(fontWeight: FontWeight.w800))),
-                  FilterChip(key: const ValueKey('low-filter'), label: Text(s['low_stock']), selected: _lowOnly, onSelected: (v) => setState(() => _lowOnly = v)),
                   IconButton(key: const ValueKey('recipe-btn'), tooltip: s['recipe'], onPressed: _recipe, icon: const Icon(Icons.menu_book_outlined)),
+                ]),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+                child: Row(children: [
+                  _CountBox(label: s['all'], count: stock.length, color: Theme.of(context).colorScheme.primary, selected: !_lowOnly, onTap: () => setState(() => _lowOnly = false)),
+                  const SizedBox(width: 8),
+                  _CountBox(label: s['stock_ok'], count: stock.where((r) => !r.isLow).length, color: const Color(0xFF2E9E5B), selected: false, onTap: () => setState(() => _lowOnly = false)),
+                  const SizedBox(width: 8),
+                  _CountBox(key: const ValueKey('low-filter'), label: s['low_stock'], count: stock.where((r) => r.isLow).length, color: const Color(0xFFD93B3B), selected: _lowOnly, onTap: () => setState(() => _lowOnly = !_lowOnly)),
                 ]),
               ),
               Expanded(
@@ -196,11 +205,29 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> with SingleTi
                         itemCount: shown.length,
                         itemBuilder: (_, i) {
                           final r = shown[i];
+                          final low = r.isLow;
+                          final color = low ? const Color(0xFFD93B3B) : const Color(0xFF2E9E5B);
+                          final ratio = r.reorderMilli <= 0 ? 1.0 : (r.onHandMilli / (r.reorderMilli * 2)).clamp(0.04, 1.0).toDouble();
                           return Card(
                             child: ListTile(
                               key: ValueKey('stock-${r.name}'),
-                              title: Text(r.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                              subtitle: Text('${s['on_hand']}: ${_qty(r.onHandMilli)} ${r.unit}${r.isLow ? '  ·  ${s['low_stock']}' : ''}', style: TextStyle(color: r.isLow ? Theme.of(context).colorScheme.error : null, fontWeight: r.isLow ? FontWeight.w700 : null)),
+                              contentPadding: const EdgeInsets.fromLTRB(14, 6, 4, 6),
+                              title: Row(children: [
+                                Expanded(child: Text(r.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16))),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                                  decoration: BoxDecoration(color: color.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(20)),
+                                  child: Text(low ? s['low_stock'] : s['stock_ok'], style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 12)),
+                                ),
+                              ]),
+                              subtitle: Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                  Text('${s['on_hand']}: ${_qty(r.onHandMilli)} ${r.unit}', style: TextStyle(fontWeight: low ? FontWeight.w700 : null, color: low ? color : null)),
+                                  const SizedBox(height: 6),
+                                  ClipRRect(borderRadius: BorderRadius.circular(4), child: LinearProgressIndicator(value: ratio, minHeight: 6, color: color, backgroundColor: color.withValues(alpha: 0.15))),
+                                ]),
+                              ),
                               trailing: PopupMenuButton<String>(
                                 key: ValueKey('stock-menu-${r.name}'),
                                 onSelected: (a) => switch (a) { 'buy' => _purchase(r), 'waste' => _wastage(r), _ => _count(r) },
@@ -232,4 +259,34 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> with SingleTi
       ),
     ]);
   }
+}
+
+/// One of the three summary boxes above the stock list (All / OK / Low stock).
+class _CountBox extends StatelessWidget {
+  const _CountBox({super.key, required this.label, required this.count, required this.color, required this.selected, required this.onTap});
+  final String label;
+  final int count;
+  final Color color;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Expanded(
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(
+              color: selected ? color.withValues(alpha: 0.12) : Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: selected ? color : Theme.of(context).dividerColor),
+            ),
+            child: Column(children: [
+              Text('$count', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: color)),
+              Text(label, style: const TextStyle(fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+            ]),
+          ),
+        ),
+      );
 }

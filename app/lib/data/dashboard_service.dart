@@ -58,6 +58,12 @@ class DashboardData {
   final int lowStock;
 
   int get netMinor => grossMinor - refundsMinor;
+  /// Net sales of yesterday (the day before today in [last7]).
+  int get yesterdayMinor => last7.length >= 2 ? last7[last7.length - 2].netMinor : 0;
+
+  /// Today against yesterday in percent; null when yesterday had no sales (a percentage would mean nothing).
+  int? get vsYesterdayPct => yesterdayMinor <= 0 ? null : ((netMinor - yesterdayMinor) * 100 / yesterdayMinor).round();
+
   int get avgBillMinor => bills == 0 ? 0 : (grossMinor / bills).round();
 }
 

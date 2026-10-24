@@ -52,6 +52,10 @@ Version **0.4.0** · date 2026-10-24 · prepared from actual test runs (commands
 | 34 | **Real-phone fixes** (from the owner's screenshots): splash logo animation showed a blank receipt and the screen had a side strip; item pictures missing on the compact selling tile; Confirm / Share buttons under the Android navigation bar; TOTAL row overlapping in previews | FIXED + tests (`device_fit_test.dart`, `day_close_test.dart`, `receipt_dialog_test.dart`) |
 | 35 | Dashboard (today's sales, cash, udhaar, tables, 7-day chart, top items, quick actions) from real sales; profile menu + account page; report slip preview / print / PNG save / share | PASS (`dashboard_test.dart`, `profile_test.dart`) |
 | 36 | 12 bill designs (the 11 DT Retail POS designs + Table/words) and 12 token designs (7 food + 5 Retail) fit 58/80 mm | PASS |
+| 37 | **Kitchen board** (New / Preparing / Ready): sending to the kitchen puts the order on it even with no kitchen printer; one tap moves it on; paid orders leave it; an order stays editable after being sent | PASS (service + flow tests) |
+| 38 | **DT Retail bill look**: boxed TYPE / TABLE / TOKEN, reverse-print TOTAL bar (GS B), powered-by line; fits 58/80 mm | PASS (text + ESC/POS bytes); real-printer look NOT checked |
+| 39 | **Inventory** All / OK / Low-stock boxes and status chips; **dashboard** "vs yesterday" percent; **tokens** picked by categories and/or items (UI + issuing) | PASS |
+| 40 | **Profit report** (revenue, recipe cost at average stock cost, margin) per item; items without a recipe show no cost | PASS |
 | 22 | Panel end-to-end: register → approve (DTC-0001) → phone limit → block → sales → invoice → payment extends expiry → suspend → chat → settings → admins → audit entries | PASS |
 
 ## 3. Defects found during QC and fixed
@@ -107,4 +111,4 @@ Automated tests cannot prove these; please tick them off before giving the app t
 6. Panel: assign a locked theme and switch off *Food tokens* for a test restaurant; sign in on the phone while online; then turn on airplane mode and restart the app: the theme and module settings must still apply.
 7. Backup + restore; airplane mode for a full day of sales; reconnect and check the panel totals.
 
-Known gaps: USB/Windows printers, barcode block, multi-branch, Windows POS, KDS screen, recipe-cost report, dashboard home (see PROGRESS.md).
+Known gaps: USB/Windows printers, barcode block, multi-branch, Windows POS, department stubs on tokens, online orders, staff shifts/attendance, purchase orders (see docs/FEATURE_ROADMAP.md). The Urdu line on the reverse-print TOTAL bar is not inverted. Nothing has been tried on a real printer yet.

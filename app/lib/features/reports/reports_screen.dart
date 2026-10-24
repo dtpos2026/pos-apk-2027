@@ -22,11 +22,12 @@ String _key(DateTime d) => '${d.year}-${two(d.month)}-${two(d.day)}';
 final reportProvider = FutureProvider.family<SalesReport, String>((ref, date) => ref.watch(posServiceProvider).salesReport(date));
 final _rangeProvider = FutureProvider.autoDispose.family<_RangeData, (String, String)>((ref, r) async {
   final s = ref.watch(reportServiceProvider);
-  return _RangeData(await s.itemWise(r.$1, r.$2), await s.categoryWise(r.$1, r.$2), await s.cashierWise(r.$1, r.$2), await s.totals(r.$1, r.$2));
+  return _RangeData(await s.itemWise(r.$1, r.$2), await s.categoryWise(r.$1, r.$2), await s.cashierWise(r.$1, r.$2), await s.totals(r.$1, r.$2), await s.profitWise(r.$1, r.$2));
 });
 
 class _RangeData {
-  const _RangeData(this.items, this.categories, this.cashiers, this.totals);
+  const _RangeData(this.items, this.categories, this.cashiers, this.totals, this.profit);
+  final List<ProfitLine> profit;
   final List<ReportLine> items;
   final List<ReportLine> categories;
   final List<ReportLine> cashiers;
@@ -40,7 +41,7 @@ class ReportsScreen extends ConsumerStatefulWidget {
 }
 
 class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTickerProviderStateMixin {
-  late final TabController _tabs = TabController(length: 4, vsync: this);
+  late final TabController _tabs = TabController(length: 5, vsync: this);
   late DateTime _from = ref.read(clockProvider)();
   late DateTime _to = _from;
 
@@ -117,7 +118,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
           IconButton(key: const ValueKey('export-pdf'), tooltip: t['export_pdf'], onPressed: range.value == null ? null : () => _exportPdf(range.value!), icon: const Icon(Icons.picture_as_pdf_outlined)),
         ]),
       ),
-      TabBar(controller: _tabs, isScrollable: true, tabAlignment: TabAlignment.start, tabs: [Tab(text: t['summary']), Tab(text: t['items_report']), Tab(text: t['categories_report']), Tab(text: t['cashiers_report'])]),
+      TabBar(controller: _tabs, isScrollable: true, tabAlignment: TabAlignment.start, tabs: [Tab(text: t['summary']), Tab(text: t['items_report']), Tab(text: t['categories_report']), Tab(text: t['cashiers_report']), Tab(key: const ValueKey('tab-profit'), text: t['profit_report'])]),
       Expanded(
         child: range.when(
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -127,6 +128,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
             _Breakdown(lines: d.items, header: t['items_report'], withQty: true, onExport: () => _export(d.items, 'Item', 'items')),
             _Breakdown(lines: d.categories, header: t['categories_report'], withQty: true, onExport: () => _export(d.categories, 'Category', 'categories')),
             _Breakdown(lines: d.cashiers, header: t['cashiers_report'], withQty: false, onExport: () => _export(d.cashiers, 'Cashier', 'cashiers', withQty: false)),
+            _ProfitTab(lines: d.profit),
           ]),
         ),
       ),
@@ -234,4 +236,43 @@ class _Stat extends StatelessWidget {
           ),
         ),
       );
+}
+
+/// Revenue, recipe cost and profit per item. Items with no recipe say so instead of showing an invented cost.
+class _ProfitTab extends ConsumerWidget {
+  const _ProfitTab({required this.lines});
+  final List<ProfitLine> lines;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = Strings.of(context);
+    final cs = Theme.of(context).colorScheme;
+    if (lines.isEmpty) return const Center(child: Text('-'));
+    final known = lines.where((l) => l.costMinor != null);
+    final revenue = known.fold<int>(0, (s, l) => s + l.revenueMinor);
+    final profit = known.fold<int>(0, (s, l) => s + (l.profitMinor ?? 0));
+    return ListView(padding: const EdgeInsets.fromLTRB(12, 8, 12, 24), children: [
+      Card(
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(children: [
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(t['gross_profit'], style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13)), Text(ref.money(profit), key: const ValueKey('profit-total'), style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: profit >= 0 ? Colors.green.shade700 : cs.error))])),
+            if (revenue > 0) Text('${(profit * 100 / revenue).round()}%', key: const ValueKey('profit-margin'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+          ]),
+        ),
+      ),
+      for (final l in lines)
+        Card(
+          child: ListTile(
+            dense: true,
+            title: Text(l.label, style: const TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: Text(l.costMinor == null ? '${t['quantity_short']}: ${formatQty(l.qtyMilli)}   ·   ${t['no_recipe']}' : '${t['quantity_short']}: ${formatQty(l.qtyMilli)}   ·   ${t['cost']}: ${ref.money(l.costMinor!)}'),
+            trailing: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.end, children: [
+              Text(ref.money(l.profitMinor ?? l.revenueMinor), key: ValueKey('profit-${l.label}'), style: TextStyle(fontWeight: FontWeight.w800, color: l.profitMinor == null ? null : (l.profitMinor! >= 0 ? Colors.green.shade700 : cs.error))),
+              if (l.marginPct != null) Text('${l.marginPct}%', style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant)),
+            ]),
+          ),
+        ),
+    ]);
+  }
 }

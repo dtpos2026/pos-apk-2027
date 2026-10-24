@@ -61,6 +61,8 @@ class TokenRule {
     this.copies = 1,
     this.auto = true,
     this.collectText = '',
+    this.categoryIds = const [],
+    this.productIds = const [],
   });
 
   final String id;
@@ -99,6 +101,19 @@ class TokenRule {
   /// "Collect from the Tandoor counter, left side": printed by the collect line of the design.
   final String collectText;
 
+  /// Pick what the token is for by menu category and/or single items (an item matches when its category OR the item itself is picked).
+  /// Together with [station]: when both are set an item must satisfy both.
+  final List<String> categoryIds;
+  final List<String> productIds;
+
+  bool get hasPicks => categoryIds.isNotEmpty || productIds.isNotEmpty;
+
+  /// A rule for a counter (tandoor / stall / coupon) needs to know which items belong to it: a station or picked categories/items.
+  bool get isScoped => station.trim().isNotEmpty || hasPicks;
+
+  /// Does this item (its product and category) belong to the rule's picks? True when nothing is picked.
+  bool picks(String? productId, String? categoryId) => !hasPicks || (productId != null && productIds.contains(productId)) || (categoryId != null && categoryIds.contains(categoryId));
+
   String get template => templateId.isEmpty ? kind.defaultTemplate : templateId;
 
   String format(int n) => '$prefix${pad > 0 ? n.toString().padLeft(pad, '0') : n}';
@@ -123,6 +138,8 @@ class TokenRule {
     int? copies,
     bool? auto,
     String? collectText,
+    List<String>? categoryIds,
+    List<String>? productIds,
   }) =>
       TokenRule(
         id: id,
@@ -140,6 +157,8 @@ class TokenRule {
         copies: (copies ?? this.copies).clamp(1, 5),
         auto: auto ?? this.auto,
         collectText: collectText ?? this.collectText,
+        categoryIds: categoryIds ?? this.categoryIds,
+        productIds: productIds ?? this.productIds,
       );
 
   Map<String, dynamic> toJson() => {
@@ -158,6 +177,8 @@ class TokenRule {
         'copies': copies,
         'auto': auto,
         'collectText': collectText,
+        if (categoryIds.isNotEmpty) 'categoryIds': categoryIds,
+        if (productIds.isNotEmpty) 'productIds': productIds,
       };
 
   factory TokenRule.fromJson(Map<String, dynamic> j) => TokenRule(
@@ -176,6 +197,8 @@ class TokenRule {
         copies: ((j['copies'] as num?)?.toInt() ?? 1).clamp(1, 5),
         auto: j['auto'] as bool? ?? true,
         collectText: j['collectText'] as String? ?? '',
+        categoryIds: [for (final x in (j['categoryIds'] as List?) ?? const []) '$x'],
+        productIds: [for (final x in (j['productIds'] as List?) ?? const []) '$x'],
       );
 }
 

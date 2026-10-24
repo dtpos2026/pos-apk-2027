@@ -114,6 +114,36 @@ void main() {
     expect(await tokens.issueForOrder(id), hasLength(1)); // no tandoor items on this order
   });
 
+  test('a token can be picked by categories and/or single items instead of a station', () async {
+    await sql("INSERT INTO category(id,name,updated_at) VALUES ('bread','Breads',1)");
+    await sql("UPDATE product SET category_id = 'bread' WHERE id IN ('r','n')");
+    final items = [('b', 'Zinger Burger', 1000, 45000, null), ('r', 'Roti', 2000, 3000, null), ('n', 'Naan', 1000, 6000, null), ('t', 'Chai', 1000, 15000, null)];
+
+    // by category: the tandoor token has the breads only, no station needed
+    await configure([tandoor.copyWith(station: '', categoryIds: ['bread'])]);
+    var t = await tokens.forOrder(await sale(items));
+    expect(t.single.items.map((i) => i.name), ['Roti', 'Naan']);
+
+    // by single items: Chai and Roti
+    await configure([tandoor.copyWith(station: '', productIds: ['t', 'r'])]);
+    t = await tokens.forOrder(await sale(items));
+    expect(t.single.items.map((i) => i.name).toSet(), {'Roti', 'Chai'});
+
+    // category OR item: the bread category plus the Chai item
+    await configure([tandoor.copyWith(station: '', categoryIds: ['bread'], productIds: ['t'])]);
+    t = await tokens.forOrder(await sale(items));
+    expect(t.single.items.map((i) => i.name).toSet(), {'Roti', 'Naan', 'Chai'});
+
+    // a counter rule with neither station nor picks matches nothing (no empty tokens)
+    await configure([tandoor.copyWith(station: '')]);
+    expect(await tokens.forOrder(await sale(items)), isEmpty);
+
+    // picks survive saving and loading the settings
+    await configure([tandoor.copyWith(station: '', categoryIds: ['bread'], productIds: ['t'])]);
+    final saved = (await tokens.config()).rules.single;
+    expect([saved.categoryIds, saved.productIds], [['bread'], ['t']]);
+  });
+
   test('product routing: tandoor and stall tokens only contain the items of their counter', () async {
     await configure([
       order,

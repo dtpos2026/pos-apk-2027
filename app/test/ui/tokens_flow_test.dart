@@ -71,6 +71,12 @@ Future<void> sellCash(WidgetTester t, List<String> items) async {
   await settle(t);
 }
 
+/// Taps a button that sits below the fold of a tall dialog.
+Future<void> tapVisible(WidgetTester t, String key) async {
+  await t.ensureVisible(find.byKey(ValueKey(key)));
+  await tapKey(t, key);
+}
+
 void main() {
   testWidgets('owner sets up Order + Tandoor tokens; a sale prints each to its own printer; collect and reprint work', (t) async {
     final db = newDb();
@@ -334,20 +340,22 @@ void main() {
     await tapKey(t, 'kind-unit');
     await typeInto(t, find.byKey(const ValueKey('rule-station')), 'Tea');
     await typeInto(t, find.byKey(const ValueKey('rule-prefix')), 'u');
-    await tapKey(t, 'rule-pad');
+    await tapVisible(t, 'rule-pad');
     await t.tap(find.descendant(of: find.byKey(const ValueKey('rule-pad')), matching: find.text('001')));
     await t.pumpAndSettle();
     expect(t.widget<Text>(find.byKey(const ValueKey('rule-example'))).data, startsWith('Example: U001, U002'));
+    await t.ensureVisible(find.byKey(const ValueKey('rule-design')));
     await t.tap(find.byKey(const ValueKey('rule-design')));
     await t.pumpAndSettle();
     await t.tap(find.text('Premium Branded Token').last);
     await t.pumpAndSettle();
+    await t.ensureVisible(find.byKey(const ValueKey('rule-printer')));
     await t.tap(find.byKey(const ValueKey('rule-printer')));
     await t.pumpAndSettle();
     await t.tap(find.textContaining('Tea bar').last);
     await t.pumpAndSettle();
-    await tapKey(t, 'rule-copies-inc');
-    await tapKey(t, 'rule-test');
+    await tapVisible(t, 'rule-copies-inc');
+    await tapVisible(t, 'rule-test');
     await settle(t);
     final test = printers.text('tea');
     expect(test, contains('U001'));

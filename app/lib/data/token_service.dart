@@ -205,13 +205,21 @@ class TokenService {
           final mods = await _select('SELECT name FROM order_item_modifier WHERE order_item_id = ?', [r['id']]);
           items.add((r, SlipItem(name: r['name'] as String, qtyMilli: r['qty_milli'] as int, unitPriceMinor: r['unit_price_minor'] as int, totalMinor: r['line_total_minor'] as int, modifiers: [for (final m in mods) m['name'] as String], note: r['note'] as String?)));
         }
+        final categoryOf = {for (final r in await _select('SELECT id, category_id FROM product WHERE id IN (SELECT product_id FROM order_item WHERE order_id = ?)', [orderId])) r['id'] as String: r['category_id'] as String?};
         final date = o['business_date'] as String;
         final orderNo = (o['invoice_no'] as String?) ?? '';
 
         for (final rule in active) {
           if ((await _select('SELECT 1 AS x FROM token_issue WHERE order_id = ? AND rule_id = ? LIMIT 1', [orderId, rule.id])).isNotEmpty) continue;
-          final mine = rule.kind.needsStation || rule.station.isNotEmpty
-              ? [for (final e in items) if (rule.kind.needsStation && rule.station.trim().isEmpty ? false : _stationMatches(e.$1['station'] as String?, rule.station)) e.$2]
+          final scoped = rule.kind.needsStation || rule.station.isNotEmpty || rule.hasPicks;
+          final mine = scoped
+              ? [
+                  for (final e in items)
+                    if (!(rule.kind.needsStation && !rule.isScoped) &&
+                        _stationMatches(e.$1['station'] as String?, rule.station) &&
+                        rule.picks(e.$1['product_id'] as String?, categoryOf[e.$1['product_id']]))
+                      e.$2
+                ]
               : [for (final e in items) e.$2];
           if (mine.isEmpty) continue;
 
