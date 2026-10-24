@@ -192,7 +192,7 @@ class _CustomerDialogState extends ConsumerState<_CustomerDialog> {
 
 /// Bottom sheet used by the cart to attach a customer to the order (needed for credit sales).
 Future<String?> pickCustomer(BuildContext context, WidgetRef ref) {
-  return showModalBottomSheet<String>(context: context, isScrollControlled: true, useSafeArea: true, builder: (_) => const _CustomerPicker());
+  return showModalBottomSheet<String>(context: context, isScrollControlled: true, useSafeArea: true, builder: (_) => const SafeArea(top: false, child: _CustomerPicker()));
 }
 
 class _CustomerPicker extends ConsumerStatefulWidget {

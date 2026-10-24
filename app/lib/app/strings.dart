@@ -187,7 +187,7 @@ class Strings {
     'wrong_pin': 'Wrong PIN',
     'pin_locked': 'Too many attempts. Try again in a few minutes.',
     'sign_out': 'Sign out',
-    'pos': 'Sell',
+    'pos': 'POS',
     'menu': 'Menu',
     'reports': 'Reports',
     'settings': 'Settings',

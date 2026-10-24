@@ -53,7 +53,7 @@ void main() {
     await t.tap(find.text('Compact (faster)'));
     await t.pumpAndSettle();
     expect(await t.runAsync(() => getSetting(db, 'pos_layout')), 'compact');
-    await openTab(t, 'pos', 'Sell');
+    await openTab(t, 'pos', 'POS');
     await tapKey(t, 'open-shift');
     await tapKey(t, 'amount-ok');
     expect(find.byKey(const ValueKey('add-Zinger Burger')), findsNothing, reason: 'compact tiles have no Add button, tap the tile');

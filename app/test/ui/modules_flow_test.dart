@@ -208,7 +208,7 @@ void main() {
     await tapKey(t, 'form-ok');
     expect(find.byKey(const ValueKey('customer-Ahmed')), findsOneWidget);
 
-    await openTab(t, 'pos', 'Sell');
+    await openTab(t, 'pos', 'POS');
     await add(t, 'Zinger Burger');
     await tapKey(t, 'open-cart');
     // credit is not offered until a customer is attached to the order

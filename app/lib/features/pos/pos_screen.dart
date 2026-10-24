@@ -91,7 +91,7 @@ class _CartBar extends ConsumerWidget {
               context: context,
               isScrollControlled: true,
               useSafeArea: true,
-              builder: (_) => const FractionallySizedBox(heightFactor: 0.92, child: CartPanel(inSheet: true)),
+              builder: (_) => const FractionallySizedBox(heightFactor: 0.92, child: SafeArea(top: false, child: CartPanel(inSheet: true))),
             ),
             child: Row(children: [
               Badge(isLabelVisible: count > 0, label: Text('$count'), child: const Icon(Icons.shopping_bag_outlined)),
@@ -141,7 +141,7 @@ class _MenuPanel extends ConsumerWidget {
               : GridView.builder(
                   padding: const EdgeInsets.all(12),
                   gridDelegate: compact
-                      ? const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 170, mainAxisSpacing: 10, crossAxisSpacing: 10, mainAxisExtent: 112)
+                      ? const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 170, mainAxisSpacing: 10, crossAxisSpacing: 10, mainAxisExtent: 130)
                       : const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 200, mainAxisSpacing: 12, crossAxisSpacing: 12, mainAxisExtent: 220),
                   itemCount: list.length,
                   itemBuilder: (_, i) => _ProductTile(list[i], compact: compact),
@@ -232,7 +232,7 @@ class _ProductTile extends ConsumerWidget {
             child: compact
                 ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Row(children: [
-                      SizedBox(width: 28, height: 28, child: MenuImage(path: null, name: '${p.name} ${p.categoryName ?? ''}', radius: 8, iconSize: 16)),
+                      SizedBox(width: 44, height: 44, child: MenuImage(path: p.imagePath ?? p.categoryImagePath, name: '${p.name} ${p.categoryName ?? ''}', radius: 10, iconSize: 22)),
                       const Spacer(),
                       if (inCart != null)
                         Container(

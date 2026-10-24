@@ -98,7 +98,7 @@ void main() {
     await shot(t, '60_token_types');
     await t.pageBack();
     await t.pumpAndSettle();
-    await openTab(t, 'pos', 'Sell');
+    await openTab(t, 'pos', 'POS');
 
     // sell: roti-like item for the tandoor counter + a burger
     await tapKey(t, 'open-shift');
@@ -152,7 +152,7 @@ void main() {
     await tapKey(t, 'opt-print-bill');
     await t.pageBack();
     await t.pumpAndSettle();
-    await openTab(t, 'pos', 'Sell');
+    await openTab(t, 'pos', 'POS');
     await tapKey(t, 'open-shift');
     await tapKey(t, 'amount-ok');
     await sellCash(t, ['Zinger Burger']);
@@ -378,7 +378,7 @@ void main() {
     await addType(t, 'coupon');
     await t.pageBack();
     await t.pumpAndSettle();
-    await openTab(t, 'pos', 'Sell');
+    await openTab(t, 'pos', 'POS');
     await tapKey(t, 'open-shift');
     await tapKey(t, 'amount-ok');
     await sellCash(t, ['Fries']);

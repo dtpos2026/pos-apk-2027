@@ -133,7 +133,8 @@ class _CheckoutSheetState extends ConsumerState<CheckoutSheet> {
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(18),
+        // keep the last button above the phone's navigation bar (bottom sheets ignore it by themselves)
+        padding: EdgeInsets.fromLTRB(18, 18, 18, 18 + MediaQuery.viewPaddingOf(context).bottom),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Row(children: [
             Text(t['payment'], style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),

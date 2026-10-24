@@ -49,6 +49,11 @@ class ReceiptPaper extends StatelessWidget {
 
   Widget _line(RLine l, int cols, double textWidth) {
     switch (l) {
+      case RText() when l.box && l.width == 1 && l.height == 1 && !needsRaster(l.text):
+        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          for (final line in layoutBoxText(l.text, l.align, cols))
+            SizedBox(width: textWidth, child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(line, softWrap: false, style: TextStyle(fontWeight: l.bold ? FontWeight.w800 : FontWeight.w400)))),
+        ]);
       case RText():
         final size = fontSize * (l.height > l.width ? l.height : l.width).clamp(1, 4);
         return SizedBox(
@@ -68,7 +73,7 @@ class ReceiptPaper extends StatelessWidget {
         }
         final weight = l.bold ? FontWeight.w800 : FontWeight.w400;
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          for (final line in layoutRow(l.left, l.right, cols))
+          for (final line in layoutRow(l.left, l.right, cols, box: l.box))
             // double-height rows keep their width and are stretched vertically, exactly like ESC ! on the printer
             SizedBox(
               width: textWidth,
@@ -92,7 +97,7 @@ class ReceiptPaper extends StatelessWidget {
           );
         }
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          for (final line in layoutCols(l.cells, l.widths, cols))
+          for (final line in layoutCols(l.cells, l.widths, cols, box: l.box))
             SizedBox(width: textWidth, child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(line, softWrap: false, style: TextStyle(fontWeight: weight)))),
         ]);
       case RRule():

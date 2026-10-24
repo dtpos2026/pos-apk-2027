@@ -57,7 +57,7 @@ void main() {
     await t.pumpAndSettle();
 
     // the selling screen shows the item's own picture
-    await openTab(t, 'pos', 'Sell');
+    await openTab(t, 'pos', 'POS');
     if (find.byKey(const ValueKey('open-shift')).evaluate().isNotEmpty) {
       await tapKey(t, 'open-shift');
       await tapKey(t, 'amount-ok');

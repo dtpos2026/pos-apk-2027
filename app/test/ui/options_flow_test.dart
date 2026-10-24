@@ -41,7 +41,7 @@ void main() {
     await shot(t, '50_menu_options');
 
     // 2. till: tapping the pizza asks for the size and toppings
-    await openTab(t, 'pos', 'Sell');
+    await openTab(t, 'pos', 'POS');
     await tapKey(t, 'open-shift');
     await tapKey(t, 'amount-ok');
     await tapProduct(t, 'Pizza');

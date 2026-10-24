@@ -54,30 +54,35 @@ sealed class RLine {
 }
 
 class RText extends RLine {
-  const RText(this.text, {this.align = PrintAlign.left, this.bold = false, this.width = 1, this.height = 1});
+  const RText(this.text, {this.align = PrintAlign.left, this.bold = false, this.width = 1, this.height = 1, this.box = false});
   final String text;
   final PrintAlign align;
   final bool bold;
   final int width;
   final int height;
+
+  /// Drawn inside a text box: "| text |" (normal size only).
+  final bool box;
 }
 
 /// "left ......... right" on one line.
 class RRow extends RLine {
-  const RRow(this.left, this.right, {this.bold = false, this.height = 1});
+  const RRow(this.left, this.right, {this.bold = false, this.height = 1, this.box = false});
   final String left;
   final String right;
   final bool bold;
   final int height;
+  final bool box;
 }
 
 /// A table row: the first cell takes what the others leave and wraps; the others are right-aligned and never wrap.
 /// [widths] are the fixed columns of every cell after the first, for 58 mm paper; 80 mm paper widens them by half.
 class RCols extends RLine {
-  const RCols(this.cells, this.widths, {this.bold = false});
+  const RCols(this.cells, this.widths, {this.bold = false, this.box = false});
   final List<String> cells;
   final List<int> widths;
   final bool bold;
+  final bool box;
 }
 
 class RRule extends RLine {
@@ -116,8 +121,21 @@ int columnsFor(int paperMm) => paperMm == 80 ? 48 : 32;
 /// Dots across the paper: 384 for 58 mm, 576 for 80 mm.
 int dotsFor(int paperMm) => paperMm == 80 ? 576 : 384;
 
+/// "| text      |" with the text padded to [inner] characters.
+String boxed(String text, int inner) => '| ${text.padRight(inner)} |';
+
+/// Text lines inside a box, wrapped and aligned inside [columns].
+List<String> layoutBoxText(String text, PrintAlign align, int columns) {
+  final inner = columns - 4;
+  return [
+    for (final line in EscPosBuilder.wrap(text, inner))
+      boxed(switch (align) { PrintAlign.center => line.padLeft((inner + line.length) ~/ 2).padRight(inner), PrintAlign.right => line.padLeft(inner), PrintAlign.left => line }, inner)
+  ];
+}
+
 /// Lays out a two-column row. If the left text does not fit it wraps and the right text stays on the first line.
-List<String> layoutRow(String left, String right, int columns) {
+List<String> layoutRow(String left, String right, int columns, {bool box = false}) {
+  if (box && columns > 8) return [for (final l in layoutRow(left, right, columns - 4)) boxed(l, columns - 4)];
   final avail = columns - right.length - 1;
   final parts = avail > 0 ? EscPosBuilder.wrap(left, avail) : [left];
   final first = parts.isEmpty ? '' : parts.first;
@@ -125,7 +143,8 @@ List<String> layoutRow(String left, String right, int columns) {
 }
 
 /// Lays out a table row ([RCols]) as text lines of exactly [columns] characters (the first line; wrapped name lines follow).
-List<String> layoutCols(List<String> cells, List<int> widths, int columns) {
+List<String> layoutCols(List<String> cells, List<int> widths, int columns, {bool box = false}) {
+  if (box && columns > 8) return [for (final l in layoutCols(cells, widths, columns - 4)) boxed(l, columns - 4)];
   final scale = columns >= 48 ? 1.5 : 1.0;
   final w = [for (final x in widths) (x * scale).round()];
   final tail = StringBuffer();
@@ -192,6 +211,12 @@ class EscPosRenderer {
 
   void _simple(EscPosBuilder b, RLine l) {
     switch (l) {
+      case RText() when l.box && l.width == 1 && l.height == 1:
+        b.align(PrintAlign.left).bold(l.bold);
+        for (final line in layoutBoxText(l.text, l.align, b.columns)) {
+          b.line(line);
+        }
+        b.bold(false);
       case RText():
         b.align(l.align).bold(l.bold).size(width: l.width, height: l.height);
         // double-width text has half the columns: wrap to what fits
@@ -202,13 +227,13 @@ class EscPosRenderer {
         b.size().bold(false).align(PrintAlign.left);
       case RRow():
         b.align(PrintAlign.left).bold(l.bold).size(height: l.height);
-        for (final line in layoutRow(l.left, l.right, b.columns)) {
+        for (final line in layoutRow(l.left, l.right, b.columns, box: l.box)) {
           b.line(line);
         }
         b.size().bold(false);
       case RCols():
         b.align(PrintAlign.left).bold(l.bold);
-        for (final line in layoutCols(l.cells, l.widths, b.columns)) {
+        for (final line in layoutCols(l.cells, l.widths, b.columns, box: l.box)) {
           b.line(line);
         }
         b.bold(false);
@@ -244,16 +269,20 @@ String docToText(ReceiptDoc doc, int paperMm) {
   }
   for (final l in doc.lines) {
     switch (l) {
+      case RText() when l.box && l.width == 1 && l.height == 1:
+        for (final line in layoutBoxText(l.text, l.align, cols)) {
+          out.writeln(line);
+        }
       case RText():
         for (final line in EscPosBuilder.wrap(l.text, (cols / l.width).floor())) {
           out.writeln(align(line, l.align, (cols / l.width).floor(), l.width));
         }
       case RRow():
-        for (final line in layoutRow(l.left, l.right, cols)) {
+        for (final line in layoutRow(l.left, l.right, cols, box: l.box)) {
           out.writeln(line);
         }
       case RCols():
-        for (final line in layoutCols(l.cells, l.widths, cols)) {
+        for (final line in layoutCols(l.cells, l.widths, cols, box: l.box)) {
           out.writeln(line);
         }
       case RRule():
@@ -273,4 +302,4 @@ String docToText(ReceiptDoc doc, int paperMm) {
 
 /// A full-width rule; a multi-character pattern such as '- ' repeats and is cut to the paper width.
 String _rule(String ch, int cols) => ruleText(ch, cols);
-String ruleText(String ch, int cols) => (ch * (cols ~/ ch.length + 1)).substring(0, cols);
+String ruleText(String ch, int cols) => ch == '+' ? '+${'-' * (cols - 2)}+' : (ch * (cols ~/ ch.length + 1)).substring(0, cols);

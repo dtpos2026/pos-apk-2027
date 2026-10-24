@@ -89,6 +89,9 @@ class _AnimatedSplashScreenState extends State<AnimatedSplashScreen> with Ticker
 
     return Scaffold(
       body: Container(
+        // Scaffold gives its body loose constraints: without an explicit width this shrank to the logo's width (86%) and left a strip
+        width: double.infinity,
+        height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
@@ -97,6 +100,7 @@ class _AnimatedSplashScreenState extends State<AnimatedSplashScreen> with Ticker
           ),
         ),
         child: DecoratedBox(
+          position: DecorationPosition.background,
           decoration: BoxDecoration(
             gradient: RadialGradient(
               center: const Alignment(-0.4, -0.5),

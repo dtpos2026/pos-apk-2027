@@ -32,6 +32,11 @@ class DtFoodPosApp extends ConsumerWidget {
       locale: locale,
       supportedLocales: Strings.supported,
       localizationsDelegates: const [GlobalMaterialLocalizations.delegate, GlobalWidgetsLocalizations.delegate, GlobalCupertinoLocalizations.delegate],
+      // Android draws apps edge-to-edge: keep every screen (and bottom sheet) above the phone's navigation bar
+      builder: (context, child) => ColoredBox(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        child: SafeArea(top: false, left: false, right: false, child: child ?? const SizedBox.shrink()),
+      ),
       home: home ?? const Gate(),
     );
   }

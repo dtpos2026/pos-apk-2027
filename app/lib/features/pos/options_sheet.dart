@@ -9,7 +9,7 @@ import '../../data/queries.dart';
 
 /// Lets the cashier pick a size and add-ons before an item goes on the order. Returns the configured cart line.
 Future<CartItem?> showOptionsSheet(BuildContext context, WidgetRef ref, MenuProduct p, ProductOptions opts) {
-  return showModalBottomSheet<CartItem>(context: context, isScrollControlled: true, useSafeArea: true, builder: (_) => _OptionsSheet(p: p, opts: opts));
+  return showModalBottomSheet<CartItem>(context: context, isScrollControlled: true, useSafeArea: true, builder: (_) => SafeArea(top: false, child: _OptionsSheet(p: p, opts: opts)));
 }
 
 class _OptionsSheet extends ConsumerStatefulWidget {
