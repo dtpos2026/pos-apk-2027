@@ -23,6 +23,18 @@ class ReceiptTemplateStore {
       [t.encode(), _now().millisecondsSinceEpoch]);
 }
 
+/// Loads and saves the kitchen ticket design (receipt_template table, id 'kot').
+extension KotDesignStore on ReceiptTemplateStore {
+  Future<KotDesign> loadKot() async {
+    final r = await db.customSelect("SELECT config FROM receipt_template WHERE id = 'kot'").get();
+    return KotDesign.decode(r.isEmpty ? null : r.first.data['config'] as String);
+  }
+
+  Future<void> saveKot(KotDesign d) => db.customStatement(
+      "INSERT INTO receipt_template(id, kind, config, updated_at) VALUES ('kot','kot',?,?) ON CONFLICT(id) DO UPDATE SET config = excluded.config, version = version + 1, updated_at = excluded.updated_at",
+      [d.encode(), DateTime.now().millisecondsSinceEpoch]);
+}
+
 /// Keeps the business logo: a normalised PNG file in [dir] and its path in business_profile.logo_path.
 class LogoStore {
   LogoStore(this.db, this.dir, {DateTime Function()? now}) : _now = now ?? DateTime.now;

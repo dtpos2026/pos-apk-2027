@@ -75,6 +75,7 @@ Future<ReceiptData> loadReceipt(AppDatabase db, String orderId, {bool duplicate 
     totalMinor: o['total_minor'] as int,
     payments: [for (final p in pays) ReceiptPayment(p['name'] as String, (p['tendered'] as int?) ?? (p['amount'] as int))],
     changeMinor: pays.fold<int>(0, (s, p) => s + ((p['change'] as int?) ?? 0)),
+    token: (await q("SELECT label FROM token_issue WHERE order_id = ? AND kind IN ('order','price') AND status != 'void' ORDER BY created_at LIMIT 1", [orderId])).firstOrNull?['label'] as String?,
     footer: footer ?? 'Thank you! Visit again.',
     isDuplicate: duplicate,
     currency: cur,

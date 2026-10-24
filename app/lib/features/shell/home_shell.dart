@@ -1,3 +1,4 @@
+import '../tokens/tokens_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -34,6 +35,7 @@ class _Dest {
 final _destinations = <_Dest>[
   _Dest('pos', 'pos', Icons.point_of_sale, 'pos.sell', () => const PosScreen()),
   _Dest('tables', 'tables', Icons.table_restaurant_outlined, 'pos.sell', () => const TablesScreen(), module: 'tables'),
+  _Dest('tokens', 'tokens', Icons.confirmation_number_outlined, 'pos.sell', () => const TokensScreen(), module: 'tokens'),
   _Dest('bills', 'bills_title', Icons.receipt_long_outlined, 'pos.sell', () => const BillsScreen()),
   _Dest('reports', 'reports', Icons.bar_chart_rounded, 'reports.view', () => const ReportsScreen()),
   _Dest('customers', 'customers', Icons.people_alt_outlined, 'pos.sell', () => const CustomersScreen(), module: 'customers'),
@@ -52,7 +54,9 @@ class HomeShell extends ConsumerWidget {
     final t = Strings.of(context);
     final session = ref.watch(sessionProvider)!;
     final modules = ref.watch(activeModulesProvider);
-    final dests = _destinations.where((d) => session.can(d.permission) && (d.module == null || modules.contains(d.module))).toList();
+    // the Tokens screen only appears once the owner has set up at least one token type
+    final hasTokens = ref.watch(tokenConfigProvider).value?.active.isNotEmpty ?? false;
+    final dests = _destinations.where((d) => session.can(d.permission) && (d.module == null || modules.contains(d.module)) && (d.key != 'tokens' || hasTokens)).toList();
     final tab = ref.watch(shellTabProvider);
     final current = dests.firstWhere((d) => d.key == tab, orElse: () => dests.first);
     final index = dests.indexOf(current);

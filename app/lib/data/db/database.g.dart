@@ -4556,6 +4556,17 @@ class Product extends Table with TableInfo<Product, ProductData> {
         'NOT NULL DEFAULT \'item\' CHECK (kind IN (\'item\', \'combo\'))',
     defaultValue: const CustomExpression('\'item\''),
   );
+  static const VerificationMeta _stationMeta = const VerificationMeta(
+    'station',
+  );
+  late final GeneratedColumn<String> station = GeneratedColumn<String>(
+    'station',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: '',
+  );
   static const VerificationMeta _versionMeta = const VerificationMeta(
     'version',
   );
@@ -4605,6 +4616,7 @@ class Product extends Table with TableInfo<Product, ProductData> {
     available,
     trackStock,
     kind,
+    station,
     version,
     updatedAt,
     deletedAt,
@@ -4703,6 +4715,12 @@ class Product extends Table with TableInfo<Product, ProductData> {
         kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
       );
     }
+    if (data.containsKey('station')) {
+      context.handle(
+        _stationMeta,
+        station.isAcceptableOrUnknown(data['station']!, _stationMeta),
+      );
+    }
     if (data.containsKey('version')) {
       context.handle(
         _versionMeta,
@@ -4784,6 +4802,10 @@ class Product extends Table with TableInfo<Product, ProductData> {
         DriftSqlType.string,
         data['${effectivePrefix}kind'],
       )!,
+      station: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}station'],
+      ),
       version: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}version'],
@@ -4824,6 +4846,9 @@ class ProductData extends DataClass implements Insertable<ProductData> {
   final int available;
   final int trackStock;
   final String kind;
+  final String? station;
+
+  /// counter/station override (tandoor, tea, bbq...); null = the category's station
   final int version;
   final int updatedAt;
   final int? deletedAt;
@@ -4841,6 +4866,7 @@ class ProductData extends DataClass implements Insertable<ProductData> {
     required this.available,
     required this.trackStock,
     required this.kind,
+    this.station,
     required this.version,
     required this.updatedAt,
     this.deletedAt,
@@ -4875,6 +4901,9 @@ class ProductData extends DataClass implements Insertable<ProductData> {
     map['available'] = Variable<int>(available);
     map['track_stock'] = Variable<int>(trackStock);
     map['kind'] = Variable<String>(kind);
+    if (!nullToAbsent || station != null) {
+      map['station'] = Variable<String>(station);
+    }
     map['version'] = Variable<int>(version);
     map['updated_at'] = Variable<int>(updatedAt);
     if (!nullToAbsent || deletedAt != null) {
@@ -4908,6 +4937,9 @@ class ProductData extends DataClass implements Insertable<ProductData> {
       available: Value(available),
       trackStock: Value(trackStock),
       kind: Value(kind),
+      station: station == null && nullToAbsent
+          ? const Value.absent()
+          : Value(station),
       version: Value(version),
       updatedAt: Value(updatedAt),
       deletedAt: deletedAt == null && nullToAbsent
@@ -4935,6 +4967,7 @@ class ProductData extends DataClass implements Insertable<ProductData> {
       available: serializer.fromJson<int>(json['available']),
       trackStock: serializer.fromJson<int>(json['track_stock']),
       kind: serializer.fromJson<String>(json['kind']),
+      station: serializer.fromJson<String?>(json['station']),
       version: serializer.fromJson<int>(json['version']),
       updatedAt: serializer.fromJson<int>(json['updated_at']),
       deletedAt: serializer.fromJson<int?>(json['deleted_at']),
@@ -4957,6 +4990,7 @@ class ProductData extends DataClass implements Insertable<ProductData> {
       'available': serializer.toJson<int>(available),
       'track_stock': serializer.toJson<int>(trackStock),
       'kind': serializer.toJson<String>(kind),
+      'station': serializer.toJson<String?>(station),
       'version': serializer.toJson<int>(version),
       'updated_at': serializer.toJson<int>(updatedAt),
       'deleted_at': serializer.toJson<int?>(deletedAt),
@@ -4977,6 +5011,7 @@ class ProductData extends DataClass implements Insertable<ProductData> {
     int? available,
     int? trackStock,
     String? kind,
+    Value<String?> station = const Value.absent(),
     int? version,
     int? updatedAt,
     Value<int?> deletedAt = const Value.absent(),
@@ -4994,6 +5029,7 @@ class ProductData extends DataClass implements Insertable<ProductData> {
     available: available ?? this.available,
     trackStock: trackStock ?? this.trackStock,
     kind: kind ?? this.kind,
+    station: station.present ? station.value : this.station,
     version: version ?? this.version,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
@@ -5019,6 +5055,7 @@ class ProductData extends DataClass implements Insertable<ProductData> {
           ? data.trackStock.value
           : this.trackStock,
       kind: data.kind.present ? data.kind.value : this.kind,
+      station: data.station.present ? data.station.value : this.station,
       version: data.version.present ? data.version.value : this.version,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
@@ -5041,6 +5078,7 @@ class ProductData extends DataClass implements Insertable<ProductData> {
           ..write('available: $available, ')
           ..write('trackStock: $trackStock, ')
           ..write('kind: $kind, ')
+          ..write('station: $station, ')
           ..write('version: $version, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt')
@@ -5063,6 +5101,7 @@ class ProductData extends DataClass implements Insertable<ProductData> {
     available,
     trackStock,
     kind,
+    station,
     version,
     updatedAt,
     deletedAt,
@@ -5084,6 +5123,7 @@ class ProductData extends DataClass implements Insertable<ProductData> {
           other.available == this.available &&
           other.trackStock == this.trackStock &&
           other.kind == this.kind &&
+          other.station == this.station &&
           other.version == this.version &&
           other.updatedAt == this.updatedAt &&
           other.deletedAt == this.deletedAt);
@@ -5103,6 +5143,7 @@ class ProductCompanion extends UpdateCompanion<ProductData> {
   final Value<int> available;
   final Value<int> trackStock;
   final Value<String> kind;
+  final Value<String?> station;
   final Value<int> version;
   final Value<int> updatedAt;
   final Value<int?> deletedAt;
@@ -5121,6 +5162,7 @@ class ProductCompanion extends UpdateCompanion<ProductData> {
     this.available = const Value.absent(),
     this.trackStock = const Value.absent(),
     this.kind = const Value.absent(),
+    this.station = const Value.absent(),
     this.version = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
@@ -5140,6 +5182,7 @@ class ProductCompanion extends UpdateCompanion<ProductData> {
     this.available = const Value.absent(),
     this.trackStock = const Value.absent(),
     this.kind = const Value.absent(),
+    this.station = const Value.absent(),
     this.version = const Value.absent(),
     required int updatedAt,
     this.deletedAt = const Value.absent(),
@@ -5161,6 +5204,7 @@ class ProductCompanion extends UpdateCompanion<ProductData> {
     Expression<int>? available,
     Expression<int>? trackStock,
     Expression<String>? kind,
+    Expression<String>? station,
     Expression<int>? version,
     Expression<int>? updatedAt,
     Expression<int>? deletedAt,
@@ -5180,6 +5224,7 @@ class ProductCompanion extends UpdateCompanion<ProductData> {
       if (available != null) 'available': available,
       if (trackStock != null) 'track_stock': trackStock,
       if (kind != null) 'kind': kind,
+      if (station != null) 'station': station,
       if (version != null) 'version': version,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (deletedAt != null) 'deleted_at': deletedAt,
@@ -5201,6 +5246,7 @@ class ProductCompanion extends UpdateCompanion<ProductData> {
     Value<int>? available,
     Value<int>? trackStock,
     Value<String>? kind,
+    Value<String?>? station,
     Value<int>? version,
     Value<int>? updatedAt,
     Value<int?>? deletedAt,
@@ -5220,6 +5266,7 @@ class ProductCompanion extends UpdateCompanion<ProductData> {
       available: available ?? this.available,
       trackStock: trackStock ?? this.trackStock,
       kind: kind ?? this.kind,
+      station: station ?? this.station,
       version: version ?? this.version,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
@@ -5269,6 +5316,9 @@ class ProductCompanion extends UpdateCompanion<ProductData> {
     if (kind.present) {
       map['kind'] = Variable<String>(kind.value);
     }
+    if (station.present) {
+      map['station'] = Variable<String>(station.value);
+    }
     if (version.present) {
       map['version'] = Variable<int>(version.value);
     }
@@ -5300,6 +5350,7 @@ class ProductCompanion extends UpdateCompanion<ProductData> {
           ..write('available: $available, ')
           ..write('trackStock: $trackStock, ')
           ..write('kind: $kind, ')
+          ..write('station: $station, ')
           ..write('version: $version, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
@@ -24633,6 +24684,2014 @@ class InboxMessageCompanion extends UpdateCompanion<InboxMessageData> {
   }
 }
 
+class TokenTemplate extends Table
+    with TableInfo<TokenTemplate, TokenTemplateData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  TokenTemplate(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'PRIMARY KEY',
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  static const VerificationMeta _configMeta = const VerificationMeta('config');
+  late final GeneratedColumn<String> config = GeneratedColumn<String>(
+    'config',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, name, config, updatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'token_template';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<TokenTemplateData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('config')) {
+      context.handle(
+        _configMeta,
+        config.isAcceptableOrUnknown(data['config']!, _configMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_configMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  TokenTemplateData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TokenTemplateData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      ),
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      config: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}config'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  TokenTemplate createAlias(String alias) {
+    return TokenTemplate(attachedDatabase, alias);
+  }
+
+  @override
+  bool get dontWriteConstraints => true;
+}
+
+class TokenTemplateData extends DataClass
+    implements Insertable<TokenTemplateData> {
+  /// edited/duplicated token designs; built-in designs live in code and are overridden by a row with the same id
+  final String? id;
+  final String name;
+  final String config;
+  final int updatedAt;
+  const TokenTemplateData({
+    this.id,
+    required this.name,
+    required this.config,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (!nullToAbsent || id != null) {
+      map['id'] = Variable<String>(id);
+    }
+    map['name'] = Variable<String>(name);
+    map['config'] = Variable<String>(config);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  TokenTemplateCompanion toCompanion(bool nullToAbsent) {
+    return TokenTemplateCompanion(
+      id: id == null && nullToAbsent ? const Value.absent() : Value(id),
+      name: Value(name),
+      config: Value(config),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory TokenTemplateData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TokenTemplateData(
+      id: serializer.fromJson<String?>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      config: serializer.fromJson<String>(json['config']),
+      updatedAt: serializer.fromJson<int>(json['updated_at']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String?>(id),
+      'name': serializer.toJson<String>(name),
+      'config': serializer.toJson<String>(config),
+      'updated_at': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  TokenTemplateData copyWith({
+    Value<String?> id = const Value.absent(),
+    String? name,
+    String? config,
+    int? updatedAt,
+  }) => TokenTemplateData(
+    id: id.present ? id.value : this.id,
+    name: name ?? this.name,
+    config: config ?? this.config,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  TokenTemplateData copyWithCompanion(TokenTemplateCompanion data) {
+    return TokenTemplateData(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      config: data.config.present ? data.config.value : this.config,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TokenTemplateData(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('config: $config, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, name, config, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TokenTemplateData &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.config == this.config &&
+          other.updatedAt == this.updatedAt);
+}
+
+class TokenTemplateCompanion extends UpdateCompanion<TokenTemplateData> {
+  final Value<String?> id;
+  final Value<String> name;
+  final Value<String> config;
+  final Value<int> updatedAt;
+  final Value<int> rowid;
+  const TokenTemplateCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.config = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  TokenTemplateCompanion.insert({
+    this.id = const Value.absent(),
+    required String name,
+    required String config,
+    required int updatedAt,
+    this.rowid = const Value.absent(),
+  }) : name = Value(name),
+       config = Value(config),
+       updatedAt = Value(updatedAt);
+  static Insertable<TokenTemplateData> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<String>? config,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (config != null) 'config': config,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  TokenTemplateCompanion copyWith({
+    Value<String?>? id,
+    Value<String>? name,
+    Value<String>? config,
+    Value<int>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return TokenTemplateCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      config: config ?? this.config,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (config.present) {
+      map['config'] = Variable<String>(config.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TokenTemplateCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('config: $config, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class TokenSeq extends Table with TableInfo<TokenSeq, TokenSeqData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  TokenSeq(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _scopeMeta = const VerificationMeta('scope');
+  late final GeneratedColumn<String> scope = GeneratedColumn<String>(
+    'scope',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'PRIMARY KEY',
+  );
+  static const VerificationMeta _lastNoMeta = const VerificationMeta('lastNo');
+  late final GeneratedColumn<int> lastNo = GeneratedColumn<int>(
+    'last_no',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  @override
+  List<GeneratedColumn> get $columns => [scope, lastNo];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'token_seq';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<TokenSeqData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('scope')) {
+      context.handle(
+        _scopeMeta,
+        scope.isAcceptableOrUnknown(data['scope']!, _scopeMeta),
+      );
+    }
+    if (data.containsKey('last_no')) {
+      context.handle(
+        _lastNoMeta,
+        lastNo.isAcceptableOrUnknown(data['last_no']!, _lastNoMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_lastNoMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {scope};
+  @override
+  TokenSeqData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TokenSeqData(
+      scope: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}scope'],
+      ),
+      lastNo: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_no'],
+      )!,
+    );
+  }
+
+  @override
+  TokenSeq createAlias(String alias) {
+    return TokenSeq(attachedDatabase, alias);
+  }
+
+  @override
+  bool get dontWriteConstraints => true;
+}
+
+class TokenSeqData extends DataClass implements Insertable<TokenSeqData> {
+  /// last number handed out per rule and (optionally) business date
+  final String? scope;
+  final int lastNo;
+  const TokenSeqData({this.scope, required this.lastNo});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (!nullToAbsent || scope != null) {
+      map['scope'] = Variable<String>(scope);
+    }
+    map['last_no'] = Variable<int>(lastNo);
+    return map;
+  }
+
+  TokenSeqCompanion toCompanion(bool nullToAbsent) {
+    return TokenSeqCompanion(
+      scope: scope == null && nullToAbsent
+          ? const Value.absent()
+          : Value(scope),
+      lastNo: Value(lastNo),
+    );
+  }
+
+  factory TokenSeqData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TokenSeqData(
+      scope: serializer.fromJson<String?>(json['scope']),
+      lastNo: serializer.fromJson<int>(json['last_no']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'scope': serializer.toJson<String?>(scope),
+      'last_no': serializer.toJson<int>(lastNo),
+    };
+  }
+
+  TokenSeqData copyWith({
+    Value<String?> scope = const Value.absent(),
+    int? lastNo,
+  }) => TokenSeqData(
+    scope: scope.present ? scope.value : this.scope,
+    lastNo: lastNo ?? this.lastNo,
+  );
+  TokenSeqData copyWithCompanion(TokenSeqCompanion data) {
+    return TokenSeqData(
+      scope: data.scope.present ? data.scope.value : this.scope,
+      lastNo: data.lastNo.present ? data.lastNo.value : this.lastNo,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TokenSeqData(')
+          ..write('scope: $scope, ')
+          ..write('lastNo: $lastNo')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(scope, lastNo);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TokenSeqData &&
+          other.scope == this.scope &&
+          other.lastNo == this.lastNo);
+}
+
+class TokenSeqCompanion extends UpdateCompanion<TokenSeqData> {
+  final Value<String?> scope;
+  final Value<int> lastNo;
+  final Value<int> rowid;
+  const TokenSeqCompanion({
+    this.scope = const Value.absent(),
+    this.lastNo = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  TokenSeqCompanion.insert({
+    this.scope = const Value.absent(),
+    required int lastNo,
+    this.rowid = const Value.absent(),
+  }) : lastNo = Value(lastNo);
+  static Insertable<TokenSeqData> custom({
+    Expression<String>? scope,
+    Expression<int>? lastNo,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (scope != null) 'scope': scope,
+      if (lastNo != null) 'last_no': lastNo,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  TokenSeqCompanion copyWith({
+    Value<String?>? scope,
+    Value<int>? lastNo,
+    Value<int>? rowid,
+  }) {
+    return TokenSeqCompanion(
+      scope: scope ?? this.scope,
+      lastNo: lastNo ?? this.lastNo,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (scope.present) {
+      map['scope'] = Variable<String>(scope.value);
+    }
+    if (lastNo.present) {
+      map['last_no'] = Variable<int>(lastNo.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TokenSeqCompanion(')
+          ..write('scope: $scope, ')
+          ..write('lastNo: $lastNo, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class TokenIssue extends Table with TableInfo<TokenIssue, TokenIssueData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  TokenIssue(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'PRIMARY KEY',
+  );
+  static const VerificationMeta _orderIdMeta = const VerificationMeta(
+    'orderId',
+  );
+  late final GeneratedColumn<String> orderId = GeneratedColumn<String>(
+    'order_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL REFERENCES "order"(id)',
+  );
+  static const VerificationMeta _ruleIdMeta = const VerificationMeta('ruleId');
+  late final GeneratedColumn<String> ruleId = GeneratedColumn<String>(
+    'rule_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  static const VerificationMeta _partMeta = const VerificationMeta('part');
+  late final GeneratedColumn<int> part = GeneratedColumn<int>(
+    'part',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT 0',
+    defaultValue: const CustomExpression('0'),
+  );
+  static const VerificationMeta _seqMeta = const VerificationMeta('seq');
+  late final GeneratedColumn<int> seq = GeneratedColumn<int>(
+    'seq',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  static const VerificationMeta _labelMeta = const VerificationMeta('label');
+  late final GeneratedColumn<String> label = GeneratedColumn<String>(
+    'label',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  static const VerificationMeta _stationMeta = const VerificationMeta(
+    'station',
+  );
+  late final GeneratedColumn<String> station = GeneratedColumn<String>(
+    'station',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: '',
+  );
+  static const VerificationMeta _payloadMeta = const VerificationMeta(
+    'payload',
+  );
+  late final GeneratedColumn<String> payload = GeneratedColumn<String>(
+    'payload',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints:
+        'NOT NULL DEFAULT \'issued\' CHECK (status IN (\'issued\', \'collected\', \'void\'))',
+    defaultValue: const CustomExpression('\'issued\''),
+  );
+  static const VerificationMeta _printCountMeta = const VerificationMeta(
+    'printCount',
+  );
+  late final GeneratedColumn<int> printCount = GeneratedColumn<int>(
+    'print_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT 0',
+    defaultValue: const CustomExpression('0'),
+  );
+  static const VerificationMeta _lastPrintedAtMeta = const VerificationMeta(
+    'lastPrintedAt',
+  );
+  late final GeneratedColumn<int> lastPrintedAt = GeneratedColumn<int>(
+    'last_printed_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: '',
+  );
+  static const VerificationMeta _businessDateMeta = const VerificationMeta(
+    'businessDate',
+  );
+  late final GeneratedColumn<String> businessDate = GeneratedColumn<String>(
+    'business_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  static const VerificationMeta _collectedAtMeta = const VerificationMeta(
+    'collectedAt',
+  );
+  late final GeneratedColumn<int> collectedAt = GeneratedColumn<int>(
+    'collected_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: '',
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    orderId,
+    ruleId,
+    kind,
+    part,
+    seq,
+    label,
+    station,
+    payload,
+    status,
+    printCount,
+    lastPrintedAt,
+    businessDate,
+    createdAt,
+    collectedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'token_issue';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<TokenIssueData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('order_id')) {
+      context.handle(
+        _orderIdMeta,
+        orderId.isAcceptableOrUnknown(data['order_id']!, _orderIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_orderIdMeta);
+    }
+    if (data.containsKey('rule_id')) {
+      context.handle(
+        _ruleIdMeta,
+        ruleId.isAcceptableOrUnknown(data['rule_id']!, _ruleIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_ruleIdMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('part')) {
+      context.handle(
+        _partMeta,
+        part.isAcceptableOrUnknown(data['part']!, _partMeta),
+      );
+    }
+    if (data.containsKey('seq')) {
+      context.handle(
+        _seqMeta,
+        seq.isAcceptableOrUnknown(data['seq']!, _seqMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_seqMeta);
+    }
+    if (data.containsKey('label')) {
+      context.handle(
+        _labelMeta,
+        label.isAcceptableOrUnknown(data['label']!, _labelMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_labelMeta);
+    }
+    if (data.containsKey('station')) {
+      context.handle(
+        _stationMeta,
+        station.isAcceptableOrUnknown(data['station']!, _stationMeta),
+      );
+    }
+    if (data.containsKey('payload')) {
+      context.handle(
+        _payloadMeta,
+        payload.isAcceptableOrUnknown(data['payload']!, _payloadMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_payloadMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('print_count')) {
+      context.handle(
+        _printCountMeta,
+        printCount.isAcceptableOrUnknown(data['print_count']!, _printCountMeta),
+      );
+    }
+    if (data.containsKey('last_printed_at')) {
+      context.handle(
+        _lastPrintedAtMeta,
+        lastPrintedAt.isAcceptableOrUnknown(
+          data['last_printed_at']!,
+          _lastPrintedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('business_date')) {
+      context.handle(
+        _businessDateMeta,
+        businessDate.isAcceptableOrUnknown(
+          data['business_date']!,
+          _businessDateMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_businessDateMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('collected_at')) {
+      context.handle(
+        _collectedAtMeta,
+        collectedAt.isAcceptableOrUnknown(
+          data['collected_at']!,
+          _collectedAtMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {orderId, ruleId, part},
+  ];
+  @override
+  TokenIssueData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TokenIssueData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      ),
+      orderId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}order_id'],
+      )!,
+      ruleId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}rule_id'],
+      )!,
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      )!,
+      part: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}part'],
+      )!,
+      seq: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}seq'],
+      )!,
+      label: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}label'],
+      )!,
+      station: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}station'],
+      ),
+      payload: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payload'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      printCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}print_count'],
+      )!,
+      lastPrintedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_printed_at'],
+      ),
+      businessDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}business_date'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      collectedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}collected_at'],
+      ),
+    );
+  }
+
+  @override
+  TokenIssue createAlias(String alias) {
+    return TokenIssue(attachedDatabase, alias);
+  }
+
+  @override
+  List<String> get customConstraints => const [
+    'UNIQUE(order_id, rule_id, part)',
+  ];
+  @override
+  bool get dontWriteConstraints => true;
+}
+
+class TokenIssueData extends DataClass implements Insertable<TokenIssueData> {
+  final String? id;
+  final String orderId;
+  final String ruleId;
+  final String kind;
+  final int part;
+
+  /// part: 0 for one token per order, 0..n for split tokens
+  final int seq;
+  final String label;
+  final String? station;
+  final String payload;
+
+  /// JSON snapshot of what the token shows (items, counter, totals)
+  final String status;
+  final int printCount;
+  final int? lastPrintedAt;
+  final String businessDate;
+  final int createdAt;
+  final int? collectedAt;
+  const TokenIssueData({
+    this.id,
+    required this.orderId,
+    required this.ruleId,
+    required this.kind,
+    required this.part,
+    required this.seq,
+    required this.label,
+    this.station,
+    required this.payload,
+    required this.status,
+    required this.printCount,
+    this.lastPrintedAt,
+    required this.businessDate,
+    required this.createdAt,
+    this.collectedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (!nullToAbsent || id != null) {
+      map['id'] = Variable<String>(id);
+    }
+    map['order_id'] = Variable<String>(orderId);
+    map['rule_id'] = Variable<String>(ruleId);
+    map['kind'] = Variable<String>(kind);
+    map['part'] = Variable<int>(part);
+    map['seq'] = Variable<int>(seq);
+    map['label'] = Variable<String>(label);
+    if (!nullToAbsent || station != null) {
+      map['station'] = Variable<String>(station);
+    }
+    map['payload'] = Variable<String>(payload);
+    map['status'] = Variable<String>(status);
+    map['print_count'] = Variable<int>(printCount);
+    if (!nullToAbsent || lastPrintedAt != null) {
+      map['last_printed_at'] = Variable<int>(lastPrintedAt);
+    }
+    map['business_date'] = Variable<String>(businessDate);
+    map['created_at'] = Variable<int>(createdAt);
+    if (!nullToAbsent || collectedAt != null) {
+      map['collected_at'] = Variable<int>(collectedAt);
+    }
+    return map;
+  }
+
+  TokenIssueCompanion toCompanion(bool nullToAbsent) {
+    return TokenIssueCompanion(
+      id: id == null && nullToAbsent ? const Value.absent() : Value(id),
+      orderId: Value(orderId),
+      ruleId: Value(ruleId),
+      kind: Value(kind),
+      part: Value(part),
+      seq: Value(seq),
+      label: Value(label),
+      station: station == null && nullToAbsent
+          ? const Value.absent()
+          : Value(station),
+      payload: Value(payload),
+      status: Value(status),
+      printCount: Value(printCount),
+      lastPrintedAt: lastPrintedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastPrintedAt),
+      businessDate: Value(businessDate),
+      createdAt: Value(createdAt),
+      collectedAt: collectedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(collectedAt),
+    );
+  }
+
+  factory TokenIssueData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TokenIssueData(
+      id: serializer.fromJson<String?>(json['id']),
+      orderId: serializer.fromJson<String>(json['order_id']),
+      ruleId: serializer.fromJson<String>(json['rule_id']),
+      kind: serializer.fromJson<String>(json['kind']),
+      part: serializer.fromJson<int>(json['part']),
+      seq: serializer.fromJson<int>(json['seq']),
+      label: serializer.fromJson<String>(json['label']),
+      station: serializer.fromJson<String?>(json['station']),
+      payload: serializer.fromJson<String>(json['payload']),
+      status: serializer.fromJson<String>(json['status']),
+      printCount: serializer.fromJson<int>(json['print_count']),
+      lastPrintedAt: serializer.fromJson<int?>(json['last_printed_at']),
+      businessDate: serializer.fromJson<String>(json['business_date']),
+      createdAt: serializer.fromJson<int>(json['created_at']),
+      collectedAt: serializer.fromJson<int?>(json['collected_at']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String?>(id),
+      'order_id': serializer.toJson<String>(orderId),
+      'rule_id': serializer.toJson<String>(ruleId),
+      'kind': serializer.toJson<String>(kind),
+      'part': serializer.toJson<int>(part),
+      'seq': serializer.toJson<int>(seq),
+      'label': serializer.toJson<String>(label),
+      'station': serializer.toJson<String?>(station),
+      'payload': serializer.toJson<String>(payload),
+      'status': serializer.toJson<String>(status),
+      'print_count': serializer.toJson<int>(printCount),
+      'last_printed_at': serializer.toJson<int?>(lastPrintedAt),
+      'business_date': serializer.toJson<String>(businessDate),
+      'created_at': serializer.toJson<int>(createdAt),
+      'collected_at': serializer.toJson<int?>(collectedAt),
+    };
+  }
+
+  TokenIssueData copyWith({
+    Value<String?> id = const Value.absent(),
+    String? orderId,
+    String? ruleId,
+    String? kind,
+    int? part,
+    int? seq,
+    String? label,
+    Value<String?> station = const Value.absent(),
+    String? payload,
+    String? status,
+    int? printCount,
+    Value<int?> lastPrintedAt = const Value.absent(),
+    String? businessDate,
+    int? createdAt,
+    Value<int?> collectedAt = const Value.absent(),
+  }) => TokenIssueData(
+    id: id.present ? id.value : this.id,
+    orderId: orderId ?? this.orderId,
+    ruleId: ruleId ?? this.ruleId,
+    kind: kind ?? this.kind,
+    part: part ?? this.part,
+    seq: seq ?? this.seq,
+    label: label ?? this.label,
+    station: station.present ? station.value : this.station,
+    payload: payload ?? this.payload,
+    status: status ?? this.status,
+    printCount: printCount ?? this.printCount,
+    lastPrintedAt: lastPrintedAt.present
+        ? lastPrintedAt.value
+        : this.lastPrintedAt,
+    businessDate: businessDate ?? this.businessDate,
+    createdAt: createdAt ?? this.createdAt,
+    collectedAt: collectedAt.present ? collectedAt.value : this.collectedAt,
+  );
+  TokenIssueData copyWithCompanion(TokenIssueCompanion data) {
+    return TokenIssueData(
+      id: data.id.present ? data.id.value : this.id,
+      orderId: data.orderId.present ? data.orderId.value : this.orderId,
+      ruleId: data.ruleId.present ? data.ruleId.value : this.ruleId,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      part: data.part.present ? data.part.value : this.part,
+      seq: data.seq.present ? data.seq.value : this.seq,
+      label: data.label.present ? data.label.value : this.label,
+      station: data.station.present ? data.station.value : this.station,
+      payload: data.payload.present ? data.payload.value : this.payload,
+      status: data.status.present ? data.status.value : this.status,
+      printCount: data.printCount.present
+          ? data.printCount.value
+          : this.printCount,
+      lastPrintedAt: data.lastPrintedAt.present
+          ? data.lastPrintedAt.value
+          : this.lastPrintedAt,
+      businessDate: data.businessDate.present
+          ? data.businessDate.value
+          : this.businessDate,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      collectedAt: data.collectedAt.present
+          ? data.collectedAt.value
+          : this.collectedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TokenIssueData(')
+          ..write('id: $id, ')
+          ..write('orderId: $orderId, ')
+          ..write('ruleId: $ruleId, ')
+          ..write('kind: $kind, ')
+          ..write('part: $part, ')
+          ..write('seq: $seq, ')
+          ..write('label: $label, ')
+          ..write('station: $station, ')
+          ..write('payload: $payload, ')
+          ..write('status: $status, ')
+          ..write('printCount: $printCount, ')
+          ..write('lastPrintedAt: $lastPrintedAt, ')
+          ..write('businessDate: $businessDate, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('collectedAt: $collectedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    orderId,
+    ruleId,
+    kind,
+    part,
+    seq,
+    label,
+    station,
+    payload,
+    status,
+    printCount,
+    lastPrintedAt,
+    businessDate,
+    createdAt,
+    collectedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TokenIssueData &&
+          other.id == this.id &&
+          other.orderId == this.orderId &&
+          other.ruleId == this.ruleId &&
+          other.kind == this.kind &&
+          other.part == this.part &&
+          other.seq == this.seq &&
+          other.label == this.label &&
+          other.station == this.station &&
+          other.payload == this.payload &&
+          other.status == this.status &&
+          other.printCount == this.printCount &&
+          other.lastPrintedAt == this.lastPrintedAt &&
+          other.businessDate == this.businessDate &&
+          other.createdAt == this.createdAt &&
+          other.collectedAt == this.collectedAt);
+}
+
+class TokenIssueCompanion extends UpdateCompanion<TokenIssueData> {
+  final Value<String?> id;
+  final Value<String> orderId;
+  final Value<String> ruleId;
+  final Value<String> kind;
+  final Value<int> part;
+  final Value<int> seq;
+  final Value<String> label;
+  final Value<String?> station;
+  final Value<String> payload;
+  final Value<String> status;
+  final Value<int> printCount;
+  final Value<int?> lastPrintedAt;
+  final Value<String> businessDate;
+  final Value<int> createdAt;
+  final Value<int?> collectedAt;
+  final Value<int> rowid;
+  const TokenIssueCompanion({
+    this.id = const Value.absent(),
+    this.orderId = const Value.absent(),
+    this.ruleId = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.part = const Value.absent(),
+    this.seq = const Value.absent(),
+    this.label = const Value.absent(),
+    this.station = const Value.absent(),
+    this.payload = const Value.absent(),
+    this.status = const Value.absent(),
+    this.printCount = const Value.absent(),
+    this.lastPrintedAt = const Value.absent(),
+    this.businessDate = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.collectedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  TokenIssueCompanion.insert({
+    this.id = const Value.absent(),
+    required String orderId,
+    required String ruleId,
+    required String kind,
+    this.part = const Value.absent(),
+    required int seq,
+    required String label,
+    this.station = const Value.absent(),
+    required String payload,
+    this.status = const Value.absent(),
+    this.printCount = const Value.absent(),
+    this.lastPrintedAt = const Value.absent(),
+    required String businessDate,
+    required int createdAt,
+    this.collectedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : orderId = Value(orderId),
+       ruleId = Value(ruleId),
+       kind = Value(kind),
+       seq = Value(seq),
+       label = Value(label),
+       payload = Value(payload),
+       businessDate = Value(businessDate),
+       createdAt = Value(createdAt);
+  static Insertable<TokenIssueData> custom({
+    Expression<String>? id,
+    Expression<String>? orderId,
+    Expression<String>? ruleId,
+    Expression<String>? kind,
+    Expression<int>? part,
+    Expression<int>? seq,
+    Expression<String>? label,
+    Expression<String>? station,
+    Expression<String>? payload,
+    Expression<String>? status,
+    Expression<int>? printCount,
+    Expression<int>? lastPrintedAt,
+    Expression<String>? businessDate,
+    Expression<int>? createdAt,
+    Expression<int>? collectedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (orderId != null) 'order_id': orderId,
+      if (ruleId != null) 'rule_id': ruleId,
+      if (kind != null) 'kind': kind,
+      if (part != null) 'part': part,
+      if (seq != null) 'seq': seq,
+      if (label != null) 'label': label,
+      if (station != null) 'station': station,
+      if (payload != null) 'payload': payload,
+      if (status != null) 'status': status,
+      if (printCount != null) 'print_count': printCount,
+      if (lastPrintedAt != null) 'last_printed_at': lastPrintedAt,
+      if (businessDate != null) 'business_date': businessDate,
+      if (createdAt != null) 'created_at': createdAt,
+      if (collectedAt != null) 'collected_at': collectedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  TokenIssueCompanion copyWith({
+    Value<String?>? id,
+    Value<String>? orderId,
+    Value<String>? ruleId,
+    Value<String>? kind,
+    Value<int>? part,
+    Value<int>? seq,
+    Value<String>? label,
+    Value<String?>? station,
+    Value<String>? payload,
+    Value<String>? status,
+    Value<int>? printCount,
+    Value<int?>? lastPrintedAt,
+    Value<String>? businessDate,
+    Value<int>? createdAt,
+    Value<int?>? collectedAt,
+    Value<int>? rowid,
+  }) {
+    return TokenIssueCompanion(
+      id: id ?? this.id,
+      orderId: orderId ?? this.orderId,
+      ruleId: ruleId ?? this.ruleId,
+      kind: kind ?? this.kind,
+      part: part ?? this.part,
+      seq: seq ?? this.seq,
+      label: label ?? this.label,
+      station: station ?? this.station,
+      payload: payload ?? this.payload,
+      status: status ?? this.status,
+      printCount: printCount ?? this.printCount,
+      lastPrintedAt: lastPrintedAt ?? this.lastPrintedAt,
+      businessDate: businessDate ?? this.businessDate,
+      createdAt: createdAt ?? this.createdAt,
+      collectedAt: collectedAt ?? this.collectedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (orderId.present) {
+      map['order_id'] = Variable<String>(orderId.value);
+    }
+    if (ruleId.present) {
+      map['rule_id'] = Variable<String>(ruleId.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (part.present) {
+      map['part'] = Variable<int>(part.value);
+    }
+    if (seq.present) {
+      map['seq'] = Variable<int>(seq.value);
+    }
+    if (label.present) {
+      map['label'] = Variable<String>(label.value);
+    }
+    if (station.present) {
+      map['station'] = Variable<String>(station.value);
+    }
+    if (payload.present) {
+      map['payload'] = Variable<String>(payload.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (printCount.present) {
+      map['print_count'] = Variable<int>(printCount.value);
+    }
+    if (lastPrintedAt.present) {
+      map['last_printed_at'] = Variable<int>(lastPrintedAt.value);
+    }
+    if (businessDate.present) {
+      map['business_date'] = Variable<String>(businessDate.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (collectedAt.present) {
+      map['collected_at'] = Variable<int>(collectedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TokenIssueCompanion(')
+          ..write('id: $id, ')
+          ..write('orderId: $orderId, ')
+          ..write('ruleId: $ruleId, ')
+          ..write('kind: $kind, ')
+          ..write('part: $part, ')
+          ..write('seq: $seq, ')
+          ..write('label: $label, ')
+          ..write('station: $station, ')
+          ..write('payload: $payload, ')
+          ..write('status: $status, ')
+          ..write('printCount: $printCount, ')
+          ..write('lastPrintedAt: $lastPrintedAt, ')
+          ..write('businessDate: $businessDate, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('collectedAt: $collectedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class Coupon extends Table with TableInfo<Coupon, CouponData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  Coupon(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'PRIMARY KEY',
+  );
+  static const VerificationMeta _codeMeta = const VerificationMeta('code');
+  late final GeneratedColumn<String> code = GeneratedColumn<String>(
+    'code',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL UNIQUE',
+  );
+  static const VerificationMeta _tokenIdMeta = const VerificationMeta(
+    'tokenId',
+  );
+  late final GeneratedColumn<String> tokenId = GeneratedColumn<String>(
+    'token_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'REFERENCES token_issue(id)',
+  );
+  static const VerificationMeta _orderIdMeta = const VerificationMeta(
+    'orderId',
+  );
+  late final GeneratedColumn<String> orderId = GeneratedColumn<String>(
+    'order_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL REFERENCES "order"(id)',
+  );
+  static const VerificationMeta _labelMeta = const VerificationMeta('label');
+  late final GeneratedColumn<String> label = GeneratedColumn<String>(
+    'label',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  static const VerificationMeta _valueMinorMeta = const VerificationMeta(
+    'valueMinor',
+  );
+  late final GeneratedColumn<int> valueMinor = GeneratedColumn<int>(
+    'value_minor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints:
+        'NOT NULL DEFAULT \'issued\' CHECK (status IN (\'issued\', \'redeemed\', \'void\'))',
+    defaultValue: const CustomExpression('\'issued\''),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  static const VerificationMeta _redeemedAtMeta = const VerificationMeta(
+    'redeemedAt',
+  );
+  late final GeneratedColumn<int> redeemedAt = GeneratedColumn<int>(
+    'redeemed_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: '',
+  );
+  static const VerificationMeta _redeemedByMeta = const VerificationMeta(
+    'redeemedBy',
+  );
+  late final GeneratedColumn<String> redeemedBy = GeneratedColumn<String>(
+    'redeemed_by',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: '',
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    code,
+    tokenId,
+    orderId,
+    label,
+    valueMinor,
+    status,
+    createdAt,
+    redeemedAt,
+    redeemedBy,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'coupon';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CouponData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('code')) {
+      context.handle(
+        _codeMeta,
+        code.isAcceptableOrUnknown(data['code']!, _codeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_codeMeta);
+    }
+    if (data.containsKey('token_id')) {
+      context.handle(
+        _tokenIdMeta,
+        tokenId.isAcceptableOrUnknown(data['token_id']!, _tokenIdMeta),
+      );
+    }
+    if (data.containsKey('order_id')) {
+      context.handle(
+        _orderIdMeta,
+        orderId.isAcceptableOrUnknown(data['order_id']!, _orderIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_orderIdMeta);
+    }
+    if (data.containsKey('label')) {
+      context.handle(
+        _labelMeta,
+        label.isAcceptableOrUnknown(data['label']!, _labelMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_labelMeta);
+    }
+    if (data.containsKey('value_minor')) {
+      context.handle(
+        _valueMinorMeta,
+        valueMinor.isAcceptableOrUnknown(data['value_minor']!, _valueMinorMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_valueMinorMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('redeemed_at')) {
+      context.handle(
+        _redeemedAtMeta,
+        redeemedAt.isAcceptableOrUnknown(data['redeemed_at']!, _redeemedAtMeta),
+      );
+    }
+    if (data.containsKey('redeemed_by')) {
+      context.handle(
+        _redeemedByMeta,
+        redeemedBy.isAcceptableOrUnknown(data['redeemed_by']!, _redeemedByMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  CouponData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CouponData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      ),
+      code: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}code'],
+      )!,
+      tokenId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}token_id'],
+      ),
+      orderId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}order_id'],
+      )!,
+      label: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}label'],
+      )!,
+      valueMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}value_minor'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      redeemedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}redeemed_at'],
+      ),
+      redeemedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}redeemed_by'],
+      ),
+    );
+  }
+
+  @override
+  Coupon createAlias(String alias) {
+    return Coupon(attachedDatabase, alias);
+  }
+
+  @override
+  bool get dontWriteConstraints => true;
+}
+
+class CouponData extends DataClass implements Insertable<CouponData> {
+  /// prepaid coupons: sold once, redeemed once
+  final String? id;
+  final String code;
+  final String? tokenId;
+  final String orderId;
+  final String label;
+  final int valueMinor;
+  final String status;
+  final int createdAt;
+  final int? redeemedAt;
+  final String? redeemedBy;
+  const CouponData({
+    this.id,
+    required this.code,
+    this.tokenId,
+    required this.orderId,
+    required this.label,
+    required this.valueMinor,
+    required this.status,
+    required this.createdAt,
+    this.redeemedAt,
+    this.redeemedBy,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (!nullToAbsent || id != null) {
+      map['id'] = Variable<String>(id);
+    }
+    map['code'] = Variable<String>(code);
+    if (!nullToAbsent || tokenId != null) {
+      map['token_id'] = Variable<String>(tokenId);
+    }
+    map['order_id'] = Variable<String>(orderId);
+    map['label'] = Variable<String>(label);
+    map['value_minor'] = Variable<int>(valueMinor);
+    map['status'] = Variable<String>(status);
+    map['created_at'] = Variable<int>(createdAt);
+    if (!nullToAbsent || redeemedAt != null) {
+      map['redeemed_at'] = Variable<int>(redeemedAt);
+    }
+    if (!nullToAbsent || redeemedBy != null) {
+      map['redeemed_by'] = Variable<String>(redeemedBy);
+    }
+    return map;
+  }
+
+  CouponCompanion toCompanion(bool nullToAbsent) {
+    return CouponCompanion(
+      id: id == null && nullToAbsent ? const Value.absent() : Value(id),
+      code: Value(code),
+      tokenId: tokenId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tokenId),
+      orderId: Value(orderId),
+      label: Value(label),
+      valueMinor: Value(valueMinor),
+      status: Value(status),
+      createdAt: Value(createdAt),
+      redeemedAt: redeemedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(redeemedAt),
+      redeemedBy: redeemedBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(redeemedBy),
+    );
+  }
+
+  factory CouponData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CouponData(
+      id: serializer.fromJson<String?>(json['id']),
+      code: serializer.fromJson<String>(json['code']),
+      tokenId: serializer.fromJson<String?>(json['token_id']),
+      orderId: serializer.fromJson<String>(json['order_id']),
+      label: serializer.fromJson<String>(json['label']),
+      valueMinor: serializer.fromJson<int>(json['value_minor']),
+      status: serializer.fromJson<String>(json['status']),
+      createdAt: serializer.fromJson<int>(json['created_at']),
+      redeemedAt: serializer.fromJson<int?>(json['redeemed_at']),
+      redeemedBy: serializer.fromJson<String?>(json['redeemed_by']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String?>(id),
+      'code': serializer.toJson<String>(code),
+      'token_id': serializer.toJson<String?>(tokenId),
+      'order_id': serializer.toJson<String>(orderId),
+      'label': serializer.toJson<String>(label),
+      'value_minor': serializer.toJson<int>(valueMinor),
+      'status': serializer.toJson<String>(status),
+      'created_at': serializer.toJson<int>(createdAt),
+      'redeemed_at': serializer.toJson<int?>(redeemedAt),
+      'redeemed_by': serializer.toJson<String?>(redeemedBy),
+    };
+  }
+
+  CouponData copyWith({
+    Value<String?> id = const Value.absent(),
+    String? code,
+    Value<String?> tokenId = const Value.absent(),
+    String? orderId,
+    String? label,
+    int? valueMinor,
+    String? status,
+    int? createdAt,
+    Value<int?> redeemedAt = const Value.absent(),
+    Value<String?> redeemedBy = const Value.absent(),
+  }) => CouponData(
+    id: id.present ? id.value : this.id,
+    code: code ?? this.code,
+    tokenId: tokenId.present ? tokenId.value : this.tokenId,
+    orderId: orderId ?? this.orderId,
+    label: label ?? this.label,
+    valueMinor: valueMinor ?? this.valueMinor,
+    status: status ?? this.status,
+    createdAt: createdAt ?? this.createdAt,
+    redeemedAt: redeemedAt.present ? redeemedAt.value : this.redeemedAt,
+    redeemedBy: redeemedBy.present ? redeemedBy.value : this.redeemedBy,
+  );
+  CouponData copyWithCompanion(CouponCompanion data) {
+    return CouponData(
+      id: data.id.present ? data.id.value : this.id,
+      code: data.code.present ? data.code.value : this.code,
+      tokenId: data.tokenId.present ? data.tokenId.value : this.tokenId,
+      orderId: data.orderId.present ? data.orderId.value : this.orderId,
+      label: data.label.present ? data.label.value : this.label,
+      valueMinor: data.valueMinor.present
+          ? data.valueMinor.value
+          : this.valueMinor,
+      status: data.status.present ? data.status.value : this.status,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      redeemedAt: data.redeemedAt.present
+          ? data.redeemedAt.value
+          : this.redeemedAt,
+      redeemedBy: data.redeemedBy.present
+          ? data.redeemedBy.value
+          : this.redeemedBy,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CouponData(')
+          ..write('id: $id, ')
+          ..write('code: $code, ')
+          ..write('tokenId: $tokenId, ')
+          ..write('orderId: $orderId, ')
+          ..write('label: $label, ')
+          ..write('valueMinor: $valueMinor, ')
+          ..write('status: $status, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('redeemedAt: $redeemedAt, ')
+          ..write('redeemedBy: $redeemedBy')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    code,
+    tokenId,
+    orderId,
+    label,
+    valueMinor,
+    status,
+    createdAt,
+    redeemedAt,
+    redeemedBy,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CouponData &&
+          other.id == this.id &&
+          other.code == this.code &&
+          other.tokenId == this.tokenId &&
+          other.orderId == this.orderId &&
+          other.label == this.label &&
+          other.valueMinor == this.valueMinor &&
+          other.status == this.status &&
+          other.createdAt == this.createdAt &&
+          other.redeemedAt == this.redeemedAt &&
+          other.redeemedBy == this.redeemedBy);
+}
+
+class CouponCompanion extends UpdateCompanion<CouponData> {
+  final Value<String?> id;
+  final Value<String> code;
+  final Value<String?> tokenId;
+  final Value<String> orderId;
+  final Value<String> label;
+  final Value<int> valueMinor;
+  final Value<String> status;
+  final Value<int> createdAt;
+  final Value<int?> redeemedAt;
+  final Value<String?> redeemedBy;
+  final Value<int> rowid;
+  const CouponCompanion({
+    this.id = const Value.absent(),
+    this.code = const Value.absent(),
+    this.tokenId = const Value.absent(),
+    this.orderId = const Value.absent(),
+    this.label = const Value.absent(),
+    this.valueMinor = const Value.absent(),
+    this.status = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.redeemedAt = const Value.absent(),
+    this.redeemedBy = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CouponCompanion.insert({
+    this.id = const Value.absent(),
+    required String code,
+    this.tokenId = const Value.absent(),
+    required String orderId,
+    required String label,
+    required int valueMinor,
+    this.status = const Value.absent(),
+    required int createdAt,
+    this.redeemedAt = const Value.absent(),
+    this.redeemedBy = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : code = Value(code),
+       orderId = Value(orderId),
+       label = Value(label),
+       valueMinor = Value(valueMinor),
+       createdAt = Value(createdAt);
+  static Insertable<CouponData> custom({
+    Expression<String>? id,
+    Expression<String>? code,
+    Expression<String>? tokenId,
+    Expression<String>? orderId,
+    Expression<String>? label,
+    Expression<int>? valueMinor,
+    Expression<String>? status,
+    Expression<int>? createdAt,
+    Expression<int>? redeemedAt,
+    Expression<String>? redeemedBy,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (code != null) 'code': code,
+      if (tokenId != null) 'token_id': tokenId,
+      if (orderId != null) 'order_id': orderId,
+      if (label != null) 'label': label,
+      if (valueMinor != null) 'value_minor': valueMinor,
+      if (status != null) 'status': status,
+      if (createdAt != null) 'created_at': createdAt,
+      if (redeemedAt != null) 'redeemed_at': redeemedAt,
+      if (redeemedBy != null) 'redeemed_by': redeemedBy,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CouponCompanion copyWith({
+    Value<String?>? id,
+    Value<String>? code,
+    Value<String?>? tokenId,
+    Value<String>? orderId,
+    Value<String>? label,
+    Value<int>? valueMinor,
+    Value<String>? status,
+    Value<int>? createdAt,
+    Value<int?>? redeemedAt,
+    Value<String?>? redeemedBy,
+    Value<int>? rowid,
+  }) {
+    return CouponCompanion(
+      id: id ?? this.id,
+      code: code ?? this.code,
+      tokenId: tokenId ?? this.tokenId,
+      orderId: orderId ?? this.orderId,
+      label: label ?? this.label,
+      valueMinor: valueMinor ?? this.valueMinor,
+      status: status ?? this.status,
+      createdAt: createdAt ?? this.createdAt,
+      redeemedAt: redeemedAt ?? this.redeemedAt,
+      redeemedBy: redeemedBy ?? this.redeemedBy,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (code.present) {
+      map['code'] = Variable<String>(code.value);
+    }
+    if (tokenId.present) {
+      map['token_id'] = Variable<String>(tokenId.value);
+    }
+    if (orderId.present) {
+      map['order_id'] = Variable<String>(orderId.value);
+    }
+    if (label.present) {
+      map['label'] = Variable<String>(label.value);
+    }
+    if (valueMinor.present) {
+      map['value_minor'] = Variable<int>(valueMinor.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (redeemedAt.present) {
+      map['redeemed_at'] = Variable<int>(redeemedAt.value);
+    }
+    if (redeemedBy.present) {
+      map['redeemed_by'] = Variable<String>(redeemedBy.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CouponCompanion(')
+          ..write('id: $id, ')
+          ..write('code: $code, ')
+          ..write('tokenId: $tokenId, ')
+          ..write('orderId: $orderId, ')
+          ..write('label: $label, ')
+          ..write('valueMinor: $valueMinor, ')
+          ..write('status: $status, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('redeemedAt: $redeemedAt, ')
+          ..write('redeemedBy: $redeemedBy, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -24780,6 +26839,14 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final SyncState syncState = SyncState(this);
   late final LicenseCache licenseCache = LicenseCache(this);
   late final InboxMessage inboxMessage = InboxMessage(this);
+  late final TokenTemplate tokenTemplate = TokenTemplate(this);
+  late final TokenSeq tokenSeq = TokenSeq(this);
+  late final TokenIssue tokenIssue = TokenIssue(this);
+  late final Index tokenIssueDateIx = Index(
+    'token_issue_date_ix',
+    'CREATE INDEX token_issue_date_ix ON token_issue (business_date, status)',
+  );
+  late final Coupon coupon = Coupon(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -24855,6 +26922,11 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     syncState,
     licenseCache,
     inboxMessage,
+    tokenTemplate,
+    tokenSeq,
+    tokenIssue,
+    tokenIssueDateIx,
+    coupon,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -28735,6 +30807,7 @@ typedef $ProductCreateCompanionBuilder =
       Value<int> available,
       Value<int> trackStock,
       Value<String> kind,
+      Value<String?> station,
       Value<int> version,
       required int updatedAt,
       Value<int?> deletedAt,
@@ -28755,6 +30828,7 @@ typedef $ProductUpdateCompanionBuilder =
       Value<int> available,
       Value<int> trackStock,
       Value<String> kind,
+      Value<String?> station,
       Value<int> version,
       Value<int> updatedAt,
       Value<int?> deletedAt,
@@ -28979,6 +31053,11 @@ class $ProductFilterComposer extends Composer<_$AppDatabase, Product> {
 
   ColumnFilters<String> get kind => $composableBuilder(
     column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get station => $composableBuilder(
+    column: $table.station,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -29257,6 +31336,11 @@ class $ProductOrderingComposer extends Composer<_$AppDatabase, Product> {
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get station => $composableBuilder(
+    column: $table.station,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get version => $composableBuilder(
     column: $table.version,
     builder: (column) => ColumnOrderings(column),
@@ -29363,6 +31447,9 @@ class $ProductAnnotationComposer extends Composer<_$AppDatabase, Product> {
 
   GeneratedColumn<String> get kind =>
       $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get station =>
+      $composableBuilder(column: $table.station, builder: (column) => column);
 
   GeneratedColumn<int> get version =>
       $composableBuilder(column: $table.version, builder: (column) => column);
@@ -29620,6 +31707,7 @@ class $ProductTableManager
                 Value<int> available = const Value.absent(),
                 Value<int> trackStock = const Value.absent(),
                 Value<String> kind = const Value.absent(),
+                Value<String?> station = const Value.absent(),
                 Value<int> version = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
                 Value<int?> deletedAt = const Value.absent(),
@@ -29638,6 +31726,7 @@ class $ProductTableManager
                 available: available,
                 trackStock: trackStock,
                 kind: kind,
+                station: station,
                 version: version,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
@@ -29658,6 +31747,7 @@ class $ProductTableManager
                 Value<int> available = const Value.absent(),
                 Value<int> trackStock = const Value.absent(),
                 Value<String> kind = const Value.absent(),
+                Value<String?> station = const Value.absent(),
                 Value<int> version = const Value.absent(),
                 required int updatedAt,
                 Value<int?> deletedAt = const Value.absent(),
@@ -29676,6 +31766,7 @@ class $ProductTableManager
                 available: available,
                 trackStock: trackStock,
                 kind: kind,
+                station: station,
                 version: version,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
@@ -35484,6 +37575,43 @@ final class $OrderReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<TokenIssue, List<TokenIssueData>>
+  _tokenIssueRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.tokenIssue,
+    aliasName: $_aliasNameGenerator(db.order.id, db.tokenIssue.orderId),
+  );
+
+  $TokenIssueProcessedTableManager get tokenIssueRefs {
+    final manager = $TokenIssueTableManager(
+      $_db,
+      $_db.tokenIssue,
+    ).filter((f) => f.orderId.id.sqlEquals($_itemColumn<String>('id')));
+
+    final cache = $_typedResult.readTableOrNull(_tokenIssueRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<Coupon, List<CouponData>> _couponRefsTable(
+    _$AppDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.coupon,
+    aliasName: $_aliasNameGenerator(db.order.id, db.coupon.orderId),
+  );
+
+  $CouponProcessedTableManager get couponRefs {
+    final manager = $CouponTableManager(
+      $_db,
+      $_db.coupon,
+    ).filter((f) => f.orderId.id.sqlEquals($_itemColumn<String>('id')));
+
+    final cache = $_typedResult.readTableOrNull(_couponRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $OrderFilterComposer extends Composer<_$AppDatabase, Order> {
@@ -35790,6 +37918,56 @@ class $OrderFilterComposer extends Composer<_$AppDatabase, Order> {
           }) => $RefundFilterComposer(
             $db: $db,
             $table: $db.refund,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> tokenIssueRefs(
+    Expression<bool> Function($TokenIssueFilterComposer f) f,
+  ) {
+    final $TokenIssueFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.tokenIssue,
+      getReferencedColumn: (t) => t.orderId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $TokenIssueFilterComposer(
+            $db: $db,
+            $table: $db.tokenIssue,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> couponRefs(
+    Expression<bool> Function($CouponFilterComposer f) f,
+  ) {
+    final $CouponFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.coupon,
+      getReferencedColumn: (t) => t.orderId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $CouponFilterComposer(
+            $db: $db,
+            $table: $db.coupon,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -36323,6 +38501,56 @@ class $OrderAnnotationComposer extends Composer<_$AppDatabase, Order> {
     );
     return f(composer);
   }
+
+  Expression<T> tokenIssueRefs<T extends Object>(
+    Expression<T> Function($TokenIssueAnnotationComposer a) f,
+  ) {
+    final $TokenIssueAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.tokenIssue,
+      getReferencedColumn: (t) => t.orderId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $TokenIssueAnnotationComposer(
+            $db: $db,
+            $table: $db.tokenIssue,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> couponRefs<T extends Object>(
+    Expression<T> Function($CouponAnnotationComposer a) f,
+  ) {
+    final $CouponAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.coupon,
+      getReferencedColumn: (t) => t.orderId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $CouponAnnotationComposer(
+            $db: $db,
+            $table: $db.coupon,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $OrderTableManager
@@ -36347,6 +38575,8 @@ class $OrderTableManager
             bool orderItemRefs,
             bool paymentRefs,
             bool refundRefs,
+            bool tokenIssueRefs,
+            bool couponRefs,
           })
         > {
   $OrderTableManager(_$AppDatabase db, Order table)
@@ -36497,6 +38727,8 @@ class $OrderTableManager
                 orderItemRefs = false,
                 paymentRefs = false,
                 refundRefs = false,
+                tokenIssueRefs = false,
+                couponRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -36504,6 +38736,8 @@ class $OrderTableManager
                     if (orderItemRefs) db.orderItem,
                     if (paymentRefs) db.payment,
                     if (refundRefs) db.refund,
+                    if (tokenIssueRefs) db.tokenIssue,
+                    if (couponRefs) db.coupon,
                   ],
                   addJoins:
                       <
@@ -36637,6 +38871,37 @@ class $OrderTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (tokenIssueRefs)
+                        await $_getPrefetchedData<
+                          OrderRow,
+                          Order,
+                          TokenIssueData
+                        >(
+                          currentTable: table,
+                          referencedTable: $OrderReferences
+                              ._tokenIssueRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $OrderReferences(db, table, p0).tokenIssueRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.orderId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (couponRefs)
+                        await $_getPrefetchedData<OrderRow, Order, CouponData>(
+                          currentTable: table,
+                          referencedTable: $OrderReferences._couponRefsTable(
+                            db,
+                          ),
+                          managerFromTypedResult: (p0) =>
+                              $OrderReferences(db, table, p0).couponRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.orderId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -36666,6 +38931,8 @@ typedef $OrderProcessedTableManager =
         bool orderItemRefs,
         bool paymentRefs,
         bool refundRefs,
+        bool tokenIssueRefs,
+        bool couponRefs,
       })
     >;
 typedef $OrderItemCreateCompanionBuilder =
@@ -46808,6 +49075,1413 @@ typedef $InboxMessageProcessedTableManager =
       InboxMessageData,
       PrefetchHooks Function()
     >;
+typedef $TokenTemplateCreateCompanionBuilder =
+    TokenTemplateCompanion Function({
+      Value<String?> id,
+      required String name,
+      required String config,
+      required int updatedAt,
+      Value<int> rowid,
+    });
+typedef $TokenTemplateUpdateCompanionBuilder =
+    TokenTemplateCompanion Function({
+      Value<String?> id,
+      Value<String> name,
+      Value<String> config,
+      Value<int> updatedAt,
+      Value<int> rowid,
+    });
+
+class $TokenTemplateFilterComposer
+    extends Composer<_$AppDatabase, TokenTemplate> {
+  $TokenTemplateFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get config => $composableBuilder(
+    column: $table.config,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $TokenTemplateOrderingComposer
+    extends Composer<_$AppDatabase, TokenTemplate> {
+  $TokenTemplateOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get config => $composableBuilder(
+    column: $table.config,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $TokenTemplateAnnotationComposer
+    extends Composer<_$AppDatabase, TokenTemplate> {
+  $TokenTemplateAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get config =>
+      $composableBuilder(column: $table.config, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $TokenTemplateTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          TokenTemplate,
+          TokenTemplateData,
+          $TokenTemplateFilterComposer,
+          $TokenTemplateOrderingComposer,
+          $TokenTemplateAnnotationComposer,
+          $TokenTemplateCreateCompanionBuilder,
+          $TokenTemplateUpdateCompanionBuilder,
+          (
+            TokenTemplateData,
+            BaseReferences<_$AppDatabase, TokenTemplate, TokenTemplateData>,
+          ),
+          TokenTemplateData,
+          PrefetchHooks Function()
+        > {
+  $TokenTemplateTableManager(_$AppDatabase db, TokenTemplate table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $TokenTemplateFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $TokenTemplateOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $TokenTemplateAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String?> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> config = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => TokenTemplateCompanion(
+                id: id,
+                name: name,
+                config: config,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                Value<String?> id = const Value.absent(),
+                required String name,
+                required String config,
+                required int updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => TokenTemplateCompanion.insert(
+                id: id,
+                name: name,
+                config: config,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $TokenTemplateProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      TokenTemplate,
+      TokenTemplateData,
+      $TokenTemplateFilterComposer,
+      $TokenTemplateOrderingComposer,
+      $TokenTemplateAnnotationComposer,
+      $TokenTemplateCreateCompanionBuilder,
+      $TokenTemplateUpdateCompanionBuilder,
+      (
+        TokenTemplateData,
+        BaseReferences<_$AppDatabase, TokenTemplate, TokenTemplateData>,
+      ),
+      TokenTemplateData,
+      PrefetchHooks Function()
+    >;
+typedef $TokenSeqCreateCompanionBuilder =
+    TokenSeqCompanion Function({
+      Value<String?> scope,
+      required int lastNo,
+      Value<int> rowid,
+    });
+typedef $TokenSeqUpdateCompanionBuilder =
+    TokenSeqCompanion Function({
+      Value<String?> scope,
+      Value<int> lastNo,
+      Value<int> rowid,
+    });
+
+class $TokenSeqFilterComposer extends Composer<_$AppDatabase, TokenSeq> {
+  $TokenSeqFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get scope => $composableBuilder(
+    column: $table.scope,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastNo => $composableBuilder(
+    column: $table.lastNo,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $TokenSeqOrderingComposer extends Composer<_$AppDatabase, TokenSeq> {
+  $TokenSeqOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get scope => $composableBuilder(
+    column: $table.scope,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastNo => $composableBuilder(
+    column: $table.lastNo,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $TokenSeqAnnotationComposer extends Composer<_$AppDatabase, TokenSeq> {
+  $TokenSeqAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get scope =>
+      $composableBuilder(column: $table.scope, builder: (column) => column);
+
+  GeneratedColumn<int> get lastNo =>
+      $composableBuilder(column: $table.lastNo, builder: (column) => column);
+}
+
+class $TokenSeqTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          TokenSeq,
+          TokenSeqData,
+          $TokenSeqFilterComposer,
+          $TokenSeqOrderingComposer,
+          $TokenSeqAnnotationComposer,
+          $TokenSeqCreateCompanionBuilder,
+          $TokenSeqUpdateCompanionBuilder,
+          (TokenSeqData, BaseReferences<_$AppDatabase, TokenSeq, TokenSeqData>),
+          TokenSeqData,
+          PrefetchHooks Function()
+        > {
+  $TokenSeqTableManager(_$AppDatabase db, TokenSeq table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $TokenSeqFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $TokenSeqOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $TokenSeqAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String?> scope = const Value.absent(),
+                Value<int> lastNo = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) =>
+                  TokenSeqCompanion(scope: scope, lastNo: lastNo, rowid: rowid),
+          createCompanionCallback:
+              ({
+                Value<String?> scope = const Value.absent(),
+                required int lastNo,
+                Value<int> rowid = const Value.absent(),
+              }) => TokenSeqCompanion.insert(
+                scope: scope,
+                lastNo: lastNo,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $TokenSeqProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      TokenSeq,
+      TokenSeqData,
+      $TokenSeqFilterComposer,
+      $TokenSeqOrderingComposer,
+      $TokenSeqAnnotationComposer,
+      $TokenSeqCreateCompanionBuilder,
+      $TokenSeqUpdateCompanionBuilder,
+      (TokenSeqData, BaseReferences<_$AppDatabase, TokenSeq, TokenSeqData>),
+      TokenSeqData,
+      PrefetchHooks Function()
+    >;
+typedef $TokenIssueCreateCompanionBuilder =
+    TokenIssueCompanion Function({
+      Value<String?> id,
+      required String orderId,
+      required String ruleId,
+      required String kind,
+      Value<int> part,
+      required int seq,
+      required String label,
+      Value<String?> station,
+      required String payload,
+      Value<String> status,
+      Value<int> printCount,
+      Value<int?> lastPrintedAt,
+      required String businessDate,
+      required int createdAt,
+      Value<int?> collectedAt,
+      Value<int> rowid,
+    });
+typedef $TokenIssueUpdateCompanionBuilder =
+    TokenIssueCompanion Function({
+      Value<String?> id,
+      Value<String> orderId,
+      Value<String> ruleId,
+      Value<String> kind,
+      Value<int> part,
+      Value<int> seq,
+      Value<String> label,
+      Value<String?> station,
+      Value<String> payload,
+      Value<String> status,
+      Value<int> printCount,
+      Value<int?> lastPrintedAt,
+      Value<String> businessDate,
+      Value<int> createdAt,
+      Value<int?> collectedAt,
+      Value<int> rowid,
+    });
+
+final class $TokenIssueReferences
+    extends BaseReferences<_$AppDatabase, TokenIssue, TokenIssueData> {
+  $TokenIssueReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static Order _orderIdTable(_$AppDatabase db) => db.order.createAlias(
+    $_aliasNameGenerator(db.tokenIssue.orderId, db.order.id),
+  );
+
+  $OrderProcessedTableManager get orderId {
+    final $_column = $_itemColumn<String>('order_id')!;
+
+    final manager = $OrderTableManager(
+      $_db,
+      $_db.order,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_orderIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<Coupon, List<CouponData>> _couponRefsTable(
+    _$AppDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.coupon,
+    aliasName: $_aliasNameGenerator(db.tokenIssue.id, db.coupon.tokenId),
+  );
+
+  $CouponProcessedTableManager get couponRefs {
+    final manager = $CouponTableManager(
+      $_db,
+      $_db.coupon,
+    ).filter((f) => f.tokenId.id.sqlEquals($_itemColumn<String>('id')));
+
+    final cache = $_typedResult.readTableOrNull(_couponRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $TokenIssueFilterComposer extends Composer<_$AppDatabase, TokenIssue> {
+  $TokenIssueFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ruleId => $composableBuilder(
+    column: $table.ruleId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get part => $composableBuilder(
+    column: $table.part,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get seq => $composableBuilder(
+    column: $table.seq,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get label => $composableBuilder(
+    column: $table.label,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get station => $composableBuilder(
+    column: $table.station,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get payload => $composableBuilder(
+    column: $table.payload,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get printCount => $composableBuilder(
+    column: $table.printCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastPrintedAt => $composableBuilder(
+    column: $table.lastPrintedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get businessDate => $composableBuilder(
+    column: $table.businessDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get collectedAt => $composableBuilder(
+    column: $table.collectedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $OrderFilterComposer get orderId {
+    final $OrderFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.orderId,
+      referencedTable: $db.order,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $OrderFilterComposer(
+            $db: $db,
+            $table: $db.order,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<bool> couponRefs(
+    Expression<bool> Function($CouponFilterComposer f) f,
+  ) {
+    final $CouponFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.coupon,
+      getReferencedColumn: (t) => t.tokenId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $CouponFilterComposer(
+            $db: $db,
+            $table: $db.coupon,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $TokenIssueOrderingComposer extends Composer<_$AppDatabase, TokenIssue> {
+  $TokenIssueOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get ruleId => $composableBuilder(
+    column: $table.ruleId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get part => $composableBuilder(
+    column: $table.part,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get seq => $composableBuilder(
+    column: $table.seq,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get label => $composableBuilder(
+    column: $table.label,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get station => $composableBuilder(
+    column: $table.station,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get payload => $composableBuilder(
+    column: $table.payload,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get printCount => $composableBuilder(
+    column: $table.printCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastPrintedAt => $composableBuilder(
+    column: $table.lastPrintedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get businessDate => $composableBuilder(
+    column: $table.businessDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get collectedAt => $composableBuilder(
+    column: $table.collectedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $OrderOrderingComposer get orderId {
+    final $OrderOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.orderId,
+      referencedTable: $db.order,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $OrderOrderingComposer(
+            $db: $db,
+            $table: $db.order,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $TokenIssueAnnotationComposer
+    extends Composer<_$AppDatabase, TokenIssue> {
+  $TokenIssueAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get ruleId =>
+      $composableBuilder(column: $table.ruleId, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<int> get part =>
+      $composableBuilder(column: $table.part, builder: (column) => column);
+
+  GeneratedColumn<int> get seq =>
+      $composableBuilder(column: $table.seq, builder: (column) => column);
+
+  GeneratedColumn<String> get label =>
+      $composableBuilder(column: $table.label, builder: (column) => column);
+
+  GeneratedColumn<String> get station =>
+      $composableBuilder(column: $table.station, builder: (column) => column);
+
+  GeneratedColumn<String> get payload =>
+      $composableBuilder(column: $table.payload, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<int> get printCount => $composableBuilder(
+    column: $table.printCount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get lastPrintedAt => $composableBuilder(
+    column: $table.lastPrintedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get businessDate => $composableBuilder(
+    column: $table.businessDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get collectedAt => $composableBuilder(
+    column: $table.collectedAt,
+    builder: (column) => column,
+  );
+
+  $OrderAnnotationComposer get orderId {
+    final $OrderAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.orderId,
+      referencedTable: $db.order,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $OrderAnnotationComposer(
+            $db: $db,
+            $table: $db.order,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<T> couponRefs<T extends Object>(
+    Expression<T> Function($CouponAnnotationComposer a) f,
+  ) {
+    final $CouponAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.coupon,
+      getReferencedColumn: (t) => t.tokenId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $CouponAnnotationComposer(
+            $db: $db,
+            $table: $db.coupon,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $TokenIssueTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          TokenIssue,
+          TokenIssueData,
+          $TokenIssueFilterComposer,
+          $TokenIssueOrderingComposer,
+          $TokenIssueAnnotationComposer,
+          $TokenIssueCreateCompanionBuilder,
+          $TokenIssueUpdateCompanionBuilder,
+          (TokenIssueData, $TokenIssueReferences),
+          TokenIssueData,
+          PrefetchHooks Function({bool orderId, bool couponRefs})
+        > {
+  $TokenIssueTableManager(_$AppDatabase db, TokenIssue table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $TokenIssueFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $TokenIssueOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $TokenIssueAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String?> id = const Value.absent(),
+                Value<String> orderId = const Value.absent(),
+                Value<String> ruleId = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                Value<int> part = const Value.absent(),
+                Value<int> seq = const Value.absent(),
+                Value<String> label = const Value.absent(),
+                Value<String?> station = const Value.absent(),
+                Value<String> payload = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<int> printCount = const Value.absent(),
+                Value<int?> lastPrintedAt = const Value.absent(),
+                Value<String> businessDate = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int?> collectedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => TokenIssueCompanion(
+                id: id,
+                orderId: orderId,
+                ruleId: ruleId,
+                kind: kind,
+                part: part,
+                seq: seq,
+                label: label,
+                station: station,
+                payload: payload,
+                status: status,
+                printCount: printCount,
+                lastPrintedAt: lastPrintedAt,
+                businessDate: businessDate,
+                createdAt: createdAt,
+                collectedAt: collectedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                Value<String?> id = const Value.absent(),
+                required String orderId,
+                required String ruleId,
+                required String kind,
+                Value<int> part = const Value.absent(),
+                required int seq,
+                required String label,
+                Value<String?> station = const Value.absent(),
+                required String payload,
+                Value<String> status = const Value.absent(),
+                Value<int> printCount = const Value.absent(),
+                Value<int?> lastPrintedAt = const Value.absent(),
+                required String businessDate,
+                required int createdAt,
+                Value<int?> collectedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => TokenIssueCompanion.insert(
+                id: id,
+                orderId: orderId,
+                ruleId: ruleId,
+                kind: kind,
+                part: part,
+                seq: seq,
+                label: label,
+                station: station,
+                payload: payload,
+                status: status,
+                printCount: printCount,
+                lastPrintedAt: lastPrintedAt,
+                businessDate: businessDate,
+                createdAt: createdAt,
+                collectedAt: collectedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) =>
+                    (e.readTable(table), $TokenIssueReferences(db, table, e)),
+              )
+              .toList(),
+          prefetchHooksCallback: ({orderId = false, couponRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [if (couponRefs) db.coupon],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (orderId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.orderId,
+                                referencedTable: $TokenIssueReferences
+                                    ._orderIdTable(db),
+                                referencedColumn: $TokenIssueReferences
+                                    ._orderIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (couponRefs)
+                    await $_getPrefetchedData<
+                      TokenIssueData,
+                      TokenIssue,
+                      CouponData
+                    >(
+                      currentTable: table,
+                      referencedTable: $TokenIssueReferences._couponRefsTable(
+                        db,
+                      ),
+                      managerFromTypedResult: (p0) =>
+                          $TokenIssueReferences(db, table, p0).couponRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.tokenId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $TokenIssueProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      TokenIssue,
+      TokenIssueData,
+      $TokenIssueFilterComposer,
+      $TokenIssueOrderingComposer,
+      $TokenIssueAnnotationComposer,
+      $TokenIssueCreateCompanionBuilder,
+      $TokenIssueUpdateCompanionBuilder,
+      (TokenIssueData, $TokenIssueReferences),
+      TokenIssueData,
+      PrefetchHooks Function({bool orderId, bool couponRefs})
+    >;
+typedef $CouponCreateCompanionBuilder =
+    CouponCompanion Function({
+      Value<String?> id,
+      required String code,
+      Value<String?> tokenId,
+      required String orderId,
+      required String label,
+      required int valueMinor,
+      Value<String> status,
+      required int createdAt,
+      Value<int?> redeemedAt,
+      Value<String?> redeemedBy,
+      Value<int> rowid,
+    });
+typedef $CouponUpdateCompanionBuilder =
+    CouponCompanion Function({
+      Value<String?> id,
+      Value<String> code,
+      Value<String?> tokenId,
+      Value<String> orderId,
+      Value<String> label,
+      Value<int> valueMinor,
+      Value<String> status,
+      Value<int> createdAt,
+      Value<int?> redeemedAt,
+      Value<String?> redeemedBy,
+      Value<int> rowid,
+    });
+
+final class $CouponReferences
+    extends BaseReferences<_$AppDatabase, Coupon, CouponData> {
+  $CouponReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static TokenIssue _tokenIdTable(_$AppDatabase db) => db.tokenIssue
+      .createAlias($_aliasNameGenerator(db.coupon.tokenId, db.tokenIssue.id));
+
+  $TokenIssueProcessedTableManager? get tokenId {
+    final $_column = $_itemColumn<String>('token_id');
+    if ($_column == null) return null;
+    final manager = $TokenIssueTableManager(
+      $_db,
+      $_db.tokenIssue,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_tokenIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static Order _orderIdTable(_$AppDatabase db) => db.order.createAlias(
+    $_aliasNameGenerator(db.coupon.orderId, db.order.id),
+  );
+
+  $OrderProcessedTableManager get orderId {
+    final $_column = $_itemColumn<String>('order_id')!;
+
+    final manager = $OrderTableManager(
+      $_db,
+      $_db.order,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_orderIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $CouponFilterComposer extends Composer<_$AppDatabase, Coupon> {
+  $CouponFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get code => $composableBuilder(
+    column: $table.code,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get label => $composableBuilder(
+    column: $table.label,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get valueMinor => $composableBuilder(
+    column: $table.valueMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get redeemedAt => $composableBuilder(
+    column: $table.redeemedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get redeemedBy => $composableBuilder(
+    column: $table.redeemedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $TokenIssueFilterComposer get tokenId {
+    final $TokenIssueFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.tokenId,
+      referencedTable: $db.tokenIssue,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $TokenIssueFilterComposer(
+            $db: $db,
+            $table: $db.tokenIssue,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $OrderFilterComposer get orderId {
+    final $OrderFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.orderId,
+      referencedTable: $db.order,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $OrderFilterComposer(
+            $db: $db,
+            $table: $db.order,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $CouponOrderingComposer extends Composer<_$AppDatabase, Coupon> {
+  $CouponOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get code => $composableBuilder(
+    column: $table.code,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get label => $composableBuilder(
+    column: $table.label,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get valueMinor => $composableBuilder(
+    column: $table.valueMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get redeemedAt => $composableBuilder(
+    column: $table.redeemedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get redeemedBy => $composableBuilder(
+    column: $table.redeemedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $TokenIssueOrderingComposer get tokenId {
+    final $TokenIssueOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.tokenId,
+      referencedTable: $db.tokenIssue,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $TokenIssueOrderingComposer(
+            $db: $db,
+            $table: $db.tokenIssue,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $OrderOrderingComposer get orderId {
+    final $OrderOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.orderId,
+      referencedTable: $db.order,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $OrderOrderingComposer(
+            $db: $db,
+            $table: $db.order,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $CouponAnnotationComposer extends Composer<_$AppDatabase, Coupon> {
+  $CouponAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get code =>
+      $composableBuilder(column: $table.code, builder: (column) => column);
+
+  GeneratedColumn<String> get label =>
+      $composableBuilder(column: $table.label, builder: (column) => column);
+
+  GeneratedColumn<int> get valueMinor => $composableBuilder(
+    column: $table.valueMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get redeemedAt => $composableBuilder(
+    column: $table.redeemedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get redeemedBy => $composableBuilder(
+    column: $table.redeemedBy,
+    builder: (column) => column,
+  );
+
+  $TokenIssueAnnotationComposer get tokenId {
+    final $TokenIssueAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.tokenId,
+      referencedTable: $db.tokenIssue,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $TokenIssueAnnotationComposer(
+            $db: $db,
+            $table: $db.tokenIssue,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $OrderAnnotationComposer get orderId {
+    final $OrderAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.orderId,
+      referencedTable: $db.order,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $OrderAnnotationComposer(
+            $db: $db,
+            $table: $db.order,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $CouponTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          Coupon,
+          CouponData,
+          $CouponFilterComposer,
+          $CouponOrderingComposer,
+          $CouponAnnotationComposer,
+          $CouponCreateCompanionBuilder,
+          $CouponUpdateCompanionBuilder,
+          (CouponData, $CouponReferences),
+          CouponData,
+          PrefetchHooks Function({bool tokenId, bool orderId})
+        > {
+  $CouponTableManager(_$AppDatabase db, Coupon table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $CouponFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $CouponOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $CouponAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String?> id = const Value.absent(),
+                Value<String> code = const Value.absent(),
+                Value<String?> tokenId = const Value.absent(),
+                Value<String> orderId = const Value.absent(),
+                Value<String> label = const Value.absent(),
+                Value<int> valueMinor = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int?> redeemedAt = const Value.absent(),
+                Value<String?> redeemedBy = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CouponCompanion(
+                id: id,
+                code: code,
+                tokenId: tokenId,
+                orderId: orderId,
+                label: label,
+                valueMinor: valueMinor,
+                status: status,
+                createdAt: createdAt,
+                redeemedAt: redeemedAt,
+                redeemedBy: redeemedBy,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                Value<String?> id = const Value.absent(),
+                required String code,
+                Value<String?> tokenId = const Value.absent(),
+                required String orderId,
+                required String label,
+                required int valueMinor,
+                Value<String> status = const Value.absent(),
+                required int createdAt,
+                Value<int?> redeemedAt = const Value.absent(),
+                Value<String?> redeemedBy = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CouponCompanion.insert(
+                id: id,
+                code: code,
+                tokenId: tokenId,
+                orderId: orderId,
+                label: label,
+                valueMinor: valueMinor,
+                status: status,
+                createdAt: createdAt,
+                redeemedAt: redeemedAt,
+                redeemedBy: redeemedBy,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), $CouponReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: ({tokenId = false, orderId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (tokenId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.tokenId,
+                                referencedTable: $CouponReferences
+                                    ._tokenIdTable(db),
+                                referencedColumn: $CouponReferences
+                                    ._tokenIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+                    if (orderId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.orderId,
+                                referencedTable: $CouponReferences
+                                    ._orderIdTable(db),
+                                referencedColumn: $CouponReferences
+                                    ._orderIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $CouponProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      Coupon,
+      CouponData,
+      $CouponFilterComposer,
+      $CouponOrderingComposer,
+      $CouponAnnotationComposer,
+      $CouponCreateCompanionBuilder,
+      $CouponUpdateCompanionBuilder,
+      (CouponData, $CouponReferences),
+      CouponData,
+      PrefetchHooks Function({bool tokenId, bool orderId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -46891,4 +50565,11 @@ class $AppDatabaseManager {
       $LicenseCacheTableManager(_db, _db.licenseCache);
   $InboxMessageTableManager get inboxMessage =>
       $InboxMessageTableManager(_db, _db.inboxMessage);
+  $TokenTemplateTableManager get tokenTemplate =>
+      $TokenTemplateTableManager(_db, _db.tokenTemplate);
+  $TokenSeqTableManager get tokenSeq =>
+      $TokenSeqTableManager(_db, _db.tokenSeq);
+  $TokenIssueTableManager get tokenIssue =>
+      $TokenIssueTableManager(_db, _db.tokenIssue);
+  $CouponTableManager get coupon => $CouponTableManager(_db, _db.coupon);
 }

@@ -45,3 +45,7 @@ See `docs/AUDIT.md` (audit, fixes, limits) and `docs/USER_GUIDE.md`.
 - Added and tested: Bluetooth printer support (UI + transport; hardware untested), PDF sales reports, offline-day sales catch-up, sync status icon, brand colour #3C096C, POS tile in-cart badges.
 - Panel: append-only audit log, pagination, per-currency totals, local dates, plan prices, restaurant editing, freshness labels, redesigned shell; screenshots from the emulator in `docs/screens/panel/`.
 - Tests: app 218 passed; Firestore rules 13 passed; panel 22 unit/UI + 1 end-to-end on Auth+Firestore emulators passed.
+
+## Food tokens, coupons, bill/KOT designs (2026-10-24) — see `docs/TOKENS.md`
+- Added and tested: 7 token types, per-counter routing and printers, 7 editable designs with a visual editor, 4 bill styles, 3 KOT styles, prepaid coupons with one-time redemption, Tokens screen, panel switch for the tokens module. App tests: 396 passed; panel 23 + 1 emulator e2e.
+- **Not verified:** any real printer or phone. **Not implemented:** USB and Windows-installed printers, barcode block, colours/fonts on paper (not applicable to thermal), free pixel drag-and-drop, multi-branch.

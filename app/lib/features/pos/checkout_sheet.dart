@@ -1,3 +1,4 @@
+import '../tokens/token_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -182,7 +183,12 @@ Future<void> showReceipt(BuildContext context, WidgetRef ref, SettledOrder order
   final db = ref.read(databaseProvider);
   final data = await loadReceipt(db, order.orderId);
   final printSvc = ref.read(printServiceProvider);
-  final jobs = await printSvc.queueBill(order.orderId);
+  final tokenCfg = await ref.read(tokenServiceProvider).config();
+  final billJobs = tokenCfg.printBill ? await printSvc.queueBill(order.orderId) : <String>[];
+  // food tokens the owner set to print automatically (numbered when the sale was saved)
+  final tokenJobs = await printSvc.queueTokens(order.orderId, autoOnly: true);
+  final jobs = [...billJobs, ...tokenJobs];
+  final issued = (await ref.read(tokenServiceProvider).forOrder(order.orderId)).where((x) => x.status != 'void').toList();
   if (jobs.isNotEmpty) {
     printSvc.processQueue(); // fire and forget: a missing/offline printer never blocks the sale
     printSvc.queueKot(order.orderId, onlyNew: true).then((_) => printSvc.processQueue());
@@ -201,6 +207,15 @@ Future<void> showReceipt(BuildContext context, WidgetRef ref, SettledOrder order
             decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.black12)),
             child: Text(previewBill(data), key: const ValueKey('receipt-text'), style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 11.5, height: 1.25, color: Colors.black87)),
           ),
+          if (issued.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              key: const ValueKey('receipt-tokens'),
+              spacing: 8,
+              runSpacing: 6,
+              children: [for (final x in issued) Chip(avatar: Icon(kindIcon(x.kind), size: 16), label: Text('${x.label}${x.counter.isEmpty ? '' : ' · ${x.counter}'}', style: const TextStyle(fontWeight: FontWeight.w800)))],
+            ),
+          ],
           const SizedBox(height: 10),
           Text(jobs.isEmpty ? t['no_printer'] : t['print_queued'], style: TextStyle(color: Theme.of(ctx).colorScheme.onSurfaceVariant, fontSize: 12.5)),
         ]),

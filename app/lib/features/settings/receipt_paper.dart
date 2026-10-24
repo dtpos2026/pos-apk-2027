@@ -50,7 +50,7 @@ class ReceiptPaper extends StatelessWidget {
   Widget _line(RLine l, int cols, double textWidth) {
     switch (l) {
       case RText():
-        final size = fontSize * (l.height > l.width ? l.height : l.width).clamp(1, 3);
+        final size = fontSize * (l.height > l.width ? l.height : l.width).clamp(1, 4);
         return SizedBox(
           width: textWidth,
           child: Text(l.text, textAlign: _ta(l.align), style: TextStyle(fontWeight: l.bold ? FontWeight.w800 : FontWeight.w400, fontSize: size, height: 1.25)),
@@ -76,12 +76,27 @@ class ReceiptPaper extends StatelessWidget {
               child: Transform(
                 transform: Matrix4.diagonal3Values(1, l.height.toDouble(), 1),
                 alignment: Alignment.topLeft,
-                child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(line, softWrap: false, style: TextStyle(fontWeight: weight))),
+                child: SizedBox(height: fontSize * 1.3, child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(line, softWrap: false, style: TextStyle(fontWeight: weight)))),
               ),
             ),
         ]);
+      case RCols():
+        final weight = l.bold ? FontWeight.w800 : FontWeight.w400;
+        if (l.cells.any(needsRaster)) {
+          return SizedBox(
+            width: textWidth,
+            child: Row(children: [
+              Expanded(child: Text(l.cells.first, style: TextStyle(fontWeight: weight))),
+              Text(l.cells.skip(1).where((c) => c.isNotEmpty).join('  '), style: TextStyle(fontWeight: weight)),
+            ]),
+          );
+        }
+        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          for (final line in layoutCols(l.cells, l.widths, cols))
+            SizedBox(width: textWidth, child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(line, softWrap: false, style: TextStyle(fontWeight: weight)))),
+        ]);
       case RRule():
-        return SizedBox(width: textWidth, child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(l.ch * cols, softWrap: false, style: const TextStyle(color: Colors.black45))));
+        return SizedBox(width: textWidth, child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(ruleText(l.ch, cols), softWrap: false, style: const TextStyle(color: Colors.black45))));
       case RImage():
         return SizedBox(width: textWidth, child: _ImagePreview(image: l.image.padded(dotsFor(paperMm), l.align), width: textWidth));
       case RQr():

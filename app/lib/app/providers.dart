@@ -32,6 +32,8 @@ import 'share_service.dart';
 import 'themes.dart';
 import 'text_rasterizer.dart';
 import '../data/shift_service.dart';
+import '../data/token_service.dart';
+import '../domain/token.dart';
 
 /// Overridden in main() (file database) and in tests (in-memory database).
 final databaseProvider = Provider<AppDatabase>((ref) => throw UnimplementedError('databaseProvider must be overridden'));
@@ -76,6 +78,12 @@ final logoStoreProvider = Provider<LogoStore>((ref) => LogoStore(ref.watch(datab
 final logoPickerProvider = Provider<LogoPicker>((ref) => const GalleryLogoPicker());
 final receiptTemplateStoreProvider = Provider<ReceiptTemplateStore>((ref) => ReceiptTemplateStore(ref.watch(databaseProvider), now: ref.watch(clockProvider)));
 final billDesignProvider = FutureProvider<BillDesign>((ref) => ref.watch(receiptTemplateStoreProvider).load());
+final kotDesignProvider = FutureProvider<KotDesign>((ref) => ref.watch(receiptTemplateStoreProvider).loadKot());
+
+/// Food tokens: numbering, routing, designs (see docs/TOKENS.md).
+final tokenServiceProvider = Provider<TokenService>((ref) => TokenService(ref.watch(databaseProvider), now: ref.watch(clockProvider)));
+final tokenConfigProvider = FutureProvider<TokenConfig>((ref) => ref.watch(tokenServiceProvider).rawConfig());
+final tokenDesignsProvider = FutureProvider<List<TokenDesign>>((ref) => ref.watch(tokenServiceProvider).templates());
 
 /// The app's private documents folder (database, pictures, pending restore). Overridden in main() and tests.
 final docsDirProvider = Provider<Directory>((ref) => Directory.systemTemp);

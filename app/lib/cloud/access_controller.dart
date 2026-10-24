@@ -155,6 +155,8 @@ class AccessController extends Notifier<AccessState> {
       if (e.fromServer) {
         _account = e.account!.copyWith(checkedAt: ref.read(clockProvider)());
         await setSetting(_db, 'cloud.account.$uid', _account!.toJson(), ref.read(clockProvider)().millisecondsSinceEpoch);
+        // the sale code (which has no account object) reads this to know which modules Digital Target switched off
+        await setSetting(_db, 'cloud.modules_off', jsonEncode(_account!.disabledModules), ref.read(clockProvider)().millisecondsSinceEpoch);
       } else if (_account == null) {
         _account = e.account; // the offline copy is usable, but it is not a fresh confirmation (its checkedAt is "now" from the gateway)
         _account = _account!.copyWith(checkedAt: DateTime.fromMillisecondsSinceEpoch(0));

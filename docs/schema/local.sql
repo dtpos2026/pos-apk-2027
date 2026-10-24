@@ -80,6 +80,7 @@ CREATE TABLE product (
   unit TEXT NOT NULL DEFAULT 'pc',          -- pc | kg | g | l | ml
   available INTEGER NOT NULL DEFAULT 1, track_stock INTEGER NOT NULL DEFAULT 0,
   kind TEXT NOT NULL DEFAULT 'item' CHECK (kind IN ('item','combo')),
+  station TEXT,                             -- counter/station override (tandoor, tea, bbq...); null = the category's station
   version INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL, deleted_at INTEGER
 );
 CREATE UNIQUE INDEX product_sku_uq ON product(sku) WHERE sku IS NOT NULL AND deleted_at IS NULL;
@@ -357,4 +358,29 @@ CREATE TABLE license_cache (
 CREATE TABLE inbox_message (                -- announcements, payment notices, support replies delivered by sync/push
   id TEXT PRIMARY KEY, kind TEXT NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL,
   critical INTEGER NOT NULL DEFAULT 0, received_at INTEGER NOT NULL, read_at INTEGER
+);
+
+-- ---- Food tokens (see docs/TOKENS.md) ----
+CREATE TABLE token_template (               -- edited/duplicated token designs; built-in designs live in code and are overridden by a row with the same id
+  id TEXT PRIMARY KEY, name TEXT NOT NULL, config TEXT NOT NULL, updated_at INTEGER NOT NULL
+);
+CREATE TABLE token_seq (                    -- last number handed out per rule and (optionally) business date
+  scope TEXT PRIMARY KEY, last_no INTEGER NOT NULL
+);
+CREATE TABLE token_issue (
+  id TEXT PRIMARY KEY, order_id TEXT NOT NULL REFERENCES "order"(id),
+  rule_id TEXT NOT NULL, kind TEXT NOT NULL, part INTEGER NOT NULL DEFAULT 0,   -- part: 0 for one token per order, 0..n for split tokens
+  seq INTEGER NOT NULL, label TEXT NOT NULL, station TEXT,
+  payload TEXT NOT NULL,                    -- JSON snapshot of what the token shows (items, counter, totals)
+  status TEXT NOT NULL DEFAULT 'issued' CHECK (status IN ('issued','collected','void')),
+  print_count INTEGER NOT NULL DEFAULT 0, last_printed_at INTEGER,
+  business_date TEXT NOT NULL, created_at INTEGER NOT NULL, collected_at INTEGER,
+  UNIQUE (order_id, rule_id, part)          -- one token per order/rule/part: no duplicate tokens, ever
+);
+CREATE INDEX token_issue_date_ix ON token_issue(business_date, status);
+CREATE TABLE coupon (                       -- prepaid coupons: sold once, redeemed once
+  id TEXT PRIMARY KEY, code TEXT NOT NULL UNIQUE, token_id TEXT REFERENCES token_issue(id),
+  order_id TEXT NOT NULL REFERENCES "order"(id), label TEXT NOT NULL, value_minor INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'issued' CHECK (status IN ('issued','redeemed','void')),
+  created_at INTEGER NOT NULL, redeemed_at INTEGER, redeemed_by TEXT
 );

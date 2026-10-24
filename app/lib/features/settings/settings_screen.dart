@@ -8,6 +8,8 @@ import 'package:uuid/uuid.dart';
 import '../../app/theme.dart' show buildTheme, contrastRatio;
 import '../../app/themes.dart';
 import 'receipt_design_screen.dart';
+import '../tokens/token_ui.dart';
+import '../tokens/tokens_settings_screen.dart';
 
 import '../../app/device_channel.dart' show PairedPrinter;
 import '../../app/providers.dart';
@@ -96,6 +98,7 @@ class SettingsScreen extends ConsumerWidget {
         ]),
       _Section(t['business'], [
         ListTile(key: const ValueKey('business-tile'), title: Text(biz?.name ?? ''), subtitle: Text([biz?.phone, biz?.address].whereType<String>().join(' · ')), trailing: const Icon(Icons.edit_outlined), onTap: () => _editBusiness(context, ref, biz)),
+        if (ref.watch(activeModulesProvider).contains('tokens')) ListTile(key: const ValueKey('tokens-settings-tile'), leading: const Icon(Icons.confirmation_number_outlined), title: Text(t['tokens_title']), subtitle: Text(t['tokens_sub']), trailing: const Icon(Icons.chevron_right), onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const TokensSettingsScreen()))),
         ListTile(key: const ValueKey('receipt-design-tile'), leading: const Icon(Icons.receipt_long_outlined), title: Text(t['receipt_design']), trailing: const Icon(Icons.chevron_right), onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const ReceiptDesignScreen()))),
       ]),
       _Section(t['payment_accounts'], [
@@ -122,7 +125,19 @@ class SettingsScreen extends ConsumerWidget {
       ]),
       _Section(t['printers'], [
         if (printers.isEmpty) Padding(padding: const EdgeInsets.all(8), child: Text(t['no_printer'])),
-        for (final p in printers) ListTile(dense: true, leading: const Icon(Icons.print_outlined), title: Text('${p['name']}'), subtitle: Text('${p['connection']} · ${p['address']} · ${p['paper_mm']} mm · ${p['role']}')),
+        for (final p in printers)
+          ListTile(
+            dense: true,
+            leading: const Icon(Icons.print_outlined),
+            title: Text('${p['name']}'),
+            subtitle: Text('${p['connection']} · ${p['address']} · ${p['paper_mm']} mm · ${p['role']}${p['station'] == null ? '' : ' · ${p['station']}'}'),
+            trailing: IconButton(
+              key: ValueKey('printer-test-${p['name']}'),
+              tooltip: t['print_test'],
+              icon: const Icon(Icons.receipt_long_outlined),
+              onPressed: () => testPrinter(context, ref, p),
+            ),
+          ),
         Align(alignment: AlignmentDirectional.centerStart, child: TextButton.icon(key: const ValueKey('add-printer'), onPressed: () => _addPrinter(context, ref), icon: const Icon(Icons.add), label: Text(t['add_printer']))),
       ]),
       if (ref.watch(cloudGatewayProvider) != null)
@@ -253,6 +268,7 @@ class SettingsScreen extends ConsumerWidget {
     final t = Strings.of(context);
     final name = TextEditingController(text: 'Counter printer');
     final addr = TextEditingController();
+    final station = TextEditingController();
     var role = 'both';
     var paper = 58;
     var connection = 'lan';
@@ -311,6 +327,10 @@ class SettingsScreen extends ConsumerWidget {
               SegmentedButton<int>(showSelectedIcon: false, segments: const [ButtonSegment(value: 58, label: Text('58 mm')), ButtonSegment(value: 80, label: Text('80 mm'))], selected: {paper}, onSelectionChanged: (s) => setState(() => paper = s.first)),
               const SizedBox(height: 8),
               SegmentedButton<String>(showSelectedIcon: false, segments: [ButtonSegment(value: 'bill', label: Text(t['bill'])), ButtonSegment(value: 'kot', label: Text(t['kot'])), ButtonSegment(value: 'both', label: Text(t['both']))], selected: {role}, onSelectionChanged: (s) => setState(() => role = s.first)),
+              if (role != 'bill') ...[
+                const SizedBox(height: 8),
+                TextField(key: const ValueKey('printer-station'), controller: station, decoration: InputDecoration(labelText: t['counter_station'], helperText: t['printer_station_hint'], helperMaxLines: 3)),
+              ],
             ]),
           ),
           actions: [
@@ -321,8 +341,8 @@ class SettingsScreen extends ConsumerWidget {
                 final address = connection == 'lan' ? addr.text.trim() : (bt?.address ?? '');
                 if (address.isEmpty) return;
                 await ref.read(databaseProvider).customStatement(
-                    "INSERT INTO printer(id, name, connection, address, paper_mm, role, updated_at) VALUES (?,?,?,?,?,?,?)",
-                    [const Uuid().v4(), name.text.trim(), connection, address, paper, role, ref.read(clockProvider)().millisecondsSinceEpoch]);
+                    "INSERT INTO printer(id, name, connection, address, paper_mm, role, station, updated_at) VALUES (?,?,?,?,?,?,?,?)",
+                    [const Uuid().v4(), name.text.trim(), connection, address, paper, role, role == 'bill' || station.text.trim().isEmpty ? null : station.text.trim(), ref.read(clockProvider)().millisecondsSinceEpoch]);
                 ref.invalidate(printersProvider);
                 if (ctx.mounted) Navigator.pop(ctx);
               },

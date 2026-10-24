@@ -11,6 +11,13 @@ class BillLabels {
   static BillLabels of(String lang) => switch (lang) { 'ur' => _ur, 'ar' => _ar, _ => _enLabels };
 
   static const _en = <String, String>{
+    'token': 'Token',
+    'item': 'Item',
+    'qty': 'Qty',
+    'rate': 'Rate',
+    'amount': 'Amount',
+    'items': 'Items',
+    'net_bill': 'NET BILL',
     'invoice': 'Invoice',
     'date': 'Date',
     'type': 'Type',
@@ -39,6 +46,13 @@ class BillLabels {
   static const _enLabels = BillLabels(_en, rtl: false);
 
   static const _ur = BillLabels({
+    'token': 'ٹوکن',
+    'item': 'آئٹم',
+    'qty': 'تعداد',
+    'rate': 'ریٹ',
+    'amount': 'رقم',
+    'items': 'آئٹمز',
+    'net_bill': 'کل بل',
     'invoice': 'بل نمبر',
     'date': 'تاریخ',
     'type': 'قسم',
@@ -65,6 +79,13 @@ class BillLabels {
   }, rtl: true);
 
   static const _ar = BillLabels({
+    'token': 'رقم الطلب',
+    'item': 'الصنف',
+    'qty': 'الكمية',
+    'rate': 'السعر',
+    'amount': 'المبلغ',
+    'items': 'الأصناف',
+    'net_bill': 'صافي الفاتورة',
     'invoice': 'رقم الفاتورة',
     'date': 'التاريخ',
     'type': 'النوع',

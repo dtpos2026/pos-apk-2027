@@ -5,6 +5,8 @@ export interface Account {
   status: Status; plan: PlanId | null; feeMinor: number; currency: string; expiresAt: Date | null;
   customerId: string | null; businessId: string | null; licenseId: string | null;
   approvedPhones: string[]; phoneRequests: string[]; blockedPhones: string[]; maxPhones: number;
+  /** Modules Digital Target switched off for this business (the app hides them and stops using them). Empty = everything on. */
+  disabledModules: string[];
   adminMessage: string; createdAt: Date | null; appVersion: string; todayNetMinor: number; todayAt: Date | null;
 }
 export interface Device { id: string; uid: string; phoneId: string; model: string; android: string; appVersion: string; lastSeenAt: Date | null; locationAllowed: boolean; lat?: number; lng?: number; accuracyM?: number; locationAt?: Date | null }

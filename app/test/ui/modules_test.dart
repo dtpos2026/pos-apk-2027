@@ -47,7 +47,7 @@ void main() {
     await t.pumpAndSettle();
     await t.tap(find.text('Finish setup'));
     await t.pumpAndSettle();
-    expect(h.container.read(modulesProvider), {'customers', 'expenses'});
+    expect(h.container.read(modulesProvider), {'customers', 'expenses', 'tokens'});
     await tapKey(t, 'open-shift');
     await tapKey(t, 'amount-ok');
     var keys = await navKeys(t);

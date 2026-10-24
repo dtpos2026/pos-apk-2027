@@ -22,7 +22,7 @@ function toAccount(uid: string, d: DocumentData, stats?: DocumentData): Account 
     email: str(d.email), status: str(d.status, 'pending') as Status, plan: (d.plan ?? null) as PlanId | null, feeMinor: num(d.feeMinor),
     currency: str(d.currency, d.country === 'AE' ? 'AED' : 'PKR'), expiresAt: date(d.expiresAt), customerId: d.customerId ?? null,
     businessId: d.businessId ?? null, licenseId: d.licenseId ?? null, approvedPhones: arr(d.approvedPhones), phoneRequests: arr(d.phoneRequests).filter(p => !arr(d.approvedPhones).includes(p)),
-    blockedPhones: arr(d.blockedPhones), maxPhones: num(d.maxPhones, 1), adminMessage: str(d.adminMessage), createdAt: date(d.createdAt),
+    blockedPhones: arr(d.blockedPhones), maxPhones: num(d.maxPhones, 1), disabledModules: arr(d.disabledModules), adminMessage: str(d.adminMessage), createdAt: date(d.createdAt),
     appVersion: str(d.appVersion), todayNetMinor: num(stats?.todayNetMinor), todayAt: date(stats?.updatedAt),
   };
 }

@@ -19,14 +19,17 @@ class Business {
 }
 
 class MenuCategory {
-  const MenuCategory(this.id, this.name, {this.imagePath});
+  const MenuCategory(this.id, this.name, {this.imagePath, this.station});
   final String id;
   final String name;
   final String? imagePath;
+
+  /// Counter/station the items of this category go to (kitchen ticket, tokens).
+  final String? station;
 }
 
 class MenuProduct {
-  const MenuProduct({required this.id, required this.name, required this.priceMinor, this.categoryId, this.categoryName, this.taxBp = 0, this.taxInclusive = false, this.station, this.available = true, this.unit = 'pc', this.sku, this.imagePath, this.categoryImagePath});
+  const MenuProduct({required this.id, required this.name, required this.priceMinor, this.categoryId, this.categoryName, this.taxBp = 0, this.taxInclusive = false, this.station, this.ownStation, this.available = true, this.unit = 'pc', this.sku, this.imagePath, this.categoryImagePath});
   final String id;
   final String name;
   final int priceMinor;
@@ -35,6 +38,9 @@ class MenuProduct {
   final int taxBp;
   final bool taxInclusive;
   final String? station;
+
+  /// The counter set on the item itself (null = it follows its category). [station] is the one that applies.
+  final String? ownStation;
   final bool available;
   final String unit;
   final String? sku;
@@ -98,7 +104,7 @@ Future<Session?> loadSession(AppDatabase db, String staffId) async {
 }
 
 Future<List<MenuCategory>> loadCategories(AppDatabase db) async =>
-    [for (final r in await _rows(db, 'SELECT id, name, image_path FROM category WHERE deleted_at IS NULL ORDER BY sort, name')) MenuCategory(r['id'] as String, r['name'] as String, imagePath: r['image_path'] as String?)];
+    [for (final r in await _rows(db, 'SELECT id, name, image_path, station FROM category WHERE deleted_at IS NULL ORDER BY sort, name')) MenuCategory(r['id'] as String, r['name'] as String, imagePath: r['image_path'] as String?, station: r['station'] as String?)];
 
 Future<List<MenuProduct>> loadProducts(AppDatabase db, {String? categoryId, String search = '', bool includeUnavailable = true}) async {
   final where = <String>['p.deleted_at IS NULL'];
@@ -114,7 +120,7 @@ Future<List<MenuProduct>> loadProducts(AppDatabase db, {String? categoryId, Stri
   if (!includeUnavailable) where.add('p.available = 1');
   final rows = await _rows(
       db,
-      'SELECT p.*, c.name AS category_name, c.station AS station, c.image_path AS category_image, t.rate_bp AS tax_bp, t.inclusive AS tax_inclusive '
+      'SELECT p.*, c.name AS category_name, COALESCE(p.station, c.station) AS station, p.station AS own_station, c.image_path AS category_image, t.rate_bp AS tax_bp, t.inclusive AS tax_inclusive '
       'FROM product p LEFT JOIN category c ON c.id = p.category_id LEFT JOIN tax_rate t ON t.id = p.tax_rate_id '
       'WHERE ${where.join(' AND ')} ORDER BY p.name',
       args);
@@ -129,6 +135,7 @@ Future<List<MenuProduct>> loadProducts(AppDatabase db, {String? categoryId, Stri
         taxBp: (r['tax_bp'] as int?) ?? 0,
         taxInclusive: ((r['tax_inclusive'] as int?) ?? 0) == 1,
         station: r['station'] as String?,
+        ownStation: r['own_station'] as String?,
         available: (r['available'] as int) == 1,
         unit: r['unit'] as String,
         sku: r['sku'] as String?,

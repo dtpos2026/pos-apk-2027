@@ -6,10 +6,10 @@ Version **0.3.0** · date 2026-10-23 · prepared from actual test runs (commands
 
 | Area | Result | How it was checked |
 |---|---|---|
-| Android app logic and screens | **PASS** (225 automated tests) | `flutter test` — real SQLite, real widgets, fonts loaded |
+| Android app logic and screens | **PASS** (396 automated tests) | `flutter test` — real SQLite, real widgets, fonts loaded |
 | Static analysis | **PASS** (0 issues) | `flutter analyze` |
 | Firestore security rules | **PASS** (13 tests) | Firebase emulator, `npm test` in `firebase/` |
-| Super Admin panel | **PASS** (22 unit/UI + 1 end-to-end) | Vitest; end-to-end runs the real panel code against Auth + Firestore emulators |
+| Super Admin panel | **PASS** (23 unit/UI + 1 end-to-end) | Vitest; end-to-end runs the real panel code against Auth + Firestore emulators |
 | Android release build (APK/AAB) | **PASS** (run 26, includes the new Android code) | GitHub Actions |
 | **Real phone, real printer, real Firebase project** | **NOT TESTED** | No device or printer is available to this build environment. Must be done by DT before giving the app to restaurants (checklist in §6). |
 
@@ -42,6 +42,10 @@ Version **0.3.0** · date 2026-10-23 · prepared from actual test runs (commands
 | 24 | **Payment accounts**: add JazzCash/bank, duplicate refused, switch off hides it at checkout, cash cannot be switched off | PASS |
 | 25 | **WhatsApp**: bill to customer (0300-… becomes 92300…), udhaar reminder with name/amount/business | PASS (opens WhatsApp on a phone; tested with a fake) |
 | 26 | **Bill as image** (PNG) shared | PASS |
+| 27 | **Food tokens**: 7 types numbered with prefix/padding/start, daily restart, product routing by counter, idempotent issue, coupons redeemed once (also under a simultaneous second redeem), void cancels waiting tokens/coupons | PASS (`token_test.dart`) |
+| 28 | **Seven designs × 58/80 mm × every token kind** fit the paper and print; editing (hide, reorder, align, size, wording, border, margins), JSON export/import, Urdu/bilingual go through the bitmap path | PASS (`token_design_test.dart`) |
+| 29 | **Token UI**: set up types, sale prints each token to its counter's printer, Tokens screen collect/reprint (REPRINT), tokens-only mode, module off, designer edit/save/reopen/drag/reset/duplicate/export/import/delete, rule test print, coupon redeem, bill styles | PASS (`tokens_flow_test.dart`) |
+| 30 | Panel: switch app features off per restaurant (saved to Firestore, persisted in emulator test) | PASS |
 | 22 | Panel end-to-end: register → approve (DTC-0001) → phone limit → block → sales → invoice → payment extends expiry → suspend → chat → settings → admins → audit entries | PASS |
 
 ## 3. Defects found during QC and fixed

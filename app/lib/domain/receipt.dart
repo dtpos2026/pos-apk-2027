@@ -50,7 +50,11 @@ class ReceiptData {
     this.isDuplicate = false,
     this.currency = Currency.pkr,
     this.logo,
+    this.token,
   });
+
+  /// Token label ("17", "A17") when the order has one, printed big on the bill.
+  final String? token;
   final String businessName;
   final String? address;
   final String? phone;
@@ -84,20 +88,25 @@ class ReceiptData {
 String _m(int minor, Currency c) => formatMinor(minor, currency: c, symbol: false);
 
 /// Builds the customer bill as a [ReceiptDoc]: logo, name, address, phone and tax number centred by default,
-/// then the invoice details, items, totals, payments and footer. Which blocks appear is up to the [template].
+/// then the invoice details, items, totals, payments and footer. Which blocks appear, and the look ([BillDesign.style]),
+/// is up to the [template].
 ReceiptDoc buildBillDoc(ReceiptData d, {BillDesign template = BillDesign.defaults}) {
   final t = template;
   final L = BillLabels.of(t.language);
   final h = t.headerAlign;
   final body = L.rtl ? PrintAlign.right : PrintAlign.left;
+  final style = t.style;
+  final rule = style == 'modern' ? const RRule('- ') : (style == 'boxed' ? const RRule('=') : const RRule());
   final lines = <RLine>[];
   // label on the reading-start side, value on the other: flipped for right-to-left bills
   RLine row(String label, String value, {bool bold = false, int height = 1}) => L.rtl ? RRow(value, label, bold: bold, height: height) : RRow(label, value, bold: bold, height: height);
   String typeLabel(String code) => switch (code) { 'Dine-in' => L['dine_in'], 'Takeaway' => L['takeaway'], 'Delivery' => L['delivery_type'], 'Counter' => L['counter'], _ => code };
+  String money(int v) => _m(v, d.currency);
 
   if (d.isDuplicate) lines.add(RText(L['duplicate'], align: PrintAlign.center, bold: true));
   if (t.showLogo && d.logo != null) lines.add(RImage(d.logo!, align: h));
-  lines.add(RText(d.businessName, align: h, bold: true, width: t.nameSize, height: t.nameSize));
+  final name = style == 'modern' ? '- ${d.businessName} -' : d.businessName;
+  lines.add(RText(name, align: h, bold: true, width: t.nameSize, height: t.nameSize));
   for (final l in t.headerLines.where((l) => l.trim().isNotEmpty)) {
     lines.add(RText(l, align: h));
   }
@@ -106,7 +115,20 @@ ReceiptDoc buildBillDoc(ReceiptData d, {BillDesign template = BillDesign.default
   String ltr(String s) => L.rtl ? '\u2066$s\u2069' : s;
   if (t.showPhone && (d.phone?.trim().isNotEmpty ?? false)) lines.add(RText('${L['tel']}: ${ltr(d.phone!)}', align: h));
   if (t.showTaxNumber && (d.taxNumber?.trim().isNotEmpty ?? false)) lines.add(RText('${d.taxLabel ?? 'Tax no'}: ${ltr(d.taxNumber!)}', align: h));
-  lines.add(const RRule());
+  if (t.title.trim().isNotEmpty) {
+    lines
+      ..add(rule)
+      ..add(RText(t.title.trim(), align: PrintAlign.center, bold: true))
+      ..add(rule);
+  } else {
+    lines.add(rule);
+  }
+  if (t.showToken && d.token != null) {
+    lines
+      ..add(RText('${L['token']} #', align: PrintAlign.center))
+      ..add(RText(d.token!, align: PrintAlign.center, bold: true, width: 3, height: 3))
+      ..add(rule);
+  }
   lines.add(row(L['invoice'], d.invoiceNo));
   lines.add(row(L['date'], d.dateTime));
   if (t.showOrderType) {
@@ -114,34 +136,68 @@ ReceiptDoc buildBillDoc(ReceiptData d, {BillDesign template = BillDesign.default
     lines.add(row(L['type'], t.showTable && d.tableLabel != null ? '$type ${d.tableLabel}' : type));
   }
   if (t.showCashier && d.cashier != null) lines.add(row(L['cashier'], d.cashier!));
-  lines.add(const RRule());
+  lines.add(rule);
+
+  // items
+  final table = style == 'boxed' && !L.rtl;
+  if (table) {
+    lines.add(RCols([L['item'], L['qty'], L['rate'], L['amount']], const [5, 7, 9], bold: true));
+    lines.add(const RRule());
+  }
+  var n = 0;
   for (final l in d.lines) {
-    // reading order: left-to-right bills say "2 x Burger", right-to-left bills say "Burger x 2" (name first, from the right)
-    lines.add(row(L.rtl ? '${l.name} x ${formatQty(l.qtyMilli)}' : '${formatQty(l.qtyMilli)} x ${l.name}', _m(l.totalMinor, d.currency)));
+    n++;
+    final qty = formatQty(l.qtyMilli);
+    if (table) {
+      lines.add(RCols([l.name, qty, money(l.unitPriceMinor), money(l.totalMinor)], const [5, 7, 9]));
+    } else if (style == 'modern') {
+      lines.add(row(L.rtl ? '${l.name} x $qty  .$n' : '$n  ${l.name} x $qty', money(l.totalMinor)));
+    } else {
+      // reading order: left-to-right bills say "2 x Burger", right-to-left bills say "Burger x 2" (name first, from the right)
+      lines.add(row(L.rtl ? '${l.name} x $qty' : '$qty x ${l.name}', money(l.totalMinor)));
+    }
     for (final m in l.modifiers) {
       lines.add(RText('   + $m', align: body));
     }
-    if (l.note != null) lines.add(RText('   * ${l.note}', align: body));
+    if (l.note != null && style != 'compact') lines.add(RText('   * ${l.note}', align: body));
   }
-  lines.add(const RRule());
-  lines.add(row(L['subtotal'], _m(d.subtotalMinor, d.currency)));
-  if (d.discountMinor > 0) lines.add(row(L['discount'], '-${_m(d.discountMinor, d.currency)}'));
-  if (d.serviceChargeMinor > 0) lines.add(row(L['service'], _m(d.serviceChargeMinor, d.currency)));
-  if (d.deliveryChargeMinor > 0) lines.add(row(L['delivery'], _m(d.deliveryChargeMinor, d.currency)));
-  if (d.taxMinor > 0) lines.add(row(L['tax'], _m(d.taxMinor, d.currency)));
-  if (d.tipMinor > 0) lines.add(row(L['tip'], _m(d.tipMinor, d.currency)));
-  if (d.roundingMinor != 0) lines.add(row(L['rounding'], _m(d.roundingMinor, d.currency)));
-  lines.add(row('${L['total']} ${d.currency.code}', _m(d.totalMinor, d.currency), bold: true, height: 2));
+  lines.add(rule);
+  if (t.showItemCount) {
+    final count = d.lines.fold<int>(0, (s, l) => s + l.qtyMilli) / 1000;
+    lines.add(row('${L['items']}: ${formatQty((count * 1000).round())}', ''));
+  }
+  final onlySubtotal = d.discountMinor == 0 && d.serviceChargeMinor == 0 && d.deliveryChargeMinor == 0 && d.taxMinor == 0 && d.tipMinor == 0 && d.roundingMinor == 0;
+  if (!(style == 'compact' && onlySubtotal)) lines.add(row(L['subtotal'], money(d.subtotalMinor)));
+  if (d.discountMinor > 0) lines.add(row(L['discount'], '-${money(d.discountMinor)}'));
+  if (d.serviceChargeMinor > 0) lines.add(row(L['service'], money(d.serviceChargeMinor)));
+  if (d.deliveryChargeMinor > 0) lines.add(row(L['delivery'], money(d.deliveryChargeMinor)));
+  if (d.taxMinor > 0) lines.add(row(L['tax'], money(d.taxMinor)));
+  if (d.tipMinor > 0) lines.add(row(L['tip'], money(d.tipMinor)));
+  if (d.roundingMinor != 0) lines.add(row(L['rounding'], money(d.roundingMinor)));
+  switch (style) {
+    case 'boxed':
+      lines.add(rule);
+      lines.add(row('${L['net_bill']} ${d.currency.code}', money(d.totalMinor), bold: true, height: 2));
+    case 'modern':
+      lines.add(rule);
+      lines.add(RText('${L['total']} ${d.currency.code}', align: PrintAlign.center, bold: true));
+      lines.add(RText(money(d.totalMinor), align: PrintAlign.center, bold: true, width: 2, height: 2));
+    default:
+      lines.add(row('${L['total']} ${d.currency.code}', money(d.totalMinor), bold: true, height: 2));
+  }
+  if (t.amountInWords && t.language == 'en') lines.add(RText(amountInWords(d.totalMinor, d.currency), align: PrintAlign.center));
+  if (style == 'modern' && d.payments.isNotEmpty) lines.add(rule);
   for (final p in d.payments) {
     final label = switch (p.label) { 'Cash' => L['cash'], 'Card' => L['card'], _ => p.label };
-    lines.add(row(label, _m(p.amountMinor, d.currency)));
+    lines.add(row(label, money(p.amountMinor)));
   }
-  if (d.changeMinor > 0) lines.add(row(L['change'], _m(d.changeMinor, d.currency)));
-  lines.add(const RRule());
+  if (d.changeMinor > 0) lines.add(row(L['change'], money(d.changeMinor)));
+  lines.add(rule);
   final footers = t.footerLines.map((l) => l == BillDesign.defaultFooter ? L['thanks'] : l).where((l) => l.trim().isNotEmpty);
   for (final l in footers) {
     lines.add(RText(l, align: PrintAlign.center));
   }
+  if (style == 'modern') lines.add(rule);
   final qr = t.qrText ?? d.qrData;
   if (qr != null && qr.isNotEmpty) {
     lines.add(const RFeed());
@@ -149,6 +205,28 @@ ReceiptDoc buildBillDoc(ReceiptData d, {BillDesign template = BillDesign.default
   }
   if (t.showPoweredBy) lines.add(const RText('Powered by Digital Target', align: PrintAlign.center));
   return ReceiptDoc(lines, copies: t.copies);
+}
+
+const _ones = ['ZERO', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'TEN', 'ELEVEN', 'TWELVE', 'THIRTEEN', 'FOURTEEN', 'FIFTEEN', 'SIXTEEN', 'SEVENTEEN', 'EIGHTEEN', 'NINETEEN'];
+const _tens = ['', '', 'TWENTY', 'THIRTY', 'FORTY', 'FIFTY', 'SIXTY', 'SEVENTY', 'EIGHTY', 'NINETY'];
+
+String _words(int n) {
+  if (n < 20) return _ones[n];
+  if (n < 100) return _tens[n ~/ 10] + (n % 10 == 0 ? '' : '-${_ones[n % 10]}');
+  if (n < 1000) return '${_ones[n ~/ 100]} HUNDRED${n % 100 == 0 ? '' : ' ${_words(n % 100)}'}';
+  for (final (size, word) in const [(1000000000, 'BILLION'), (1000000, 'MILLION'), (1000, 'THOUSAND')]) {
+    if (n >= size) return '${_words(n ~/ size)} $word${n % size == 0 ? '' : ' ${_words(n % size)}'}';
+  }
+  return '$n';
+}
+
+/// "FOUR THOUSAND FIVE HUNDRED SEVENTY-FOUR ONLY" (international system, as printed on Pakistani bills).
+/// A fractional part is written as "AND 45/100".
+String amountInWords(int minor, Currency c) {
+  final div = c.minorDigits == 0 ? 1 : [1, 10, 100, 1000][c.minorDigits];
+  final major = minor.abs() ~/ div, frac = minor.abs() % div;
+  final f = frac == 0 ? '' : ' AND $frac/$div';
+  return '${minor < 0 ? 'MINUS ' : ''}${_words(major)}$f ONLY';
 }
 
 /// Customer bill as ESC/POS bytes (synchronous: Arabic-script text prints as '?'; use [buildBillBytes] for that).
@@ -197,7 +275,58 @@ class KotLine {
   final String? note;
 }
 
-/// Kitchen order ticket for one station: big, no prices.
+/// Kitchen order ticket for one station: big, no prices. The look comes from [design].
+ReceiptDoc buildKotDoc({
+  required String station,
+  required String orderLabel,
+  required String orderTypeLabel,
+  required String dateTime,
+  required List<KotLine> lines,
+  String? tableLabel,
+  String? waiter,
+  String? token,
+  bool isReprint = false,
+  KotDesign design = KotDesign.defaults,
+}) {
+  final style = design.style;
+  final out = <RLine>[];
+  final big = style == 'big';
+  if (style == 'compact') {
+    out.add(RRow('${design.title} ${station.toUpperCase()}', dateTime, bold: true));
+    if (isReprint) out.add(const RText('*** REPRINT ***', align: PrintAlign.center, bold: true));
+    final where = [if (design.showToken && token != null) 'Token $token', if (design.showTable && tableLabel != null) '$orderTypeLabel $tableLabel' else orderTypeLabel].join('  ');
+    out.add(RRow(where, orderLabel));
+  } else {
+    out.add(RText(design.title, align: PrintAlign.center, bold: true, width: 2, height: 2));
+    out.add(RText(station.toUpperCase(), align: PrintAlign.center, bold: true));
+    if (isReprint) out.add(const RText('*** REPRINT ***', align: PrintAlign.center, bold: true));
+    if (design.showToken && token != null) {
+      out
+        ..add(const RRule('='))
+        ..add(RText('TOKEN $token', align: PrintAlign.center, bold: true, width: big ? 3 : 2, height: big ? 3 : 2));
+    }
+    if (big && design.showTable && tableLabel != null) out.add(RText('TABLE $tableLabel', align: PrintAlign.center, bold: true, width: 2, height: 2));
+    out.add(const RRule());
+    out.add(RRow('Order', orderLabel));
+    out.add(RRow('Type', design.showTable && tableLabel != null ? '$orderTypeLabel $tableLabel' : orderTypeLabel));
+    out.add(RRow('Time', dateTime));
+  }
+  if (design.showWaiter && waiter != null) out.add(RRow('Waiter', waiter));
+  out.add(const RRule());
+  for (final l in lines) {
+    out.add(RText('${formatQty(l.qtyMilli)} x ${l.name}', bold: true, width: big ? 2 : 1, height: style == 'compact' ? 1 : 2));
+    for (final m in l.modifiers) {
+      out.add(RText('   + $m'));
+    }
+    if (design.showNotes && l.note != null) out.add(RText('   * ${l.note}', bold: big));
+  }
+  out.add(const RRule());
+  final items = lines.fold<int>(0, (s, l) => s + l.qtyMilli);
+  out.add(RText('Items: ${formatQty(items)}', align: PrintAlign.right));
+  return ReceiptDoc(out, copies: design.copies);
+}
+
+/// Kitchen ticket as ESC/POS bytes (synchronous; Urdu item names need [buildKotDoc] + a rasterizer).
 Uint8List buildKot({
   required String station,
   required String orderLabel,
@@ -206,26 +335,12 @@ Uint8List buildKot({
   required List<KotLine> lines,
   String? tableLabel,
   String? waiter,
+  String? token,
   int paperMm = 58,
   bool isReprint = false,
+  KotDesign design = KotDesign.defaults,
 }) {
-  final b = EscPosBuilder(paperMm: paperMm).init().codePage(0);
-  b.align(PrintAlign.center).bold(true).size(width: 2, height: 2).line('KOT');
-  b.size().line(station.toUpperCase()).bold(false);
-  if (isReprint) b.bold(true).line('*** REPRINT ***').bold(false);
-  b.align(PrintAlign.left).divider();
-  b.row('Order', orderLabel);
-  b.row('Type', tableLabel == null ? orderTypeLabel : '$orderTypeLabel $tableLabel');
-  b.row('Time', dateTime);
-  if (waiter != null) b.row('Waiter', waiter);
-  b.divider();
-  for (final l in lines) {
-    b.bold(true).size(height: 2).wrapped('${formatQty(l.qtyMilli)} x ${l.name}').size().bold(false);
-    for (final m in l.modifiers) {
-      b.line('   + $m');
-    }
-    if (l.note != null) b.line('   * ${l.note}');
-  }
-  b.divider().cut();
-  return b.toBytes();
+  final doc = buildKotDoc(station: station, orderLabel: orderLabel, orderTypeLabel: orderTypeLabel, dateTime: dateTime, lines: lines, tableLabel: tableLabel, waiter: waiter, token: token, isReprint: isReprint, design: design);
+  final b = EscPosRenderer(paperMm: paperMm).renderSync(doc);
+  return (b..cut()).toBytes();
 }

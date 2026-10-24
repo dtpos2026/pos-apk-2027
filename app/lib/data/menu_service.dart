@@ -33,7 +33,11 @@ class MenuService {
     return id;
   }
 
-  Future<String> saveProduct({String? id, required String name, required int priceMinor, String? categoryName, String? sku, bool available = true, required String staffId}) =>
+  /// Sets the counter/station of a whole category (blank = none).
+  Future<void> setCategoryStation(String categoryId, String? station) => db.customStatement(
+      'UPDATE category SET station = ?, updated_at = ?, version = version + 1 WHERE id = ?', [station == null || station.trim().isEmpty ? null : station.trim(), _now().millisecondsSinceEpoch, categoryId]);
+
+  Future<String> saveProduct({String? id, required String name, required int priceMinor, String? categoryName, String? sku, bool available = true, String? station, bool updateStation = false, required String staffId}) =>
       db.transaction(() async {
         if (name.trim().isEmpty) throw MenuException('Name is required');
         if (priceMinor < 0) throw MenuException('Price cannot be negative');
@@ -56,6 +60,9 @@ class MenuService {
             await db.customStatement('INSERT INTO audit_log(id, at, staff_id, event, entity, entity_id, before_json, after_json, device_id, critical) VALUES (?,?,?,?,?,?,?,?,?,0)',
                 [_newId(), now, staffId, 'product.price_change', 'product', id, jsonEncode({'price': before.first['base_price_minor']}), jsonEncode({'price': priceMinor}), 'device']);
           }
+        }
+        if (updateStation || (id == null && station != null)) {
+          await db.customStatement('UPDATE product SET station = ? WHERE id = ?', [station == null || station.trim().isEmpty ? null : station.trim(), pid]);
         }
         final version = (await _q('SELECT version FROM product WHERE id = ?', [pid])).first['version'] as int;
         await db.customStatement('INSERT OR IGNORE INTO outbox(idempotency_key, entity, entity_id, op, payload, entity_version, created_at) VALUES (?,?,?,?,?,?,?)',

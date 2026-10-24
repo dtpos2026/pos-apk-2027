@@ -2,7 +2,7 @@ import 'package:flutter/material.dart' show IconData, Icons;
 
 /// Optional parts of the app. Selling, bills, menu, reports and settings are always on.
 /// Switching a module off only hides it; its data is never deleted and comes back when switched on again.
-const allModules = ['tables', 'kitchen', 'inventory', 'customers', 'expenses', 'staff'];
+const allModules = ['tables', 'kitchen', 'inventory', 'customers', 'expenses', 'staff', 'tokens'];
 
 class BusinessType {
   const BusinessType(this.id, this.icon, this.modules);
@@ -14,11 +14,11 @@ class BusinessType {
 }
 
 const businessTypes = <BusinessType>[
-  BusinessType('stall', Icons.storefront_outlined, ['customers', 'expenses']),
+  BusinessType('stall', Icons.storefront_outlined, ['customers', 'expenses', 'tokens']),
   BusinessType('cafe', Icons.local_cafe_outlined, ['kitchen', 'inventory', 'customers', 'expenses']),
-  BusinessType('fastfood', Icons.lunch_dining_outlined, ['kitchen', 'inventory', 'customers', 'expenses', 'staff']),
+  BusinessType('fastfood', Icons.lunch_dining_outlined, ['kitchen', 'inventory', 'customers', 'expenses', 'staff', 'tokens']),
   BusinessType('pizza', Icons.local_pizza_outlined, ['kitchen', 'inventory', 'customers', 'expenses', 'staff']),
-  BusinessType('desi', Icons.rice_bowl_outlined, ['tables', 'kitchen', 'inventory', 'customers', 'expenses', 'staff']),
+  BusinessType('desi', Icons.rice_bowl_outlined, ['tables', 'kitchen', 'inventory', 'customers', 'expenses', 'staff', 'tokens']),
   BusinessType('bakery', Icons.bakery_dining_outlined, ['inventory', 'customers', 'expenses', 'staff']),
   BusinessType('enterprise', Icons.apartment_outlined, allModules),
 ];

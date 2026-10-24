@@ -51,6 +51,8 @@ describe.skipIf(!on)('FirebaseApi on the emulator', () => {
     await setDoc(doc(r.db, 'accounts', r.uid), { phoneRequests: ['ph2'] }, { merge: true });
     await expect(api.approvePhone(r.uid, 'ph2')).rejects.toThrow(/allows 1 phone/);
     await api.patchAccount(r.uid, { maxPhones: 2 });
+    await api.patchAccount(r.uid, { disabledModules: ['tokens', 'tables'] });
+    expect((await api.account(r.uid))!.disabledModules).toEqual(['tokens', 'tables']);
     await api.approvePhone(r.uid, 'ph2');
     expect((await api.account(r.uid))!.approvedPhones).toEqual(['ph1', 'ph2']);
     await api.setDeviceBlocked(r.uid, 'ph2', true);

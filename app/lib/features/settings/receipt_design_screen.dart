@@ -33,6 +33,7 @@ ReceiptData sampleReceipt({
       taxLabel: taxLabel,
       taxNumber: taxNumber,
       invoiceNo: 'INV-20260112-0001',
+      token: 'A17',
       dateTime: '2026-01-12 19:40',
       orderTypeLabel: 'Dine-in',
       tableLabel: 'T4',
@@ -67,6 +68,7 @@ class _ReceiptDesignScreenState extends ConsumerState<ReceiptDesignScreen> {
   final _header = TextEditingController();
   final _footer = TextEditingController();
   final _qr = TextEditingController();
+  final _title = TextEditingController();
   Uint8List? _logoBytes;
   RasterImage? _logoBitmap;
   String? _logoError;
@@ -82,7 +84,7 @@ class _ReceiptDesignScreenState extends ConsumerState<ReceiptDesignScreen> {
 
   @override
   void dispose() {
-    for (final c in [_name, _phone, _address, _taxLabel, _taxNo, _header, _footer, _qr]) {
+    for (final c in [_name, _phone, _address, _taxLabel, _taxNo, _header, _footer, _qr, _title]) {
       c.dispose();
     }
     super.dispose();
@@ -103,6 +105,7 @@ class _ReceiptDesignScreenState extends ConsumerState<ReceiptDesignScreen> {
       _header.text = d.headerLines.join('\n');
       _footer.text = d.footerLines.map((l) => l == BillDesign.defaultFooter ? BillLabels.of(d.language)['thanks'] : l).join('\n');
       _qr.text = d.qrText ?? '';
+      _title.text = d.title;
       _logoBytes = bytes;
       _loaded = true;
     });
@@ -131,7 +134,7 @@ class _ReceiptDesignScreenState extends ConsumerState<ReceiptDesignScreen> {
   BillDesign get _design {
     final thanks = BillLabels.supported.map((l) => BillLabels.of(l)['thanks']).toSet();
     final footers = _lines(_footer.text).map((l) => thanks.contains(l) ? BillDesign.defaultFooter : l).toList();
-    return _d.copyWith(headerLines: _lines(_header.text), footerLines: footers, qrText: _qr.text.trim(), clearQr: _qr.text.trim().isEmpty);
+    return _d.copyWith(title: _title.text.trim(), headerLines: _lines(_header.text), footerLines: footers, qrText: _qr.text.trim(), clearQr: _qr.text.trim().isEmpty);
   }
 
   ReceiptData _sample(Currency c, {RasterImage? logo}) => sampleReceipt(
@@ -226,17 +229,37 @@ class _ReceiptDesignScreenState extends ConsumerState<ReceiptDesignScreen> {
   Widget _sw(String label, bool v, ValueChanged<bool> on, {String? key}) =>
       SwitchListTile(key: key == null ? null : ValueKey(key), dense: true, contentPadding: EdgeInsets.zero, title: Text(label), value: v, onChanged: (x) => setState(() => on(x)));
 
-  Widget _title(String s) => Padding(padding: const EdgeInsets.only(top: 18, bottom: 6), child: Text(s, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)));
+  Widget _heading(String s) => Padding(padding: const EdgeInsets.only(top: 18, bottom: 6), child: Text(s, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)));
 
   List<Widget> _form(Strings t) => [
-        _title(t['logo']),
+        _heading(t['bill_style']),
+        Text(t['bill_style_hint'], style: Theme.of(context).textTheme.bodySmall),
+        const SizedBox(height: 8),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          for (final s in billStyles)
+            ChoiceChip(
+              key: ValueKey('bill-style-$s'),
+              label: Text(t['bill_style_$s']),
+              selected: _d.style == s,
+              onSelected: (_) => setState(() {
+                _d = _d.withStyle(s);
+                _title.text = _d.title;
+              }),
+            ),
+        ]),
+        const SizedBox(height: 10),
+        TextField(key: const ValueKey('rd-title'), controller: _title, onChanged: (_) => setState(() {}), decoration: InputDecoration(labelText: t['bill_heading'], hintText: 'PRE-PAYMENT BILL / TAX INVOICE')),
+        _sw(t['show_token'], _d.showToken, (v) => _d = _d.copyWith(showToken: v), key: 'sw-token'),
+        _sw(t['show_item_count'], _d.showItemCount, (v) => _d = _d.copyWith(showItemCount: v), key: 'sw-itemcount'),
+        _sw(t['amount_in_words'], _d.amountInWords, (v) => _d = _d.copyWith(amountInWords: v), key: 'sw-words'),
+        _heading(t['logo']),
         Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
           FilledButton.tonalIcon(key: const ValueKey('choose-logo'), onPressed: _pickLogo, icon: const Icon(Icons.image_outlined), label: Text(t['choose_logo'])),
           if (_logoBytes != null) OutlinedButton.icon(key: const ValueKey('remove-logo'), onPressed: _removeLogo, icon: const Icon(Icons.delete_outline), label: Text(t['remove_logo'])),
           if (_logoBytes != null) SizedBox(width: 180, child: _sw(t['logo'], _d.showLogo, (v) => _d = _d.copyWith(showLogo: v), key: 'sw-logo')),
         ]),
         if (_logoError != null) Text(_logoError!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-        _title(t['business_details']),
+        _heading(t['business_details']),
         TextField(key: const ValueKey('rd-name'), controller: _name, onChanged: (_) => setState(() {}), decoration: InputDecoration(labelText: t['business_name'])),
         const SizedBox(height: 10),
         TextField(key: const ValueKey('rd-address'), controller: _address, onChanged: (_) => setState(() {}), decoration: InputDecoration(labelText: t['address'])),
@@ -248,14 +271,14 @@ class _ReceiptDesignScreenState extends ConsumerState<ReceiptDesignScreen> {
           const SizedBox(width: 10),
           Expanded(child: TextField(controller: _taxNo, onChanged: (_) => setState(() {}), decoration: InputDecoration(labelText: t['tax_number']))),
         ]),
-        _title(t['align']),
+        _heading(t['align']),
         SegmentedButton<PrintAlign>(
           showSelectedIcon: false,
           segments: [ButtonSegment(value: PrintAlign.left, label: Text(t['left'])), ButtonSegment(value: PrintAlign.center, label: Text(t['center'])), ButtonSegment(value: PrintAlign.right, label: Text(t['right']))],
           selected: {_d.headerAlign},
           onSelectionChanged: (s) => setState(() => _d = _d.copyWith(headerAlign: s.first)),
         ),
-        _title(t['name_size']),
+        _heading(t['name_size']),
         SegmentedButton<int>(showSelectedIcon: false, segments: const [ButtonSegment(value: 1, label: Text('1x')), ButtonSegment(value: 2, label: Text('2x')), ButtonSegment(value: 3, label: Text('3x'))], selected: {_d.nameSize}, onSelectionChanged: (s) => setState(() => _d = _d.copyWith(nameSize: s.first))),
         const SizedBox(height: 10),
         TextField(key: const ValueKey('rd-header'), controller: _header, onChanged: (_) => setState(() {}), minLines: 1, maxLines: 4, decoration: InputDecoration(labelText: t['header_lines'])),
@@ -265,7 +288,7 @@ class _ReceiptDesignScreenState extends ConsumerState<ReceiptDesignScreen> {
         _sw(t['show_order_type'], _d.showOrderType, (v) => _d = _d.copyWith(showOrderType: v)),
         _sw(t['show_table'], _d.showTable, (v) => _d = _d.copyWith(showTable: v)),
         _sw(t['show_cashier'], _d.showCashier, (v) => _d = _d.copyWith(showCashier: v)),
-        _title(t['bill_language']),
+        _heading(t['bill_language']),
         SegmentedButton<String>(
           key: const ValueKey('bill-language'),
           showSelectedIcon: false,
@@ -292,7 +315,7 @@ class _ReceiptDesignScreenState extends ConsumerState<ReceiptDesignScreen> {
           Text('${_d.copies}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
           IconButton(onPressed: _d.copies < 5 ? () => setState(() => _d = _d.copyWith(copies: _d.copies + 1)) : null, icon: const Icon(Icons.add_circle_outline)),
         ]),
-        _title(t['paper']),
+        _heading(t['paper']),
         SegmentedButton<int>(key: const ValueKey('paper'), showSelectedIcon: false, segments: const [ButtonSegment(value: 58, label: Text('58 mm')), ButtonSegment(value: 80, label: Text('80 mm'))], selected: {_paper}, onSelectionChanged: (s) {
           _paper = s.first;
           _refreshLogo();

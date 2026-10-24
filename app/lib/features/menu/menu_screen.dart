@@ -99,6 +99,7 @@ Future<bool> _editDialog(BuildContext context, WidgetRef ref, MenuProduct? p) as
   final name = TextEditingController(text: p?.name);
   final price = TextEditingController(text: p == null ? '' : formatMinor(p.priceMinor, currency: ref.currency, symbol: false).replaceAll(',', ''));
   final category = TextEditingController(text: p?.categoryName);
+  final counter = TextEditingController(text: p?.ownStation);
   String? error;
   Uint8List? newPhoto; // picked but not saved yet
   var removePhoto = false;
@@ -146,6 +147,8 @@ Future<bool> _editDialog(BuildContext context, WidgetRef ref, MenuProduct? p) as
             TextField(key: const ValueKey('item-price'), controller: price, keyboardType: const TextInputType.numberWithOptions(decimal: true), inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))], decoration: InputDecoration(labelText: t['price'])),
             const SizedBox(height: 10),
             TextField(key: const ValueKey('item-category'), controller: category, decoration: InputDecoration(labelText: t['category'])),
+            const SizedBox(height: 10),
+            TextField(key: const ValueKey('item-counter'), controller: counter, decoration: InputDecoration(labelText: t['counter_station'], helperText: t['counter_station_hint'], helperMaxLines: 2)),
             if (p != null)
               Padding(
                 padding: const EdgeInsets.only(top: 12),
@@ -176,7 +179,7 @@ Future<bool> _editDialog(BuildContext context, WidgetRef ref, MenuProduct? p) as
                 return;
               }
               try {
-                final id = await ref.read(menuServiceProvider).saveProduct(id: p?.id, name: name.text, priceMinor: minor, categoryName: category.text, sku: p?.sku, available: p?.available ?? true, staffId: ref.read(sessionProvider)!.staffId);
+                final id = await ref.read(menuServiceProvider).saveProduct(id: p?.id, name: name.text, priceMinor: minor, categoryName: category.text, sku: p?.sku, available: p?.available ?? true, station: counter.text, updateStation: true, staffId: ref.read(sessionProvider)!.staffId);
                 final images = ref.read(menuImageStoreProvider);
                 if (newPhoto != null) {
                   await images.setProduct(id, newPhoto!);
@@ -391,7 +394,28 @@ class _CategoriesDialog extends ConsumerWidget {
                     contentPadding: EdgeInsets.zero,
                     leading: SizedBox(width: 48, height: 48, child: MenuImage(path: c.imagePath, name: c.name, radius: 10, iconSize: 24)),
                     title: Text(c.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                    subtitle: c.station == null ? null : Text('${t['counter_station']}: ${c.station}'),
                     trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                      IconButton(
+                        key: ValueKey('category-counter-${c.name}'),
+                        tooltip: t['counter_station'],
+                        icon: const Icon(Icons.storefront_outlined),
+                        onPressed: () async {
+                          final ctl = TextEditingController(text: c.station);
+                          final ok = await showDialog<bool>(
+                            context: context,
+                            builder: (d) => AlertDialog(
+                              title: Text('${t['counter_station']}: ${c.name}'),
+                              content: TextField(key: const ValueKey('category-counter-field'), controller: ctl, autofocus: true, decoration: InputDecoration(helperText: t['counter_station_hint'], helperMaxLines: 3)),
+                              actions: [TextButton(onPressed: () => Navigator.pop(d, false), child: Text(t['cancel'])), FilledButton(key: const ValueKey('category-counter-save'), onPressed: () => Navigator.pop(d, true), child: Text(t['save']))],
+                            ),
+                          );
+                          if (ok != true) return;
+                          await ref.read(menuServiceProvider).setCategoryStation(c.id, ctl.text);
+                          ref.invalidate(categoriesProvider);
+                          ref.invalidate(productsProvider);
+                        },
+                      ),
                       IconButton(
                         key: ValueKey('category-photo-${c.name}'),
                         tooltip: t['choose_photo'],

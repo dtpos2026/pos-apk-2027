@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../domain/bill.dart';
 import '../domain/payments.dart';
 import 'db/database.dart';
+import 'token_service.dart';
 
 class PosException implements Exception {
   PosException(this.code, this.message);
@@ -156,6 +157,7 @@ class PosService {
   final String deviceId;
   final DateTime Function() _now;
   final String Function() _newId;
+  late final TokenService _tokens = TokenService(db, now: _now, newId: _newId);
 
   int get _ts => _now().millisecondsSinceEpoch;
   String get _businessDate {
@@ -412,6 +414,8 @@ class PosService {
         }
         await _audit('bill.settle', staffId: staffId, entity: 'order', entityId: orderId, after: {'invoice': invoiceNo, 'total': bill.totalMinor});
         await _outbox('order', orderId, 'append', {'id': orderId, 'invoice_no': invoiceNo, 'total_minor': bill.totalMinor, 'tax_minor': bill.taxMinor, 'business_date': o['business_date'], 'status': 'paid'}, 'order:$orderId:settle');
+        // food tokens (if the owner switched any on) are numbered in the same transaction as the sale: all or nothing
+        await _tokens.issueForOrder(orderId);
         return SettledOrder(orderId: orderId, invoiceNo: invoiceNo, totalMinor: bill.totalMinor, changeMinor: result.changeMinor, alreadySettled: false);
       });
 
@@ -472,6 +476,7 @@ class PosService {
           await _exec("UPDATE \"order\" SET status=?, updated_at=?, version=version+1 WHERE id=?", [full ? 'void' : 'refunded', now, orderId]);
           final items = await _select("SELECT * FROM order_item WHERE order_id = ? AND status = 'active'", [orderId]);
           await _applyStock(orderId, items, sign: 1, reason: 'return', staffId: staffId);
+          await _tokens.voidForOrder(orderId); // waiting tokens and unused coupons of a cancelled sale stop working
           final credit = (await _select("SELECT COALESCE(SUM(amount_minor),0) AS s FROM payment WHERE order_id = ? AND method_kind = 'credit'", [orderId])).first['s'] as int;
           if (credit > 0 && o['customer_id'] != null) {
             await _exec('INSERT INTO customer_ledger(id, customer_id, kind, amount_minor, order_id, staff_id, created_at) VALUES (?,?,?,?,?,?,?)',

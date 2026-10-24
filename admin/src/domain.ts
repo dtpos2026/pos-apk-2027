@@ -91,3 +91,14 @@ export function sumByCurrency(rows: { minor: number; currency: string }[]): stri
   if (m.size === 0) return '0';
   return [...m.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([c, v]) => money(v, c)).join(' · ');
 }
+
+/** Optional parts of the restaurant app that can be switched off per business (ids match the app's module ids). */
+export const APP_MODULES: { id: string; label: string; hint: string }[] = [
+  { id: 'tables', label: 'Tables (dine-in)', hint: 'Table map and table orders' },
+  { id: 'kitchen', label: 'Kitchen display', hint: 'Kitchen screen for new orders' },
+  { id: 'inventory', label: 'Inventory & recipes', hint: 'Stock, suppliers, purchases' },
+  { id: 'customers', label: 'Customers & udhaar', hint: 'Customer list and credit sales' },
+  { id: 'expenses', label: 'Expenses', hint: 'Daily expenses' },
+  { id: 'staff', label: 'Staff & roles', hint: 'Staff accounts and permissions' },
+  { id: 'tokens', label: 'Food tokens & coupons', hint: 'Order/tandoor/stall tokens, prepaid coupons' },
+];

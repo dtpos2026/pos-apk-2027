@@ -8,7 +8,7 @@ afterEach(cleanup);
 
 const pending: Account = {
   uid: 'u1', businessName: 'Cafe One', ownerName: 'Ali', phone: '0300', city: 'Lahore', country: 'PK', email: 'a@x.pk', status: 'pending', plan: null, feeMinor: 0, currency: 'PKR',
-  expiresAt: null, customerId: null, businessId: null, licenseId: null, approvedPhones: [], phoneRequests: ['p1'], blockedPhones: [], maxPhones: 1, adminMessage: '', createdAt: new Date('2026-10-01'), appVersion: '0.1.0', todayNetMinor: 0, todayAt: null,
+  expiresAt: null, customerId: null, businessId: null, licenseId: null, approvedPhones: [], phoneRequests: ['p1'], blockedPhones: [], maxPhones: 1, disabledModules: [], adminMessage: '', createdAt: new Date('2026-10-01'), appVersion: '0.1.0', todayNetMinor: 0, todayAt: null,
 };
 
 function fake(over: Partial<AdminApi> = {}): AdminApi {
@@ -59,6 +59,20 @@ describe('panel', () => {
     fireEvent.click(await screen.findByText('Sign in'));
     expect((await screen.findByRole('alert')).textContent).toBe('wrong password');
   });
+  it('switches app features off for one restaurant and saves only the switched-off ones', async () => {
+    const patch = vi.fn(async () => {});
+    const api = fake({ patchAccount: patch });
+    render(<App api={api} />);
+    fireEvent.click(await screen.findByText('Restaurants'));
+    fireEvent.click(await screen.findByText('Cafe One'));
+    await screen.findByText('App features');
+    expect((screen.getByLabelText('Food tokens & coupons') as HTMLInputElement).checked).toBe(true);
+    fireEvent.click(screen.getByLabelText('Food tokens & coupons'));
+    fireEvent.click(screen.getByLabelText('Tables (dine-in)'));
+    fireEvent.click(screen.getByText('Save features'));
+    await waitFor(() => expect(patch).toHaveBeenCalledWith('u1', { disabledModules: ['tables', 'tokens'] }));
+  });
+
   it('approves a pending restaurant with the chosen plan and fee', async () => {
     const api = fake();
     render(<App api={api} />);

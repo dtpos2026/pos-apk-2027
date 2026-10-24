@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Account, AdminApi } from './api';
-import { PLANS, STATUS_LABEL, STATUSES, daysLeft, effectiveStatus, expiryFor, isOnline, localDate, money, parseMoneyToMinor, sumByCurrency, type PlanId, type Status } from './domain';
+import { APP_MODULES, PLANS, STATUS_LABEL, STATUSES, daysLeft, effectiveStatus, expiryFor, isOnline, localDate, money, parseMoneyToMinor, sumByCurrency, type PlanId, type Status } from './domain';
 import { Badge, Err, ago, fmtDate, useAction, useLoad, usePaged } from './ui';
 
 export interface PageProps { api: AdminApi; go: (page: string, arg?: string) => void; arg?: string }
@@ -92,6 +92,7 @@ export function RestaurantPage({ api, go, arg }: PageProps) {
   const [plan, setPlan] = useState<PlanId>('monthly'); const [fee, setFee] = useState(''); const [custom, setCustom] = useState('');
   const [msgText, setMsgText] = useState(''); const [note, setNote] = useState<string | null>(null);
   const [maxPhones, setMaxPhones] = useState('');
+  const [offDraft, setOffDraft] = useState<string[] | null>(null);
   // pre-fill the fee from Settings > Plan prices once they load
   useEffect(() => {
     const m = billing.data?.planPrices?.monthly;
@@ -100,6 +101,8 @@ export function RestaurantPage({ api, go, arg }: PageProps) {
   const a = acc.data;
   if (acc.err) return <Err text={acc.err} />;
   if (!a) return <p>Loading…</p>;
+  const off = offDraft ?? a.disabledModules;
+  const setOff = setOffDraft;
   const now = new Date();
   const mine = (devs.data ?? []).filter(d => d.uid === uid);
   const sum = (n: number) => (days.data ?? []).slice(0, n).reduce((s, d) => s + d.netMinor, 0);
@@ -166,6 +169,16 @@ export function RestaurantPage({ api, go, arg }: PageProps) {
           {plan === 'custom' && <input aria-label="Custom date" type="date" value={custom} onChange={e => setCustom(e.target.value)} />}
           <button className="act sec" onClick={() => act.run(async () => { const e = expiryFor(plan, now, a.expiresAt, custom ? new Date(custom + 'T23:59:59') : undefined); await api.patchAccount(uid, { plan, expiresAt: e, status: 'active', adminMessage: '' }); })}>Set plan / extend</button></div>
       </div>)}
+    <div className="card"><h3>App features</h3>
+      <p className="mut small">Switch a feature off to hide it in this restaurant's app. Their saved data is kept. The phone learns about the change the next time it is online and signs in.</p>
+      <div className="row" style={{ flexWrap: 'wrap' }}>
+        {APP_MODULES.map(m => (
+          <label key={m.id} title={m.hint} style={{ display: 'flex', gap: 6, alignItems: 'center', marginRight: 16 }}>
+            <input type="checkbox" aria-label={m.label} checked={!off.includes(m.id)} onChange={e => setOff(e.target.checked ? off.filter(x => x !== m.id) : [...off, m.id])} /> {m.label}
+          </label>))}
+        <button className="act sec" onClick={() => act.run(async () => { await api.patchAccount(uid, { disabledModules: APP_MODULES.map(m => m.id).filter(id => off.includes(id)) }); setOffDraft(null); })}>Save features</button>
+      </div>
+    </div>
     <div className="card"><h3>Phones</h3>
       <div className="row">Phone limit: <input aria-label="Phone limit" style={{ width: 60 }} value={maxPhones || String(a.maxPhones)} onChange={e => setMaxPhones(e.target.value)} />
         <button className="act sec" onClick={() => act.run(async () => { const n = Number(maxPhones); if (!Number.isInteger(n) || n < 1 || n > 20) throw new Error('Limit must be 1 to 20'); await api.patchAccount(uid, { maxPhones: n }); setMaxPhones(''); })}>Save</button></div>

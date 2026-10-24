@@ -94,6 +94,7 @@ class _BillDialog extends ConsumerStatefulWidget {
 class _BillDialogState extends ConsumerState<_BillDialog> {
   String? _preview;
   String? _customerPhone;
+  bool _hasTokens = false;
   final _paperKey = GlobalKey();
 
   @override
@@ -105,11 +106,13 @@ class _BillDialogState extends ConsumerState<_BillDialog> {
   Future<void> _load() async {
     final design = await ref.read(receiptTemplateStoreProvider).load();
     final data = await loadReceipt(ref.read(databaseProvider), widget.bill.id);
+    final tokens = (await ref.read(tokenServiceProvider).forOrder(widget.bill.id)).any((x) => x.status != 'void');
     final phone = await ref.read(databaseProvider).customSelect('SELECT c.phone AS p FROM "order" o JOIN customer c ON c.id = o.customer_id WHERE o.id = ?', variables: [Variable.withString(widget.bill.id)]).get();
     if (mounted) {
       setState(() {
         _preview = previewBill(data, template: design);
         _customerPhone = phone.isEmpty ? null : phone.first.data['p'] as String?;
+        _hasTokens = tokens;
       });
     }
   }
@@ -196,9 +199,30 @@ class _BillDialogState extends ConsumerState<_BillDialog> {
           TextButton.icon(key: const ValueKey('bill-whatsapp'), onPressed: _whatsApp, icon: const Icon(Icons.chat_outlined, size: 18), label: const Text('WhatsApp')),
         if (_preview != null)
           TextButton.icon(key: const ValueKey('bill-image'), onPressed: _shareImage, icon: const Icon(Icons.image_outlined, size: 18), label: Text(s['share_image'])),
+        if (_hasTokens)
+          TextButton.icon(
+            key: const ValueKey('bill-reprint-tokens'),
+            onPressed: () async {
+              final cfg = await ref.read(tokenServiceProvider).config();
+              if (cfg.managerReprintOnly && !session.can('settings.manage')) {
+                if (context.mounted) showMessage(context, s['reprint_manager_only']);
+                return;
+              }
+              final jobs = await ref.read(printServiceProvider).queueTokens(b.id, reprint: true, staffId: session.staffId);
+              if (jobs.isNotEmpty) ref.read(printServiceProvider).processQueue();
+              if (context.mounted) showMessage(context, jobs.isEmpty ? s['no_printer'] : s['print_queued']);
+            },
+            icon: const Icon(Icons.confirmation_number_outlined, size: 18),
+            label: Text(s['print_tokens']),
+          ),
         TextButton.icon(
           key: const ValueKey('bill-reprint'),
           onPressed: () async {
+            final cfg = await ref.read(tokenServiceProvider).config();
+            if (cfg.managerReprintOnly && !session.can('settings.manage')) {
+              if (context.mounted) showMessage(context, s['reprint_manager_only']);
+              return;
+            }
             final jobs = await ref.read(printServiceProvider).queueBill(b.id, duplicate: true, staffId: session.staffId);
             if (jobs.isNotEmpty) ref.read(printServiceProvider).processQueue();
             if (context.mounted) showMessage(context, jobs.isEmpty ? s['no_printer'] : s['print_queued']);

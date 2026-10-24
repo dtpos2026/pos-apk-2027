@@ -71,6 +71,15 @@ class RRow extends RLine {
   final int height;
 }
 
+/// A table row: the first cell takes what the others leave and wraps; the others are right-aligned and never wrap.
+/// [widths] are the fixed columns of every cell after the first, for 58 mm paper; 80 mm paper widens them by half.
+class RCols extends RLine {
+  const RCols(this.cells, this.widths, {this.bold = false});
+  final List<String> cells;
+  final List<int> widths;
+  final bool bold;
+}
+
 class RRule extends RLine {
   const RRule([this.ch = '-']);
   final String ch;
@@ -115,6 +124,22 @@ List<String> layoutRow(String left, String right, int columns) {
   return [first.padRight(columns - right.length) + right, ...parts.skip(1)];
 }
 
+/// Lays out a table row ([RCols]) as text lines of exactly [columns] characters (the first line; wrapped name lines follow).
+List<String> layoutCols(List<String> cells, List<int> widths, int columns) {
+  final scale = columns >= 48 ? 1.5 : 1.0;
+  final w = [for (final x in widths) (x * scale).round()];
+  final tail = StringBuffer();
+  for (var i = 0; i < w.length; i++) {
+    final c = i + 1 < cells.length ? cells[i + 1] : '';
+    final v = c.length > w[i] - 1 ? c.substring(0, w[i] - 1) : c;
+    tail.write(v.padLeft(w[i]));
+  }
+  final avail = columns - tail.length;
+  final parts = avail > 0 ? EscPosBuilder.wrap(cells.isEmpty ? '' : cells.first, avail) : [cells.first];
+  final first = parts.isEmpty ? '' : parts.first;
+  return [first.padRight(avail) + tail.toString(), ...parts.skip(1)];
+}
+
 /// Turns Arabic-script text into bitmaps for printers that have no fonts for it. Implemented in the app layer
 /// (it needs the Flutter text engine for correct shaping and right-to-left order).
 abstract class TextRasterizer {
@@ -154,6 +179,9 @@ class EscPosRenderer {
         } else if (r != null && l is RRow && (needsRaster(l.left) || needsRaster(l.right))) {
           final img = await r.row(l.left, l.right, widthPx: dots, bold: l.bold);
           b.align(PrintAlign.left).raster(img.bits, widthBytes: img.widthBytes, heightPx: img.heightPx);
+        } else if (r != null && l is RCols && l.cells.any(needsRaster)) {
+          final img = await r.row(l.cells.first, l.cells.skip(1).where((c) => c.isNotEmpty).join('  '), widthPx: dots, bold: l.bold);
+          b.align(PrintAlign.left).raster(img.bits, widthBytes: img.widthBytes, heightPx: img.heightPx);
         } else {
           _simple(b, l);
         }
@@ -178,8 +206,14 @@ class EscPosRenderer {
           b.line(line);
         }
         b.size().bold(false);
+      case RCols():
+        b.align(PrintAlign.left).bold(l.bold);
+        for (final line in layoutCols(l.cells, l.widths, b.columns)) {
+          b.line(line);
+        }
+        b.bold(false);
       case RRule():
-        b.align(PrintAlign.left).line(l.ch * b.columns);
+        b.align(PrintAlign.left).line(_rule(l.ch, b.columns));
       case RImage():
         final img = l.image.padded(dotsFor(paperMm), l.align);
         b.align(PrintAlign.left).raster(img.bits, widthBytes: img.widthBytes, heightPx: img.heightPx);
@@ -218,8 +252,12 @@ String docToText(ReceiptDoc doc, int paperMm) {
         for (final line in layoutRow(l.left, l.right, cols)) {
           out.writeln(line);
         }
+      case RCols():
+        for (final line in layoutCols(l.cells, l.widths, cols)) {
+          out.writeln(line);
+        }
       case RRule():
-        out.writeln(l.ch * cols);
+        out.writeln(_rule(l.ch, cols));
       case RImage():
         out.writeln(align('[logo]', l.align, cols));
       case RQr():
@@ -232,3 +270,7 @@ String docToText(ReceiptDoc doc, int paperMm) {
   }
   return out.toString();
 }
+
+/// A full-width rule; a multi-character pattern such as '- ' repeats and is cut to the paper width.
+String _rule(String ch, int cols) => ruleText(ch, cols);
+String ruleText(String ch, int cols) => (ch * (cols ~/ ch.length + 1)).substring(0, cols);

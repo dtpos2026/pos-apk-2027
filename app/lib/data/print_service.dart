@@ -7,7 +7,9 @@ import 'package:uuid/uuid.dart';
 import '../domain/receipt.dart';
 import '../domain/receipt_doc.dart';
 import '../domain/receipt_template.dart';
+import '../domain/token.dart';
 import 'receipt_settings.dart';
+import 'token_service.dart';
 import 'db/database.dart';
 import 'receipt_loader.dart';
 
@@ -146,6 +148,8 @@ class PrintService {
     }
     final table = o['table_id'] == null ? null : (await _select('SELECT label FROM dining_table WHERE id = ?', [o['table_id'] as String])).firstOrNull?['label'] as String?;
     final ids = <String>[];
+    final kotDesign = await ReceiptTemplateStore(db).loadKot();
+    final token = await TokenService(db, now: _now).orderTokenLabel(orderId);
     for (final p in printers) {
       final station = (p['station'] as String?) ?? '';
       final lines = byStation[station];
@@ -155,21 +159,85 @@ class PrintService {
         final mods = await _select('SELECT name FROM order_item_modifier WHERE order_item_id = ?', [i['id'] as String]);
         kotLines.add(KotLine(i['name'] as String, i['qty_milli'] as int, modifiers: [for (final m in mods) m['name'] as String], note: i['note'] as String?));
       }
-      final bytes = buildKot(
+      final doc = buildKotDoc(
         station: station.isEmpty ? 'Kitchen' : station,
         orderLabel: (o['invoice_no'] as String?) ?? '#${(o['id'] as String).substring(0, 4)}',
         orderTypeLabel: orderTypeLabels[o['order_type']] ?? '${o['order_type']}',
         tableLabel: table,
         dateTime: formatDateTime(_now()),
         lines: kotLines,
-        paperMm: p['paper_mm'] as int,
+        token: token,
         isReprint: reprint,
+        design: kotDesign,
       );
+      final bytes = ((await EscPosRenderer(paperMm: p['paper_mm'] as int, rasterizer: rasterizer).render(doc))..cut()).toBytes();
       ids.add(await _enqueue(p['id'] as String, 'kot', orderId, bytes, reprint));
     }
     if (onlyNew && ids.isNotEmpty) {
       // remember what the kitchen already has, so the next "send" only prints what was added since
       await db.customStatement("UPDATE order_item SET kot_qty_milli = qty_milli, kot_sent_at = ? WHERE order_id = ? AND status = 'active' AND qty_milli > kot_qty_milli", [_ts, orderId]);
+    }
+    return ids;
+  }
+
+  // ---- food tokens ----
+
+  /// The printer a token goes to: the one chosen on its rule, else the printer assigned to its counter (a kitchen/tandoor/tea/BBQ
+  /// printer whose station matches), else a bill printer. null = nothing set up (the token is still stored and can be printed later).
+  Future<Map<String, Object?>?> _tokenPrinter(TokenRule rule, String? station) async {
+    if (rule.printerId != null) {
+      final r = await _select('SELECT * FROM printer WHERE id = ? AND enabled = 1 AND deleted_at IS NULL', [rule.printerId!]);
+      if (r.isNotEmpty) return r.first;
+    }
+    final st = (station ?? '').trim();
+    if (st.isNotEmpty) {
+      final r = await _select("SELECT * FROM printer WHERE enabled = 1 AND deleted_at IS NULL AND role IN ('kot','both') AND lower(trim(station)) = lower(?) ORDER BY name", [st]);
+      if (r.isNotEmpty) return r.first;
+    }
+    final r = await _select("SELECT * FROM printer WHERE enabled = 1 AND deleted_at IS NULL AND role IN ('bill','both') ORDER BY name");
+    return r.firstOrNull;
+  }
+
+  /// Queues the stored tokens of an order. [autoOnly] = the sale-time print: only rules set to print automatically, and never a
+  /// token that was already printed. Anything printed again is marked REPRINT. Returns the job ids.
+  Future<List<String>> queueTokens(String orderId, {Iterable<String>? tokenIds, bool autoOnly = false, bool reprint = false, String? staffId}) async {
+    final svc = TokenService(db, now: _now);
+    final cfg = await svc.config();
+    final ids = <String>[];
+    if ((await _select('SELECT status FROM "order" WHERE id = ?', [orderId])).firstOrNull?['status'] != 'paid') return ids; // cancelled sales print nothing
+    for (final t in await svc.forOrder(orderId)) {
+      if (t.status == 'void') continue;
+      if (tokenIds != null && !tokenIds.contains(t.id)) continue;
+      final rule = cfg.rule(t.ruleId) ?? TokenRule(id: t.ruleId, kind: t.kind, name: t.counter);
+      if (autoOnly && (!rule.auto || t.printCount > 0)) continue;
+      final printer = await _tokenPrinter(rule, t.station);
+      if (printer == null) continue;
+      final paper = printer['paper_mm'] as int;
+      final design = await svc.template(rule.template);
+      final again = reprint || t.printCount > 0;
+      final slip = await svc.slip(t, paperMm: paper, reprint: again);
+      final b = await EscPosRenderer(paperMm: paper, rasterizer: rasterizer).render(buildTokenSlipDoc(design, slip, paperMm: paper, copies: rule.copies));
+      EscPosRenderer.cut(b);
+      ids.add(await _enqueue(printer['id'] as String, 'token', orderId, b.toBytes(), again));
+      await svc.recordPrinted(t.id);
+      if (again) {
+        await db.customStatement('INSERT INTO audit_log(id, at, staff_id, event, entity, entity_id, critical) VALUES (?,?,?,?,?,?,0)', [const Uuid().v4(), _ts, staffId, 'token.reprint', 'token', t.id]);
+      }
+    }
+    return ids;
+  }
+
+  /// Queues a TEST token (sample data, never a real sale) on [printerId], or on every enabled bill printer.
+  Future<List<String>> queueTestSlip(TokenDesign design, TokenSlip Function(int paperMm) build, {String? printerId, int copies = 1}) async {
+    final printers = printerId != null
+        ? await _select('SELECT * FROM printer WHERE id = ? AND enabled = 1 AND deleted_at IS NULL', [printerId])
+        : await _select("SELECT * FROM printer WHERE enabled = 1 AND deleted_at IS NULL AND role IN ('bill','both') ORDER BY name");
+    final ids = <String>[];
+    for (final p in printers) {
+      final paper = p['paper_mm'] as int;
+      final b = await EscPosRenderer(paperMm: paper, rasterizer: rasterizer).render(buildTokenSlipDoc(design, build(paper), paperMm: paper, copies: copies));
+      EscPosRenderer.cut(b);
+      ids.add(await _enqueue(p['id'] as String, 'token', null, b.toBytes(), false));
     }
     return ids;
   }
