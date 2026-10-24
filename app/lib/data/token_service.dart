@@ -203,7 +203,7 @@ class TokenService {
         final items = <(Map<String, Object?>, SlipItem)>[];
         for (final r in rows) {
           final mods = await _select('SELECT name FROM order_item_modifier WHERE order_item_id = ?', [r['id']]);
-          items.add((r, SlipItem(name: r['name'] as String, qtyMilli: r['qty_milli'] as int, unitPriceMinor: r['unit_price_minor'] as int, totalMinor: r['line_total_minor'] as int, modifiers: [for (final m in mods) m['name'] as String], note: r['note'] as String?)));
+          items.add((r, SlipItem(name: r['name'] as String, qtyMilli: r['qty_milli'] as int, unitPriceMinor: r['unit_price_minor'] as int, totalMinor: r['line_total_minor'] as int, modifiers: [for (final m in mods) m['name'] as String], note: r['note'] as String?, station: r['station'] as String?)));
         }
         final categoryOf = {for (final r in await _select('SELECT id, category_id FROM product WHERE id IN (SELECT product_id FROM order_item WHERE order_id = ?)', [orderId])) r['id'] as String: r['category_id'] as String?};
         final date = o['business_date'] as String;
@@ -243,7 +243,7 @@ class TokenService {
                 // whole units get a token each (weighed items stay one token); 50 is a sanity cap
                 final units = i.qtyMilli % 1000 == 0 ? (i.qtyMilli ~/ 1000).clamp(1, 50) : 1;
                 for (var u = 0; u < units; u++) {
-                  parts.add([SlipItem(name: i.name, qtyMilli: units == 1 && i.qtyMilli % 1000 != 0 ? i.qtyMilli : 1000, unitPriceMinor: i.unitPriceMinor, totalMinor: i.qtyMilli % 1000 == 0 ? i.totalMinor ~/ (i.qtyMilli ~/ 1000) : i.totalMinor, modifiers: i.modifiers, note: i.note)]);
+                  parts.add([SlipItem(name: i.name, qtyMilli: units == 1 && i.qtyMilli % 1000 != 0 ? i.qtyMilli : 1000, unitPriceMinor: i.unitPriceMinor, totalMinor: i.qtyMilli % 1000 == 0 ? i.totalMinor ~/ (i.qtyMilli ~/ 1000) : i.totalMinor, modifiers: i.modifiers, note: i.note, station: i.station)]);
                 }
               }
           }

@@ -62,6 +62,7 @@ class AppDrawer extends ConsumerWidget {
         Expanded(
           child: ListView(padding: EdgeInsets.zero, children: [
             if (session.can('settings.manage')) ListTile(key: const ValueKey('drawer-profile'), leading: const Icon(Icons.badge_outlined), title: Text(t['business_profile']), onTap: () => open(const BusinessProfileScreen())),
+            if (ref.watch(activeModulesProvider).contains('staff')) _ClockTile(staffId: session.staffId),
             ListTile(key: const ValueKey('drawer-account'), leading: const Icon(Icons.verified_user_outlined), title: Text(t['account_licence']), onTap: () => open(const AccountScreen())),
             const Divider(),
             if (session.can('settings.manage')) ListTile(key: const ValueKey('drawer-receipt'), leading: const Icon(Icons.receipt_long_outlined), title: Text(t['receipt_design']), onTap: () => open(const ReceiptDesignScreen())),
@@ -82,6 +83,51 @@ class AppDrawer extends ConsumerWidget {
         }),
         Padding(padding: EdgeInsets.only(bottom: 10 + MediaQuery.paddingOf(context).bottom), child: Text('${t['powered_by']}  ·  v${ref.watch(appVersionProvider)}', style: Theme.of(context).textTheme.bodySmall)),
       ]),
+    );
+  }
+}
+
+/// "Clock in" / "Clock out" for the signed-in person.
+class _ClockTile extends ConsumerStatefulWidget {
+  const _ClockTile({required this.staffId});
+  final String staffId;
+  @override
+  ConsumerState<_ClockTile> createState() => _ClockTileState();
+}
+
+class _ClockTileState extends ConsumerState<_ClockTile> {
+  bool? _in;
+
+  Future<bool> _load() async {
+    final now = ref.read(clockProvider)();
+    final rows = await ref.read(attendanceServiceProvider).forDay('${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}');
+    return rows.any((r) => r.staffId == widget.staffId && r.atWork);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _load().then((v) {
+      if (mounted) setState(() => _in = v);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Strings.of(context);
+    final atWork = _in ?? false;
+    return ListTile(
+      key: const ValueKey('drawer-clock'),
+      leading: Icon(atWork ? Icons.logout : Icons.login),
+      title: Text(atWork ? t['clock_out'] : t['clock_in']),
+      onTap: () async {
+        final svc = ref.read(attendanceServiceProvider);
+        try {
+          atWork ? await svc.clockOut(widget.staffId) : await svc.clockIn(widget.staffId);
+        } catch (_) {}
+        final v = await _load();
+        if (mounted) setState(() => _in = v);
+      },
     );
   }
 }

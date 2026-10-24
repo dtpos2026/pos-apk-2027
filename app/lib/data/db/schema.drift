@@ -384,3 +384,17 @@ CREATE TABLE coupon (                       -- prepaid coupons: sold once, redee
   status TEXT NOT NULL DEFAULT 'issued' CHECK (status IN ('issued','redeemed','void')),
   created_at INTEGER NOT NULL, redeemed_at INTEGER, redeemed_by TEXT
 );
+
+-- ---- Purchase orders (schema version 3) ----
+CREATE TABLE purchase_order (               -- an order placed with a supplier; receiving it books a normal purchase into stock
+  id TEXT PRIMARY KEY, po_no TEXT NOT NULL UNIQUE, supplier_id TEXT REFERENCES supplier(id),
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','sent','received','cancelled')),
+  note TEXT, expected_date TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+  received_at INTEGER, purchase_id TEXT REFERENCES purchase(id), staff_id TEXT REFERENCES staff(id)
+);
+CREATE TABLE purchase_order_line (
+  id TEXT PRIMARY KEY, po_id TEXT NOT NULL REFERENCES purchase_order(id),
+  stock_item_id TEXT NOT NULL REFERENCES stock_item(id),
+  qty_milli INTEGER NOT NULL CHECK (qty_milli > 0), unit_cost_minor INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX purchase_order_line_ix ON purchase_order_line(po_id);

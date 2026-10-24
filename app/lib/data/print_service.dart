@@ -226,7 +226,9 @@ class PrintService {
       final design = await svc.template(rule.template);
       final again = reprint || t.printCount > 0;
       final slip = await svc.slip(t, paperMm: paper, reprint: again);
-      final b = await EscPosRenderer(paperMm: paper, rasterizer: rasterizer).render(buildTokenSlipDoc(design, slip, paperMm: paper, copies: rule.copies));
+      final main = buildTokenSlipDoc(design, slip, paperMm: paper, copies: rule.copies);
+      final stubs = buildStubLines(slip, rule.stubs, fallbackDepartment: rule.name);
+      final b = await EscPosRenderer(paperMm: paper, rasterizer: rasterizer).render(stubs.isEmpty ? main : ReceiptDoc([...main.lines, ...stubs], copies: main.copies));
       EscPosRenderer.cut(b);
       ids.add(await _enqueue(printer['id'] as String, 'token', orderId, b.toBytes(), again));
       await svc.recordPrinted(t.id);

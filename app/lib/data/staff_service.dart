@@ -42,6 +42,15 @@ class StaffService {
   Future<int> _activeOwners({String? except}) => h.intValue(
       "SELECT COUNT(*) FROM staff s JOIN role r ON r.id = s.role_id WHERE s.active = 1 AND s.deleted_at IS NULL AND r.permissions LIKE '%\"*\"%' AND s.id <> ?", [except ?? '']);
 
+  Future<int> dailyWage(String staffId) async => ((await h.one('SELECT daily_wage_minor AS w FROM staff WHERE id = ?', [staffId]))?['w'] as int?) ?? 0;
+
+  Future<void> setDailyWage({required String actor, required String staffId, required int wageMinor}) => h.db.transaction(() async {
+        await h.require(actor, 'staff.manage');
+        if (wageMinor < 0) throw PosException('invalid', 'Wage cannot be negative');
+        await h.exec('UPDATE staff SET daily_wage_minor = ?, updated_at = ?, version = version + 1 WHERE id = ?', [wageMinor, h.ts, staffId]);
+        await h.audit('staff.wage', staffId: actor, entity: 'staff', entityId: staffId);
+      });
+
   Future<void> setActive({required String actor, required String staffId, required bool active}) => h.db.transaction(() async {
         await h.require(actor, 'staff.manage');
         if (!active) {

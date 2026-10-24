@@ -44,6 +44,8 @@ enum TokenKind {
 }
 
 /// One configured token type: what it is for, how it is numbered, which design and printer it uses.
+const stubModes = ['none', 'department', 'item', 'piece'];
+
 class TokenRule {
   const TokenRule({
     required this.id,
@@ -63,6 +65,7 @@ class TokenRule {
     this.collectText = '',
     this.categoryIds = const [],
     this.productIds = const [],
+    this.stubs = 'none',
   });
 
   final String id;
@@ -106,6 +109,9 @@ class TokenRule {
   final List<String> categoryIds;
   final List<String> productIds;
 
+  /// Detachable stubs printed under the token, one per 'department' (counter), per 'item' line or per 'piece'; 'none' = no stubs.
+  final String stubs;
+
   bool get hasPicks => categoryIds.isNotEmpty || productIds.isNotEmpty;
 
   /// A rule for a counter (tandoor / stall / coupon) needs to know which items belong to it: a station or picked categories/items.
@@ -140,6 +146,7 @@ class TokenRule {
     String? collectText,
     List<String>? categoryIds,
     List<String>? productIds,
+    String? stubs,
   }) =>
       TokenRule(
         id: id,
@@ -159,6 +166,7 @@ class TokenRule {
         collectText: collectText ?? this.collectText,
         categoryIds: categoryIds ?? this.categoryIds,
         productIds: productIds ?? this.productIds,
+        stubs: stubs == null ? this.stubs : (stubModes.contains(stubs) ? stubs : 'none'),
       );
 
   Map<String, dynamic> toJson() => {
@@ -179,6 +187,7 @@ class TokenRule {
         'collectText': collectText,
         if (categoryIds.isNotEmpty) 'categoryIds': categoryIds,
         if (productIds.isNotEmpty) 'productIds': productIds,
+        if (stubs != 'none') 'stubs': stubs,
       };
 
   factory TokenRule.fromJson(Map<String, dynamic> j) => TokenRule(
@@ -199,6 +208,7 @@ class TokenRule {
         collectText: j['collectText'] as String? ?? '',
         categoryIds: [for (final x in (j['categoryIds'] as List?) ?? const []) '$x'],
         productIds: [for (final x in (j['productIds'] as List?) ?? const []) '$x'],
+        stubs: stubModes.contains(j['stubs']) ? j['stubs'] as String : 'none',
       );
 }
 
@@ -547,7 +557,7 @@ const builtInTemplateOrder = ['classic', 'product', 'price', 'tandoor', 'stall',
 // ---------------------------------------------------------------------------------------------------------------------
 
 class SlipItem {
-  const SlipItem({required this.name, required this.qtyMilli, this.unitPriceMinor = 0, this.totalMinor = 0, this.modifiers = const [], this.note});
+  const SlipItem({required this.name, required this.qtyMilli, this.unitPriceMinor = 0, this.totalMinor = 0, this.modifiers = const [], this.note, this.station});
   final String name;
   final int qtyMilli;
   final int unitPriceMinor;
@@ -555,9 +565,12 @@ class SlipItem {
   final List<String> modifiers;
   final String? note;
 
-  Map<String, dynamic> toJson() => {'n': name, 'q': qtyMilli, 'p': unitPriceMinor, 't': totalMinor, if (modifiers.isNotEmpty) 'm': modifiers, if (note != null) 'o': note};
+  /// Counter / department the item belongs to (used for department stubs).
+  final String? station;
+
+  Map<String, dynamic> toJson() => {if (station != null) 's': station, 'n': name, 'q': qtyMilli, 'p': unitPriceMinor, 't': totalMinor, if (modifiers.isNotEmpty) 'm': modifiers, if (note != null) 'o': note};
   factory SlipItem.fromJson(Map<String, dynamic> j) => SlipItem(
-      name: j['n'] as String? ?? '', qtyMilli: (j['q'] as num?)?.toInt() ?? 1000, unitPriceMinor: (j['p'] as num?)?.toInt() ?? 0, totalMinor: (j['t'] as num?)?.toInt() ?? 0, modifiers: [for (final m in (j['m'] as List? ?? const [])) '$m'], note: j['o'] as String?);
+      name: j['n'] as String? ?? '', qtyMilli: (j['q'] as num?)?.toInt() ?? 1000, unitPriceMinor: (j['p'] as num?)?.toInt() ?? 0, totalMinor: (j['t'] as num?)?.toInt() ?? 0, modifiers: [for (final m in (j['m'] as List? ?? const [])) '$m'], note: j['o'] as String?, station: j['s'] as String?);
 }
 
 /// Everything a token design can show. Built from the stored token (see TokenService) or from sample data.
@@ -862,3 +875,48 @@ TokenSlip sampleSlip(TokenKind kind, {required String businessName, RasterImage?
 /// Tokens of an order as plain text (what the printer prints), for tests and the text fallback.
 String previewSlip(TokenDesign t, TokenSlip d, {int paperMm = 58}) => docToText(buildTokenSlipDoc(t, d, paperMm: paperMm), paperMm);
 
+
+
+/// Detachable stubs for a token: each one carries the token number plus what it is for, with a cut line between them,
+/// so the counter staff tear off their own piece. [mode] is one of [stubModes]; 'none' gives no lines.
+List<RLine> buildStubLines(TokenSlip d, String mode, {String fallbackDepartment = ''}) {
+  if (mode == 'none' || d.items.isEmpty) return const [];
+  String qty(int q) => q % 1000 == 0 ? '${q ~/ 1000}' : (q / 1000).toStringAsFixed(1);
+  final out = <RLine>[];
+  void stub(String where, List<String> lines) {
+    out
+      ..add(const RText('- - - - - - - - - - - - - - - -', align: PrintAlign.center))
+      ..add(RText(d.label, align: PrintAlign.center, bold: true, width: 2, height: 2));
+    if (where.trim().isNotEmpty) out.add(RText(where.trim(), align: PrintAlign.center, bold: true));
+    for (final l in lines) {
+      out.add(RText(l, align: PrintAlign.left));
+    }
+  }
+
+  switch (mode) {
+    case 'department':
+      final byDept = <String, List<SlipItem>>{};
+      for (final i in d.items) {
+        byDept.putIfAbsent((i.station ?? '').trim().isEmpty ? fallbackDepartment : i.station!.trim(), () => []).add(i);
+      }
+      for (final e in byDept.entries) {
+        stub(e.key, [for (final i in e.value) '${qty(i.qtyMilli)} x ${i.name}']);
+      }
+    case 'item':
+      for (final i in d.items) {
+        stub(i.station ?? '', ['${qty(i.qtyMilli)} x ${i.name}', ...i.modifiers.map((m) => '  + $m')]);
+      }
+    case 'piece':
+      var n = 0;
+      final total = d.items.fold<int>(0, (s, i) => s + (i.qtyMilli % 1000 == 0 ? (i.qtyMilli ~/ 1000).clamp(1, 50) : 1));
+      for (final i in d.items) {
+        final pieces = i.qtyMilli % 1000 == 0 ? (i.qtyMilli ~/ 1000).clamp(1, 50) : 1;
+        for (var k = 0; k < pieces; k++) {
+          n++;
+          stub(i.station ?? '', ['${i.name}  ($n/$total)']);
+        }
+      }
+  }
+  out.add(const RText('- - - - - - - - - - - - - - - -', align: PrintAlign.center));
+  return out;
+}

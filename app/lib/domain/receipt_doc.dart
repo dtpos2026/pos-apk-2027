@@ -12,6 +12,20 @@ class RasterImage {
   final Uint8List bits;
   int get widthBytes => (widthPx + 7) ~/ 8;
 
+  /// White-on-black copy (every dot flipped) for reverse-printed bars made from bitmaps, e.g. an Urdu TOTAL line.
+  RasterImage inverted() {
+    final out = Uint8List(bits.length);
+    final pad = widthBytes * 8 - widthPx; // unused bits at the end of each row stay white
+    for (var y = 0; y < heightPx; y++) {
+      for (var b = 0; b < widthBytes; b++) {
+        var v = ~bits[y * widthBytes + b] & 0xFF;
+        if (b == widthBytes - 1 && pad > 0) v &= (0xFF << pad) & 0xFF;
+        out[y * widthBytes + b] = v;
+      }
+    }
+    return RasterImage(widthPx: widthPx, heightPx: heightPx, bits: out);
+  }
+
   /// A copy on a white canvas [totalWidthPx] wide with this picture placed left, centre or right. Printers do not
   /// reliably honour ESC a for bitmaps, so alignment is baked into the bitmap itself.
   RasterImage padded(int totalWidthPx, PrintAlign align) {
@@ -197,10 +211,12 @@ class EscPosRenderer {
       for (final l in doc.lines) {
         final r = rasterizer;
         if (r != null && l is RText && needsRaster(l.text)) {
-          final img = await r.text(l.text, widthPx: dots, align: l.align, bold: l.bold, scale: l.height);
+          var img = await r.text(l.text, widthPx: dots, align: l.align, bold: l.bold, scale: l.height);
+          if (l.inverse) img = img.inverted();
           b.align(PrintAlign.left).raster(img.bits, widthBytes: img.widthBytes, heightPx: img.heightPx);
         } else if (r != null && l is RRow && (needsRaster(l.left) || needsRaster(l.right))) {
-          final img = await r.row(l.left, l.right, widthPx: dots, bold: l.bold);
+          var img = await r.row(l.left, l.right, widthPx: dots, bold: l.bold);
+          if (l.inverse) img = img.inverted();
           b.align(PrintAlign.left).raster(img.bits, widthBytes: img.widthBytes, heightPx: img.heightPx);
         } else if (r != null && l is RCols && l.cells.any(needsRaster)) {
           final img = await r.row(l.cells.first, l.cells.skip(1).where((c) => c.isNotEmpty).join('  '), widthPx: dots, bold: l.bold);

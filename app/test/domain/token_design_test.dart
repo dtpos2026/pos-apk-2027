@@ -46,6 +46,7 @@ void expectFits(ReceiptDoc doc, int paperMm, String why) {
 }
 
 void main() {
+  stubTests();
   const kinds = TokenKind.values;
 
   group('every ready-made design, every kind of sample, both paper widths', () {
@@ -320,6 +321,39 @@ void main() {
       final text = docToText(doc, 58);
       expect(text, allOf(contains('KITCHEN'), contains('REPRINT'), isNot(contains('A17')), isNot(contains('T4')), isNot(contains('Sara')), isNot(contains('spicy'))));
       expect(KotDesign.decode(const KotDesign(style: 'big', copies: 2).encode()).copies, 2);
+    });
+  });
+}
+
+void stubTests() {
+  group('detachable stubs', () {
+    const slip = TokenSlip(businessName: 'Burger Point', label: 'T7', dateTime: '19:40', items: [
+      SlipItem(name: 'Roti', qtyMilli: 3000, station: 'Tandoor'),
+      SlipItem(name: 'Naan', qtyMilli: 1000, station: 'Tandoor'),
+      SlipItem(name: 'Chai', qtyMilli: 1000, station: 'Tea'),
+    ]);
+    String text(List<RLine> l) => docToText(ReceiptDoc(l), 58);
+
+    test('none gives no lines', () => expect(buildStubLines(slip, 'none'), isEmpty));
+
+    test('department: one stub per counter with its items and the token number', () {
+      final t = text(buildStubLines(slip, 'department'));
+      expect(RegExp('T7').allMatches(t).length, 2);
+      expect(t, allOf(contains('Tandoor'), contains('3 x Roti'), contains('1 x Naan'), contains('Tea'), contains('1 x Chai')));
+    });
+
+    test('item: one stub per item line', () => expect(RegExp('T7').allMatches(text(buildStubLines(slip, 'item'))).length, 3));
+
+    test('piece: one stub per piece, numbered', () {
+      final t = text(buildStubLines(slip, 'piece'));
+      expect(RegExp('T7').allMatches(t).length, 5);
+      expect(t, allOf(contains('(1/5)'), contains('(5/5)')));
+    });
+
+    test('the rule keeps its stub setting through save and load', () {
+      final r = TokenRule(id: 'a', kind: TokenKind.tandoor, name: 'Tandoor', station: 'Tandoor', stubs: 'piece');
+      expect(TokenRule.fromJson(r.toJson()).stubs, 'piece');
+      expect(TokenRule.fromJson({...r.toJson(), 'stubs': 'bogus'}).stubs, 'none');
     });
   });
 }

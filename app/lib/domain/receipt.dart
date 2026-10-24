@@ -210,7 +210,8 @@ ReceiptDoc buildBillDoc(ReceiptData d, {BillDesign template = BillDesign.default
   if (d.roundingMinor != 0) lines.add(row(L['rounding'], money(d.roundingMinor)));
   switch (style) {
     case 'dtretail':
-      lines.add(RRow(L['total'].toUpperCase(), '${d.currency.code} ${money(d.totalMinor)}', bold: true, height: 2, inverse: true));
+      final totalWord = L['total'].toUpperCase(), totalValue = '${d.currency.code} ${money(d.totalMinor)}';
+      lines.add(L.rtl ? RRow(totalValue, totalWord, bold: true, height: 2, inverse: true) : RRow(totalWord, totalValue, bold: true, height: 2, inverse: true));
     case 'boxed':
       lines.add(rule);
       lines.add(row('${L['net_bill']} ${d.currency.code}', money(d.totalMinor), bold: true, height: 2));

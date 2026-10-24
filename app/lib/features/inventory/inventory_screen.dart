@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/format.dart';
 import '../../app/providers.dart';
 import '../../app/strings.dart';
+import '../../app/whatsapp.dart';
 import '../../data/inventory_service.dart';
 import '../../data/pos_service.dart';
 import '../../data/queries.dart';
@@ -11,6 +12,7 @@ import '../../domain/money.dart';
 import '../common/dialogs.dart';
 
 final _stockProvider = FutureProvider.autoDispose<List<StockRow>>((ref) => ref.watch(inventoryServiceProvider).list());
+final _posProvider = FutureProvider.autoDispose<List<PurchaseOrderRow>>((ref) => ref.watch(inventoryServiceProvider).purchaseOrders());
 final _suppliersProvider = FutureProvider.autoDispose<List<Map<String, Object?>>>((ref) async {
   final h = ref.watch(dbHelperProvider);
   return h.q('SELECT s.id, s.name, COALESCE((SELECT SUM(amount_minor) FROM supplier_ledger WHERE supplier_id = s.id),0) AS bal FROM supplier s WHERE s.deleted_at IS NULL ORDER BY s.name');
@@ -30,7 +32,7 @@ class InventoryScreen extends ConsumerStatefulWidget {
 }
 
 class _InventoryScreenState extends ConsumerState<InventoryScreen> with SingleTickerProviderStateMixin {
-  late final TabController _tabs = TabController(length: 2, vsync: this);
+  late final TabController _tabs = TabController(length: 3, vsync: this);
   bool _lowOnly = false;
 
   @override
@@ -44,6 +46,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> with SingleTi
   void _refresh() {
     ref.invalidate(_stockProvider);
     ref.invalidate(_suppliersProvider);
+    ref.invalidate(_posProvider);
   }
 
   Future<void> _addItem() async {
@@ -139,6 +142,54 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> with SingleTi
     if (v != null) _refresh();
   }
 
+  Future<void> _newPo() async {
+    final s = Strings.of(context);
+    final stock = await _svc.list();
+    final sup = await ref.read(_suppliersProvider.future);
+    if (!mounted || stock.isEmpty) return;
+    String? supplier;
+    final v = await showFormDialog(
+      context,
+      title: s['new_po'],
+      fields: [for (final x in stock) FieldSpec('q-${x.id}', '${x.name} (${x.unit})', number: true, required: false), FieldSpec('note', s['note'], required: false)],
+      extra: (set) => DropdownButtonFormField<String?>(key: const ValueKey('po-supplier'), initialValue: supplier, decoration: InputDecoration(labelText: s['supplier']), items: [const DropdownMenuItem<String?>(value: null, child: Text('-')), for (final x in sup) DropdownMenuItem<String?>(value: x['id'] as String, child: Text('${x['name']}'))], onChanged: (x) => set(() => supplier = x)),
+      validate: (v) async {
+        try {
+          final lines = [
+            for (final x in stock)
+              if ((_parseQty(v['q-${x.id}'] ?? '') ?? 0) > 0) PurchaseInput(stockItemId: x.id, qtyMilli: _parseQty(v['q-${x.id}']!)!, unitCostMinor: x.avgCostMinor)
+          ];
+          await _svc.createPurchaseOrder(supplierId: supplier, lines: lines, note: v['note'], staffId: _staff);
+          return null;
+        } on PosException catch (e) {
+          return e.message;
+        }
+      },
+    );
+    if (v != null) _refresh();
+  }
+
+  Future<void> _poAction(PurchaseOrderRow o, String action) async {
+    final s = Strings.of(context);
+    try {
+      switch (action) {
+        case 'share':
+          final text = await _svc.purchaseOrderText(o.id, businessName: ref.read(businessProvider).value?.name ?? '');
+          await sendViaWhatsApp(ref, o.supplierPhone, text);
+          await _svc.markPurchaseOrderSent(o.id);
+        case 'receive':
+          final v = await showFormDialog(context, title: '${s['receive_goods']}: ${o.poNo}', fields: [FieldSpec('paid', s['paid_now'], number: true, required: false)]);
+          if (v == null) return;
+          await _svc.receivePurchaseOrder(o.id, paidMinor: v['paid']!.isEmpty ? 0 : (parseMinor(v['paid']!, currency: ref.currency) ?? 0), staffId: _staff);
+        case 'cancel':
+          await _svc.cancelPurchaseOrder(o.id, staffId: _staff);
+      }
+    } on PosException catch (e) {
+      if (mounted) showMessage(context, e.message);
+    }
+    _refresh();
+  }
+
   Future<void> _addSupplier() async {
     final s = Strings.of(context);
     final v = await showFormDialog(context, title: s['add_supplier'], fields: [FieldSpec('name', s['name']), FieldSpec('phone', s['phone'], required: false)], validate: (v) async {
@@ -173,7 +224,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> with SingleTi
     final value = stock.fold<int>(0, (a, r) => a + (r.onHandMilli > 0 ? r.valueMinor : 0));
     final suppliers = ref.watch(_suppliersProvider).value ?? const [];
     return Column(children: [
-      TabBar(controller: _tabs, tabs: [Tab(text: s['stock_items']), Tab(text: s['suppliers'])]),
+      TabBar(controller: _tabs, tabs: [Tab(text: s['stock_items']), Tab(key: const ValueKey('tab-po'), text: s['purchase_orders']), Tab(text: s['suppliers'])]),
       Expanded(
         child: TabBarView(controller: _tabs, children: [
           Scaffold(
@@ -238,6 +289,31 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> with SingleTi
                         },
                       ),
               ),
+            ]),
+          ),
+          Scaffold(
+            backgroundColor: Colors.transparent,
+            floatingActionButton: FloatingActionButton.extended(key: const ValueKey('add-po'), onPressed: _newPo, icon: const Icon(Icons.add), label: Text(s['new_po'])),
+            body: ListView(padding: const EdgeInsets.fromLTRB(12, 12, 12, 90), children: [
+              if ((ref.watch(_posProvider).value ?? const []).isEmpty) Padding(padding: const EdgeInsets.all(24), child: Center(child: Text(s['no_po']))),
+              for (final o in ref.watch(_posProvider).value ?? const <PurchaseOrderRow>[])
+                Card(
+                  child: ListTile(
+                    key: ValueKey('po-${o.poNo}'),
+                    title: Row(children: [
+                      Expanded(child: Text('${o.poNo} · ${o.supplierName}', style: const TextStyle(fontWeight: FontWeight.w700))),
+                      Text(s['po_${o.status}'], key: ValueKey('po-status-${o.poNo}'), style: TextStyle(fontWeight: FontWeight.w700, color: switch (o.status) { 'received' => const Color(0xFF2E9E5B), 'cancelled' => const Color(0xFFD93B3B), _ => Theme.of(context).colorScheme.primary })),
+                    ]),
+                    subtitle: Text('${o.lines} ${s['items_word']} · ${ref.money(o.totalMinor)}'),
+                    trailing: o.open
+                        ? PopupMenuButton<String>(
+                            key: ValueKey('po-menu-${o.poNo}'),
+                            onSelected: (a) => _poAction(o, a),
+                            itemBuilder: (_) => [PopupMenuItem(value: 'share', child: Text(s['po_share'])), PopupMenuItem(value: 'receive', child: Text(s['receive_goods'])), PopupMenuItem(value: 'cancel', child: Text(s['cancel']))],
+                          )
+                        : null,
+                  ),
+                ),
             ]),
           ),
           Scaffold(

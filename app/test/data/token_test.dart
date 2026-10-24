@@ -275,6 +275,17 @@ void main() {
   });
 
   group('printing', () {
+    test('a rule with department stubs prints a stub per counter under the token', () async {
+      await addPrinter('counter', 'bill', lan);
+      await configure([order.copyWith(stubs: 'department')]);
+      final id = await sale([('r', 'Roti', 2000, 3000, 'Tandoor'), ('t', 'Chai', 1000, 15000, 'Tea')]);
+      await printSvc.queueTokens(id, autoOnly: true);
+      await printSvc.processQueue();
+      final text = await lan.text();
+      expect(text, allOf(contains('Tandoor'), contains('2 x Roti'), contains('Tea'), contains('1 x Chai')));
+      expect(RegExp('A1').allMatches(text).length, greaterThanOrEqualTo(3), reason: 'the main token plus one stub per counter');
+    });
+
     test('tokens go to the printer of their counter; others to the bill printer; first print is not marked REPRINT', () async {
       await addPrinter('counter', 'bill', lan);
       await addPrinter('tandoor-p', 'kot', tandoorPrinter, station: 'Tandoor');

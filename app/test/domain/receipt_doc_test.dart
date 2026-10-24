@@ -31,6 +31,7 @@ ReceiptData data({String name = 'Burger Point', RasterImage? logoImg}) => Receip
 int indent(String line) => line.length - line.trimLeft().length;
 
 void main() {
+  inverseTests();
   group('logo and name have their own position', () {
     test('each can be left, centre or right; the address lines keep the header position; old designs follow the header', () {
       final doc = buildBillDoc(data(logoImg: logo(120, 40)), template: const BillDesign(headerAlign: PrintAlign.left, logoAlign: PrintAlign.right, nameAlign: PrintAlign.center));
@@ -211,6 +212,22 @@ class _FakeRasterizer implements TextRasterizer {
   Future<RasterImage> text(String text, {required int widthPx, PrintAlign align = PrintAlign.left, bool bold = false, int scale = 1}) async => _img(widthPx);
   @override
   Future<RasterImage> row(String left, String right, {required int widthPx, bool bold = false}) async => _img(widthPx);
+}
+
+void inverseTests() {
+  test('RasterImage.inverted flips every dot and leaves the unused bits of a row white', () {
+    final img = RasterImage(widthPx: 12, heightPx: 1, bits: Uint8List.fromList([0xF0, 0x00]));
+    final inv = img.inverted();
+    expect(inv.bits, [0x0F, 0xF0], reason: '12 px wide: the last 4 bits of byte 2 are padding and stay 0');
+    expect(inv.inverted().bits, img.bits);
+  });
+
+  test('an Urdu line on a reverse-print bar is printed as an inverted bitmap', () async {
+    final doc = ReceiptDoc([const RRow('کل', 'Rs 100', inverse: true)]);
+    final bytes = (await EscPosRenderer(paperMm: 58, rasterizer: _FakeRasterizer()).render(doc)).toBytes();
+    // the fake bitmap is all white (zeros); inverted it is all black
+    expect(bytes.where((b) => b == 0xFF).length, greaterThan(40));
+  });
 }
 
 String ascii(Uint8List b) => latin1.decode(b, allowInvalid: true);

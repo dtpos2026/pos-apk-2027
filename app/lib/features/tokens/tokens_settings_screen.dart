@@ -244,6 +244,16 @@ class _RuleDialogState extends ConsumerState<_RuleDialog> {
               const SizedBox(width: 8),
               Expanded(child: OutlinedButton.icon(key: const ValueKey('rule-pick-items'), onPressed: _pickItems, icon: const Icon(Icons.fastfood_outlined, size: 18), label: Text('${t['pick_items']}${r.productIds.isEmpty ? '' : ' (${r.productIds.length})'}', overflow: TextOverflow.ellipsis))),
             ]),
+            const SizedBox(height: 8),
+            Text(t['stubs_title'], style: const TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 4),
+            SegmentedButton<String>(
+              key: const ValueKey('rule-stubs'),
+              showSelectedIcon: false,
+              segments: [ButtonSegment(value: 'none', label: Text(t['stubs_none'])), ButtonSegment(value: 'department', label: Text(t['stubs_department'])), ButtonSegment(value: 'item', label: Text(t['stubs_item'])), ButtonSegment(value: 'piece', label: Text(t['stubs_piece']))],
+              selected: {r.stubs},
+              onSelectionChanged: (v) => setState(() => r = r.copyWith(stubs: v.first)),
+            ),
             if (r.kind == TokenKind.product) ...[
               const SizedBox(height: 8),
               SegmentedButton<String>(

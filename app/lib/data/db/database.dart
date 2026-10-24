@@ -7,12 +7,13 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onUpgrade: (m, from, to) async {
           if (from < 2) await migrateToV2(this);
+          if (from < 3) await migrateToV3(this);
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
@@ -43,6 +44,26 @@ Future<void> migrateToV2(AppDatabase db) async {
   status TEXT NOT NULL DEFAULT 'issued' CHECK (status IN ('issued','redeemed','void')),
   created_at INTEGER NOT NULL, redeemed_at INTEGER, redeemed_by TEXT
 )""",
+  ]) {
+    await db.customStatement(sql);
+  }
+}
+
+/// Version 3: purchase orders. Mirrors docs/schema/local.sql.
+Future<void> migrateToV3(AppDatabase db) async {
+  for (final sql in const [
+    """CREATE TABLE IF NOT EXISTS purchase_order (
+  id TEXT PRIMARY KEY, po_no TEXT NOT NULL UNIQUE, supplier_id TEXT REFERENCES supplier(id),
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','sent','received','cancelled')),
+  note TEXT, expected_date TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+  received_at INTEGER, purchase_id TEXT REFERENCES purchase(id), staff_id TEXT REFERENCES staff(id)
+)""",
+    """CREATE TABLE IF NOT EXISTS purchase_order_line (
+  id TEXT PRIMARY KEY, po_id TEXT NOT NULL REFERENCES purchase_order(id),
+  stock_item_id TEXT NOT NULL REFERENCES stock_item(id),
+  qty_milli INTEGER NOT NULL CHECK (qty_milli > 0), unit_cost_minor INTEGER NOT NULL DEFAULT 0
+)""",
+    'CREATE INDEX IF NOT EXISTS purchase_order_line_ix ON purchase_order_line(po_id)',
   ]) {
     await db.customStatement(sql);
   }

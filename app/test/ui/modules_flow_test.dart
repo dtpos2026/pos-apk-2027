@@ -260,6 +260,33 @@ void main() {
     expect(await n(h, "SELECT COUNT(*) AS n FROM cash_movement WHERE direction = 'out' AND amount_minor = 30000"), 1);
   });
 
+  testWidgets('purchase orders: order from a supplier, receive it, stock goes up; a received order has no more actions', (t) async {
+    final h = await start(t);
+    await openTab(t, 'inventory', 'Inventory');
+    await tapKey(t, 'add-stock');
+    await form(t, {'name': 'Flour', 'open': '0', 'cost': '100', 'reorder': '5'});
+    await tapKey(t, 'form-ok');
+    await t.tap(find.byKey(const ValueKey('tab-po')));
+    await t.pumpAndSettle();
+    expect(find.text('No purchase orders yet'), findsOneWidget);
+    await tapKey(t, 'add-po');
+    final qtyField = find.byWidgetPredicate((w) => w is TextField && (w.decoration?.labelText ?? '').startsWith('Flour'));
+    await t.enterText(qtyField, '20');
+    await tapKey(t, 'form-ok');
+    expect(find.byKey(const ValueKey('po-PO-0001')), findsOneWidget);
+    expect(text(t, 'po-status-PO-0001').data, 'Draft');
+    expect(await n(h, "SELECT COUNT(*) AS n FROM stock_movement WHERE reason = 'purchase'"), 0);
+
+    await tapKey(t, 'po-menu-PO-0001');
+    await t.tap(find.text('Goods received').last);
+    await t.pumpAndSettle();
+    await form(t, {'paid': '2000'});
+    await tapKey(t, 'form-ok');
+    expect(text(t, 'po-status-PO-0001').data, 'Received');
+    expect(find.byKey(const ValueKey('po-menu-PO-0001')), findsNothing);
+    expect(await n(h, "SELECT COUNT(*) AS n FROM stock_movement WHERE reason = 'purchase'"), 1);
+  });
+
   testWidgets('inventory: add stock, buy, waste, count, low-stock filter and stock value', (t) async {
     final h = await start(t);
     await openTab(t, 'inventory', 'Inventory');

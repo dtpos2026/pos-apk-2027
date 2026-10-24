@@ -24,6 +24,23 @@ class PurchaseInput {
   final int unitCostMinor;
 }
 
+class PurchaseOrderRow {
+  const PurchaseOrderRow({required this.id, required this.poNo, required this.status, required this.supplierName, this.supplierPhone, this.supplierId, required this.totalMinor, required this.lines, this.note, this.expectedDate});
+  final String id;
+  final String poNo;
+
+  /// draft | sent | received | cancelled
+  final String status;
+  final String supplierName;
+  final String? supplierPhone;
+  final String? supplierId;
+  final int totalMinor;
+  final int lines;
+  final String? note;
+  final String? expectedDate;
+  bool get open => status == 'draft' || status == 'sent';
+}
+
 /// Stock is a ledger of movements, never an overwritten number: purchases add, sales/recipes/wastage subtract,
 /// a stock count books the difference as an adjustment.
 class InventoryService {
@@ -149,4 +166,79 @@ class InventoryService {
   Future<Map<String, int>> recipe(String productId, {String? variantId}) async => {
         for (final r in await h.q('SELECT stock_item_id, qty_milli FROM recipe_line WHERE product_id = ? AND variant_id IS ?', [productId, variantId])) r['stock_item_id'] as String: r['qty_milli'] as int
       };
+
+  // ---- purchase orders: ordered from a supplier first, booked into stock when the goods arrive ----
+
+  Future<String> createPurchaseOrder({String? supplierId, required List<PurchaseInput> lines, String? note, String? expectedDate, required String staffId}) => h.db.transaction(() async {
+        if (lines.isEmpty) throw PosException('empty', 'Add at least one item');
+        for (final l in lines) {
+          if (l.qtyMilli <= 0 || l.unitCostMinor < 0) throw PosException('bad_amount', 'Quantity and cost must be valid');
+        }
+        final n = await h.intValue('SELECT COUNT(*) FROM purchase_order') + 1;
+        final id = h.id;
+        await h.exec('INSERT INTO purchase_order(id, po_no, supplier_id, note, expected_date, created_at, updated_at, staff_id) VALUES (?,?,?,?,?,?,?,?)',
+            [id, 'PO-${n.toString().padLeft(4, '0')}', supplierId, note?.trim(), expectedDate, h.ts, h.ts, staffId]);
+        for (final l in lines) {
+          await h.exec('INSERT INTO purchase_order_line(id, po_id, stock_item_id, qty_milli, unit_cost_minor) VALUES (?,?,?,?,?)', [h.id, id, l.stockItemId, l.qtyMilli, l.unitCostMinor]);
+        }
+        await h.audit('po.create', staffId: staffId, entity: 'purchase_order', entityId: id);
+        return id;
+      });
+
+  Future<List<PurchaseOrderRow>> purchaseOrders() async => [
+        for (final r in await h.q('''SELECT o.id, o.po_no, o.status, o.note, o.expected_date, o.supplier_id, COALESCE(s.name, '-') AS supplier, s.phone AS phone,
+              (SELECT COUNT(*) FROM purchase_order_line l WHERE l.po_id = o.id) AS n,
+              (SELECT COALESCE(SUM(l.qty_milli * l.unit_cost_minor / 1000.0),0) FROM purchase_order_line l WHERE l.po_id = o.id) AS total
+            FROM purchase_order o LEFT JOIN supplier s ON s.id = o.supplier_id ORDER BY o.created_at DESC, o.po_no DESC'''))
+          PurchaseOrderRow(id: r['id'] as String, poNo: r['po_no'] as String, status: r['status'] as String, supplierName: r['supplier'] as String, supplierPhone: r['phone'] as String?, supplierId: r['supplier_id'] as String?, totalMinor: (r['total'] as num).round(), lines: r['n'] as int, note: r['note'] as String?, expectedDate: r['expected_date'] as String?)
+      ];
+
+  Future<List<({String name, String unit, int qtyMilli, int unitCostMinor})>> purchaseOrderLines(String poId) async => [
+        for (final r in await h.q('SELECT s.name, s.unit, l.qty_milli, l.unit_cost_minor FROM purchase_order_line l JOIN stock_item s ON s.id = l.stock_item_id WHERE l.po_id = ? ORDER BY l.rowid', [poId]))
+          (name: r['name'] as String, unit: r['unit'] as String, qtyMilli: r['qty_milli'] as int, unitCostMinor: r['unit_cost_minor'] as int)
+      ];
+
+  Future<void> markPurchaseOrderSent(String poId) => h.exec("UPDATE purchase_order SET status = 'sent', updated_at = ? WHERE id = ? AND status = 'draft'", [h.ts, poId]);
+
+  Future<void> cancelPurchaseOrder(String poId, {required String staffId}) => h.db.transaction(() async {
+        final o = await h.one('SELECT status FROM purchase_order WHERE id = ?', [poId]);
+        if (o == null) throw PosException('not_found', 'Order not found');
+        if (o['status'] == 'received') throw PosException('already_received', 'A received order cannot be cancelled');
+        await h.exec("UPDATE purchase_order SET status = 'cancelled', updated_at = ? WHERE id = ?", [h.ts, poId]);
+        await h.audit('po.cancel', staffId: staffId, entity: 'purchase_order', entityId: poId);
+      });
+
+  /// The goods arrived: books a normal purchase (stock up, average cost, supplier payable) and closes the order.
+  /// [actualCostMinor] can correct the unit cost per stock item when the supplier charged differently.
+  Future<String> receivePurchaseOrder(String poId, {int paidMinor = 0, Map<String, int> actualCostMinor = const {}, required String staffId}) => h.db.transaction(() async {
+        final o = await h.one('SELECT status, supplier_id, po_no FROM purchase_order WHERE id = ?', [poId]);
+        if (o == null) throw PosException('not_found', 'Order not found');
+        if (o['status'] == 'received') throw PosException('already_received', 'Already received');
+        if (o['status'] == 'cancelled') throw PosException('cancelled', 'This order was cancelled');
+        final lines = await h.q('SELECT stock_item_id, qty_milli, unit_cost_minor FROM purchase_order_line WHERE po_id = ?', [poId]);
+        final pid = await purchase(
+          supplierId: o['supplier_id'] as String?,
+          invoiceRef: o['po_no'] as String,
+          lines: [for (final l in lines) PurchaseInput(stockItemId: l['stock_item_id'] as String, qtyMilli: l['qty_milli'] as int, unitCostMinor: actualCostMinor[l['stock_item_id']] ?? (l['unit_cost_minor'] as int))],
+          paidMinor: paidMinor,
+          staffId: staffId,
+        );
+        await h.exec("UPDATE purchase_order SET status = 'received', received_at = ?, purchase_id = ?, updated_at = ? WHERE id = ?", [h.ts, pid, h.ts, poId]);
+        return pid;
+      });
+
+  /// Message to send the supplier (WhatsApp / share sheet).
+  Future<String> purchaseOrderText(String poId, {required String businessName}) async {
+    final o = (await purchaseOrders()).firstWhere((x) => x.id == poId);
+    final lines = await purchaseOrderLines(poId);
+    String q(int m) => m % 1000 == 0 ? '${m ~/ 1000}' : (m / 1000).toStringAsFixed(2);
+    return [
+      '*$businessName* — ${o.poNo}',
+      if (o.supplierName != '-') 'To: ${o.supplierName}',
+      if (o.expectedDate != null) 'Needed by: ${o.expectedDate}',
+      '',
+      for (final l in lines) '• ${q(l.qtyMilli)} ${l.unit} ${l.name}',
+      if (o.note != null && o.note!.isNotEmpty) '\n${o.note}',
+    ].join('\n');
+  }
 }

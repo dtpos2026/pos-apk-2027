@@ -61,7 +61,7 @@ class ReceiptPaper extends StatelessWidget {
           child: Text(l.text, textAlign: _ta(l.align), style: TextStyle(fontWeight: l.bold ? FontWeight.w800 : FontWeight.w400, fontSize: size, height: 1.25)),
         );
       case RRow():
-        final raster = needsRaster(l.left) || needsRaster(l.right);
+        final raster = (needsRaster(l.left) || needsRaster(l.right)) && !l.inverse;
         if (raster) {
           return SizedBox(
             width: textWidth,
