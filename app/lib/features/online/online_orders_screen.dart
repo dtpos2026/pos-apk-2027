@@ -194,7 +194,7 @@ class _NewOnlineOrderState extends ConsumerState<NewOnlineOrderScreen> {
     final all = ref.watch(productsProvider(const ProductFilter())).value ?? const <MenuProduct>[];
     final count = _qty.values.fold<int>(0, (a, b) => a + b);
     return Scaffold(
-      appBar: AppBar(title: Text(t['new_online'])),
+      appBar: DtAppBar(title: Text(t['new_online'])),
       body: ListView(padding: const EdgeInsets.all(14), children: [
         Wrap(spacing: 8, children: [
           for (final c in onlineChannels) ChoiceChip(key: ValueKey('ch-$c'), label: Text(t['ch_$c']), avatar: Icon(_channelIcon(c), size: 16), selected: _channel == c, onSelected: (_) => setState(() => _channel = c)),

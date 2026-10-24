@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/format.dart';
 import '../../app/providers.dart';
 import '../../app/strings.dart';
-import '../../app/theme.dart' show BrandColorsX;
+import '../../app/theme.dart' show BrandColorsX, contrastRatio;
 import '../common/menu_image.dart';
 import '../../data/menu_service.dart';
 import '../../data/queries.dart';
@@ -299,14 +299,13 @@ class PriceBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Container(
       key: const ValueKey('price-badge'),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(color: scheme.primary, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.white.withValues(alpha: 0.9), width: 1.2)),
+      decoration: BoxDecoration(color: context.priceColor, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.white.withValues(alpha: 0.9), width: 1.2)),
       child: FittedBox(
         fit: BoxFit.scaleDown,
-        child: Text(suffix == null ? text : '$text $suffix', maxLines: 1, style: TextStyle(color: scheme.onPrimary, fontWeight: FontWeight.w800, fontSize: 13.5, height: 1.15)),
+        child: Text(suffix == null ? text : '$text $suffix', maxLines: 1, style: TextStyle(color: contrastRatio(context.priceColor, Colors.white) >= contrastRatio(context.priceColor, Colors.black) ? Colors.white : Colors.black, fontWeight: FontWeight.w800, fontSize: 13.5, height: 1.15)),
       ),
     );
   }

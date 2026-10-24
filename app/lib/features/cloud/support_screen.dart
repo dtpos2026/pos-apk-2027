@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../app/theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/strings.dart';
@@ -45,7 +46,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
     final gw = ref.watch(cloudGatewayProvider);
     final user = _user;
     return Scaffold(
-      appBar: AppBar(title: Text(t['support_title'])),
+      appBar: DtAppBar(title: Text(t['support_title'])),
       body: gw == null || user == null
           ? Center(child: Text(t['blk_internet_b']))
           : Column(children: [

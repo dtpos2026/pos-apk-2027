@@ -1,5 +1,13 @@
 import 'package:flutter/widgets.dart';
 
+/// Tells the widgets that use [Strings.of] to rebuild when a label was edited. Placed once above the whole app.
+class TextRevision extends InheritedWidget {
+  const TextRevision({super.key, required this.revision, required super.child});
+  final int revision;
+  @override
+  bool updateShouldNotify(TextRevision old) => revision != old.revision;
+}
+
 /// UI strings. English is the reference; Urdu and Arabic are right-to-left. A missing translation falls back to
 /// English, never to a blank. Add a key to all three maps.
 class Strings {
@@ -11,11 +19,21 @@ class Strings {
   static bool isRtl(Locale l) =>
       l.languageCode == 'ur' || l.languageCode == 'ar';
 
-  static Strings of(BuildContext context) =>
-      Strings(Localizations.localeOf(context));
+  /// Looking text up through the context makes the widget rebuild when the owner edits a label ([TextRevision]).
+  static Strings of(BuildContext context) {
+    context.dependOnInheritedWidgetOfExactType<TextRevision>();
+    return Strings(Localizations.localeOf(context));
+  }
+
+  /// Labels the owner changed in the Text editor: language code -> key -> text. Empty = the built-in texts.
+  static Map<String, Map<String, String>> overrides = const {};
+
+  /// Every text key (English is the reference) and the built-in text for a language, for the Text editor.
+  static List<String> get keys => _en.keys.toList();
+  static String builtIn(String lang, String key) => (_all[lang] ?? _en)[key] ?? _en[key] ?? key;
 
   String operator [](String key) =>
-      (_all[locale.languageCode] ?? _en)[key] ?? _en[key] ?? key;
+      overrides[locale.languageCode]?[key] ?? (_all[locale.languageCode] ?? _en)[key] ?? _en[key] ?? key;
 
   static const _en = <String, String>{
     'view_cart': 'View Cart',
@@ -433,6 +451,52 @@ class Strings {
     'gross_profit': 'Gross profit (items with a recipe)',
     'no_recipe': 'no recipe',
     'pick_categories': 'Categories',
+    'theme_studio': 'Theme Studio',
+    'theme_studio_hint': 'Colours, gradient, shadows, borders, buttons and fonts, with a live preview',
+    'studio_start': 'Start from',
+    'studio_colors': 'Colours',
+    'studio_main': 'Main colour (buttons, prices)',
+    'studio_accent': 'Accent (Add buttons)',
+    'studio_header': 'Top bar',
+    'studio_gradient': 'Top bar gradient (second colour)',
+    'studio_background': 'Page background',
+    'studio_surface': 'Cards and boxes',
+    'studio_nav': 'Bottom bar',
+    'studio_text': 'Text colour',
+    'studio_price': 'Price badge',
+    'studio_border_color': 'Border colour',
+    'studio_auto': 'Automatic',
+    'studio_hex': 'Colour code (RRGGBB)',
+    'studio_hex_bad': 'Enter 6 letters/digits, for example C41414',
+    'studio_boxes': 'Boxes, borders and shadow',
+    'studio_show_borders': 'Show borders on cards',
+    'studio_shadow': 'Shadow (— none, 3 strong)',
+    'studio_shadow_color': 'Shadow colour',
+    'studio_card_radius': 'Card corner roundness',
+    'studio_buttons': 'Buttons',
+    'studio_btn_filled': 'Filled',
+    'studio_btn_pill': 'Round',
+    'studio_btn_outlined': 'Outlined',
+    'studio_button_radius': 'Button corner roundness',
+    'studio_text_group': 'Text',
+    'studio_font': 'Font',
+    'studio_font_Inter': 'Inter (default)',
+    'studio_font_JetBrainsMono': 'Mono (receipt style)',
+    'studio_font_NotoNaskhArabic': 'Naskh (Urdu/Arabic)',
+    'studio_font_system': 'Phone system font',
+    'studio_font_size': 'Text size',
+    'studio_contrast_warning': 'This text colour is hard to read on the background. The app will use a readable colour instead.',
+    'studio_fix': 'Use automatic',
+    'studio_reset': 'Reset',
+    'studio_apply': 'Save and use',
+    'studio_saved': 'Theme saved',
+    'text_editor': 'Edit app texts',
+    'text_editor_hint': 'Rename any button, tab or heading',
+    'text_original': 'Original',
+    'text_new': 'New text',
+    'text_reset_one': 'Back to original',
+    'text_reset_all': 'Reset all',
+    'text_changed': 'changed',
     'save_failed': 'Could not save',
     'backup_saved_phone': 'Backup saved on this phone',
     'no_category': 'No category',
@@ -1181,6 +1245,52 @@ class Strings {
     'gross_profit': 'مجموعی منافع (ریسیپی والے آئٹمز)',
     'no_recipe': 'ریسیپی نہیں',
     'pick_categories': 'کیٹیگریز',
+    'theme_studio': 'تھیم اسٹوڈیو',
+    'theme_studio_hint': 'رنگ، گریڈیئنٹ، سایہ، بارڈر، بٹن اور فونٹ، لائیو پریویو کے ساتھ',
+    'studio_start': 'یہاں سے شروع کریں',
+    'studio_colors': 'رنگ',
+    'studio_main': 'مرکزی رنگ (بٹن، قیمتیں)',
+    'studio_accent': 'ایکسینٹ (ایڈ بٹن)',
+    'studio_header': 'اوپر کی بار',
+    'studio_gradient': 'اوپر کی بار گریڈیئنٹ (دوسرا رنگ)',
+    'studio_background': 'پیج کا پس منظر',
+    'studio_surface': 'کارڈ اور باکس',
+    'studio_nav': 'نیچے کی بار',
+    'studio_text': 'ٹیکسٹ کا رنگ',
+    'studio_price': 'قیمت کا بیج',
+    'studio_border_color': 'بارڈر کا رنگ',
+    'studio_auto': 'خودکار',
+    'studio_hex': 'رنگ کا کوڈ (RRGGBB)',
+    'studio_hex_bad': '6 حروف/ہندسے لکھیں، مثلاً C41414',
+    'studio_boxes': 'باکس، بارڈر اور سایہ',
+    'studio_show_borders': 'کارڈ پر بارڈر دکھائیں',
+    'studio_shadow': 'سایہ (— کوئی نہیں، 3 گہرا)',
+    'studio_shadow_color': 'سائے کا رنگ',
+    'studio_card_radius': 'کارڈ کے کونوں کی گولائی',
+    'studio_buttons': 'بٹن',
+    'studio_btn_filled': 'بھرا ہوا',
+    'studio_btn_pill': 'گول',
+    'studio_btn_outlined': 'صرف بارڈر',
+    'studio_button_radius': 'بٹن کے کونوں کی گولائی',
+    'studio_text_group': 'ٹیکسٹ',
+    'studio_font': 'فونٹ',
+    'studio_font_Inter': 'Inter (ڈیفالٹ)',
+    'studio_font_JetBrainsMono': 'Mono (رسید جیسا)',
+    'studio_font_NotoNaskhArabic': 'نسخ (اردو/عربی)',
+    'studio_font_system': 'فون کا سسٹم فونٹ',
+    'studio_font_size': 'ٹیکسٹ کا سائز',
+    'studio_contrast_warning': 'یہ ٹیکسٹ کا رنگ پس منظر پر مشکل سے پڑھا جاتا ہے۔ ایپ اس کی جگہ پڑھنے کے قابل رنگ استعمال کرے گی۔',
+    'studio_fix': 'خودکار استعمال کریں',
+    'studio_reset': 'ری سیٹ',
+    'studio_apply': 'محفوظ کریں اور استعمال کریں',
+    'studio_saved': 'تھیم محفوظ ہو گئی',
+    'text_editor': 'ایپ کے الفاظ بدلیں',
+    'text_editor_hint': 'کسی بھی بٹن، ٹیب یا عنوان کا نام بدلیں',
+    'text_original': 'اصل',
+    'text_new': 'نیا متن',
+    'text_reset_one': 'اصل پر واپس',
+    'text_reset_all': 'سب ری سیٹ',
+    'text_changed': 'تبدیل شدہ',
     'save_failed': 'محفوظ نہیں ہو سکا',
     'backup_saved_phone': 'بیک اپ اس فون میں محفوظ ہو گیا',
     'no_category': 'کوئی کیٹیگری نہیں',
@@ -1928,6 +2038,52 @@ class Strings {
     'gross_profit': 'إجمالي الربح (أصناف بوصفة)',
     'no_recipe': 'بدون وصفة',
     'pick_categories': 'الفئات',
+    'theme_studio': 'استوديو الثيم',
+    'theme_studio_hint': 'الألوان والتدرج والظلال والحدود والأزرار والخطوط مع معاينة مباشرة',
+    'studio_start': 'ابدأ من',
+    'studio_colors': 'الألوان',
+    'studio_main': 'اللون الرئيسي (الأزرار، الأسعار)',
+    'studio_accent': 'لون التمييز (أزرار الإضافة)',
+    'studio_header': 'الشريط العلوي',
+    'studio_gradient': 'تدرج الشريط العلوي (اللون الثاني)',
+    'studio_background': 'خلفية الصفحة',
+    'studio_surface': 'البطاقات والصناديق',
+    'studio_nav': 'الشريط السفلي',
+    'studio_text': 'لون النص',
+    'studio_price': 'شارة السعر',
+    'studio_border_color': 'لون الحدود',
+    'studio_auto': 'تلقائي',
+    'studio_hex': 'رمز اللون (RRGGBB)',
+    'studio_hex_bad': 'أدخل 6 أحرف/أرقام مثل C41414',
+    'studio_boxes': 'الصناديق والحدود والظل',
+    'studio_show_borders': 'إظهار حدود البطاقات',
+    'studio_shadow': 'الظل (— بدون، 3 قوي)',
+    'studio_shadow_color': 'لون الظل',
+    'studio_card_radius': 'استدارة زوايا البطاقة',
+    'studio_buttons': 'الأزرار',
+    'studio_btn_filled': 'ممتلئ',
+    'studio_btn_pill': 'دائري',
+    'studio_btn_outlined': 'حدود فقط',
+    'studio_button_radius': 'استدارة زوايا الزر',
+    'studio_text_group': 'النص',
+    'studio_font': 'الخط',
+    'studio_font_Inter': 'Inter (افتراضي)',
+    'studio_font_JetBrainsMono': 'Mono (مثل الإيصال)',
+    'studio_font_NotoNaskhArabic': 'نسخ (أردو/عربي)',
+    'studio_font_system': 'خط النظام',
+    'studio_font_size': 'حجم النص',
+    'studio_contrast_warning': 'لون النص هذا صعب القراءة على الخلفية. سيستخدم التطبيق لوناً مقروءاً بدلاً منه.',
+    'studio_fix': 'استخدم التلقائي',
+    'studio_reset': 'إعادة ضبط',
+    'studio_apply': 'حفظ واستخدام',
+    'studio_saved': 'تم حفظ الثيم',
+    'text_editor': 'تعديل نصوص التطبيق',
+    'text_editor_hint': 'غيّر اسم أي زر أو تبويب أو عنوان',
+    'text_original': 'الأصلي',
+    'text_new': 'نص جديد',
+    'text_reset_one': 'العودة للأصلي',
+    'text_reset_all': 'إعادة ضبط الكل',
+    'text_changed': 'معدّل',
     'save_failed': 'تعذر الحفظ',
     'backup_saved_phone': 'تم حفظ النسخة الاحتياطية على هذا الهاتف',
     'no_category': 'بدون فئة',

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../app/theme.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -132,7 +133,7 @@ class _TokenDesignerScreenState extends ConsumerState<TokenDesignerScreen> {
   Widget build(BuildContext context) {
     final t = Strings.of(context);
     final d = _d;
-    if (d == null) return Scaffold(appBar: AppBar(title: Text(t['token_designs'])), body: const Center(child: CircularProgressIndicator()));
+    if (d == null) return Scaffold(appBar: DtAppBar(title: Text(t['token_designs'])), body: const Center(child: CircularProgressIndicator()));
     final doc = buildTokenSlipDoc(d, _slip(), paperMm: _paper);
     final preview = Container(
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -153,7 +154,7 @@ class _TokenDesignerScreenState extends ConsumerState<TokenDesignerScreen> {
         if (leave && context.mounted) Navigator.of(context).pop();
       },
       child: Scaffold(
-        appBar: AppBar(title: Text(t['design_edit']), actions: [
+        appBar: DtAppBar(title: Text(t['design_edit']), actions: [
           IconButton(key: const ValueKey('td-export'), tooltip: t['design_export'], icon: const Icon(Icons.ios_share), onPressed: () async {
             await Clipboard.setData(ClipboardData(text: ref.read(tokenServiceProvider).exportTemplate(d.copyWith(name: _name.text.trim().isEmpty ? d.name : _name.text.trim()))));
             if (context.mounted) showMessage(context, t['design_copied']);

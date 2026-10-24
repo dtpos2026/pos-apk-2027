@@ -1,4 +1,5 @@
 import 'dart:io';
+import '../../app/theme.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -96,7 +97,7 @@ class _BusinessProfileScreenState extends ConsumerState<BusinessProfileScreen> {
     final t = Strings.of(context);
     final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(t['business_profile'])),
+      appBar: DtAppBar(title: Text(t['business_profile'])),
       body: !_loaded
           ? const Center(child: CircularProgressIndicator())
           : ListView(padding: const EdgeInsets.all(16), children: [
@@ -157,7 +158,7 @@ class AccountScreen extends ConsumerWidget {
         );
     final statusColor = switch (a?.status) { 'active' => Colors.green.shade700, 'pending' || 'payment_pending' => Colors.orange.shade800, null => cs.outline, _ => Colors.red.shade700 };
     return Scaffold(
-      appBar: AppBar(title: Text(t['account_licence'])),
+      appBar: DtAppBar(title: Text(t['account_licence'])),
       body: ListView(padding: const EdgeInsets.all(16), children: [
         Card(
           child: Padding(

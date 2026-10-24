@@ -14,6 +14,8 @@ import '../data/staff_service.dart';
 import '../data/attendance_service.dart';
 import '../data/kitchen_service.dart';
 import '../domain/print_settings.dart';
+import 'strings.dart';
+import 'theme_style.dart';
 import '../data/online_order_service.dart';
 import '../data/table_service.dart';
 import '../data/backup_service.dart';
@@ -169,7 +171,7 @@ class ThemeIdNotifier extends Notifier<String> {
   Future<void> restore() async {
     final saved = await getSetting(ref.read(databaseProvider), 'theme');
     if (saved != null) {
-      state = presetById(saved).id;
+      state = saved == 'studio' ? 'studio' : presetById(saved).id;
       ref.read(themeChosenProvider.notifier).mark();
     }
   }
@@ -307,3 +309,76 @@ class PrintSettingsNotifier extends AsyncNotifier<PrintSettings> {
 }
 
 final printSettingsProvider = AsyncNotifierProvider<PrintSettingsNotifier, PrintSettings>(PrintSettingsNotifier.new);
+
+/// The owner's Theme Studio settings (colours, gradient, shadows, fonts, buttons...). Used when the chosen theme is 'studio'.
+class ThemeStyleNotifier extends AsyncNotifier<ThemeStyle> {
+  static const key = 'theme.style';
+
+  @override
+  Future<ThemeStyle> build() async => ThemeStyle.decode(await getSetting(ref.read(databaseProvider), key));
+
+  /// Saves the style and switches the app to it.
+  Future<void> apply(ThemeStyle s) async {
+    await setSetting(ref.read(databaseProvider), key, s.encode(), ref.read(clockProvider)().millisecondsSinceEpoch);
+    state = AsyncData(s);
+    await ref.read(themeIdProvider.notifier).set('studio');
+  }
+}
+
+final themeStyleProvider = AsyncNotifierProvider<ThemeStyleNotifier, ThemeStyle>(ThemeStyleNotifier.new);
+
+/// Text the owner changed (any label in the app), per language. Saved in the settings table; applied through [Strings.overrides].
+class TextOverridesNotifier extends AsyncNotifier<Map<String, Map<String, String>>> {
+  static const key = 'text.overrides';
+  int revision = 0;
+
+  static Map<String, Map<String, String>> decode(String? raw) {
+    if (raw == null || raw.isEmpty) return const {};
+    try {
+      final j = jsonDecode(raw) as Map;
+      return {for (final e in j.entries) '${e.key}': {for (final x in (e.value as Map).entries) '${x.key}': '${x.value}'}};
+    } catch (_) {
+      return const {};
+    }
+  }
+
+  @override
+  Future<Map<String, Map<String, String>>> build() async {
+    final m = decode(await getSetting(ref.read(databaseProvider), key));
+    Strings.overrides = m;
+    return m;
+  }
+
+  /// [text] empty = back to the built-in text.
+  Future<void> setText(String lang, String textKey, String text) async {
+    final cur = {for (final e in (state.value ?? const <String, Map<String, String>>{}).entries) e.key: {...e.value}};
+    final map = cur.putIfAbsent(lang, () => {});
+    if (text.trim().isEmpty) {
+      map.remove(textKey);
+    } else {
+      map[textKey] = text.trim();
+    }
+    cur.removeWhere((_, v) => v.isEmpty);
+    await _save(cur);
+  }
+
+  Future<void> resetAll() => _save(const {});
+
+  Future<void> _save(Map<String, Map<String, String>> m) async {
+    await setSetting(ref.read(databaseProvider), key, jsonEncode(m), ref.read(clockProvider)().millisecondsSinceEpoch);
+    Strings.overrides = m;
+    revision++;
+    state = AsyncData(m);
+    ref.read(textRevisionProvider.notifier).bump();
+  }
+}
+
+final textOverridesProvider = AsyncNotifierProvider<TextOverridesNotifier, Map<String, Map<String, String>>>(TextOverridesNotifier.new);
+
+class TextRevisionNotifier extends Notifier<int> {
+  @override
+  int build() => 0;
+  void bump() => state = state + 1;
+}
+
+final textRevisionProvider = NotifierProvider<TextRevisionNotifier, int>(TextRevisionNotifier.new);

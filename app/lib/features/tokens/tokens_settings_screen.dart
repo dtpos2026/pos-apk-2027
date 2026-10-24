@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../app/theme.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
@@ -27,7 +28,7 @@ class TokensSettingsScreen extends ConsumerWidget {
     return DefaultTabController(
       length: 3,
       child: Scaffold(
-        appBar: AppBar(
+        appBar: DtAppBar(
           title: Text(t['tokens_title']),
           bottom: TabBar(labelColor: Theme.of(context).appBarTheme.foregroundColor, unselectedLabelColor: Theme.of(context).appBarTheme.foregroundColor?.withValues(alpha: 0.7), indicatorColor: Theme.of(context).appBarTheme.foregroundColor, tabs: [Tab(key: const ValueKey('tab-types'), text: t['token_types']), Tab(key: const ValueKey('tab-designs'), text: t['token_designs']), Tab(key: const ValueKey('tab-options'), text: t['token_options'])]),
         ),

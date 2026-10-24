@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import '../../app/theme.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -201,7 +202,7 @@ class _ReceiptDesignScreenState extends ConsumerState<ReceiptDesignScreen> {
   @override
   Widget build(BuildContext context) {
     final t = Strings.of(context);
-    if (!_loaded) return Scaffold(appBar: AppBar(title: Text(t['receipt_design'])), body: const Center(child: CircularProgressIndicator()));
+    if (!_loaded) return Scaffold(appBar: DtAppBar(title: Text(t['receipt_design'])), body: const Center(child: CircularProgressIndicator()));
     final cur = ref.watch(businessProvider).value?.currency ?? Currency.pkr;
     final doc = buildBillDoc(_sample(cur), template: _design);
     final preview = Container(
@@ -216,7 +217,7 @@ class _ReceiptDesignScreenState extends ConsumerState<ReceiptDesignScreen> {
     final form = _form(t);
     final wide = MediaQuery.sizeOf(context).width >= 900;
     return Scaffold(
-      appBar: AppBar(title: Text(t['receipt_design'])),
+      appBar: DtAppBar(title: Text(t['receipt_design'])),
       body: wide
           ? Row(children: [
               Expanded(child: SingleChildScrollView(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: form))),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'theme_style.dart';
 import 'themes.dart';
 
 /// Digital Target brand purple, measured from the supplied logo.
@@ -20,19 +21,28 @@ Color _readableOn(Color bg) {
 
 /// The theme's second colour, available everywhere as `context.accent`.
 class BrandColors extends ThemeExtension<BrandColors> {
-  const BrandColors({required this.accent, required this.onAccent});
+  const BrandColors({required this.accent, required this.onAccent, this.price, this.headerGradient});
   final Color accent;
   final Color onAccent;
+
+  /// Fill of the price badges (null = the main colour).
+  final Color? price;
+
+  /// Two colours = the top bar is a gradient (see [DtAppBar]).
+  final List<Color>? headerGradient;
   @override
-  BrandColors copyWith({Color? accent, Color? onAccent}) => BrandColors(accent: accent ?? this.accent, onAccent: onAccent ?? this.onAccent);
+  BrandColors copyWith({Color? accent, Color? onAccent, Color? price, List<Color>? headerGradient}) => BrandColors(accent: accent ?? this.accent, onAccent: onAccent ?? this.onAccent, price: price ?? this.price, headerGradient: headerGradient ?? this.headerGradient);
   @override
   BrandColors lerp(ThemeExtension<BrandColors>? other, double t) =>
-      other is BrandColors ? BrandColors(accent: Color.lerp(accent, other.accent, t)!, onAccent: Color.lerp(onAccent, other.onAccent, t)!) : this;
+      other is BrandColors ? BrandColors(accent: Color.lerp(accent, other.accent, t)!, onAccent: Color.lerp(onAccent, other.onAccent, t)!, price: Color.lerp(price, other.price, t), headerGradient: t < 0.5 ? headerGradient : other.headerGradient) : this;
 }
 
 extension BrandColorsX on BuildContext {
   Color get accent => Theme.of(this).extension<BrandColors>()?.accent ?? brandOrange;
   Color get onAccent => Theme.of(this).extension<BrandColors>()?.onAccent ?? Colors.white;
+
+  /// Price badge fill: the owner's price colour, else the main colour.
+  Color get priceColor => Theme.of(this).extension<BrandColors>()?.price ?? Theme.of(this).colorScheme.primary;
 }
 
 double contrastRatio(Color a, Color b) {
@@ -54,6 +64,7 @@ Color readableShade(Color c, Color bg) {
 /// Builds the whole Material theme from a theme spec ([spec]) or just a main and accent colour.
 ThemeData buildTheme({Brightness brightness = Brightness.light, Color seed = brandPurple, Color accent = brandOrange, ThemePreset? spec}) {
   final p = spec ?? ThemePreset('_', seed, '', accent: accent);
+  final st = p.style is ThemeStyle ? p.style as ThemeStyle : null;
   final b = p.dark ? Brightness.dark : brightness;
   final light = b == Brightness.light;
   var scheme = ColorScheme.fromSeed(seedColor: p.seed, brightness: b, dynamicSchemeVariant: DynamicSchemeVariant.fidelity);
@@ -67,28 +78,34 @@ ThemeData buildTheme({Brightness brightness = Brightness.light, Color seed = bra
     primaryContainer: light ? Color.alphaBlend(fill.withValues(alpha: 0.16), Colors.white) : scheme.primaryContainer,
     secondary: p.secondary ?? scheme.secondary,
     surface: surface,
-    onSurface: _readableOn(surface) == Colors.white ? const Color(0xFFF1F1F1) : const Color(0xFF1B1B1F),
+    onSurface: st != null ? st.effectiveText(surface) : (_readableOn(surface) == Colors.white ? const Color(0xFFF1F1F1) : const Color(0xFF1B1B1F)),
   );
   final background = light ? (p.background ?? Color.alphaBlend(p.seed.withValues(alpha: 0.04), const Color(0xFFF8F8FA))) : (p.dark ? (p.background ?? scheme.surface) : scheme.surface);
   final header = light || p.dark ? p.headerColor : scheme.surfaceContainerHigh;
-  final onHeader = _readableOn(header);
+  // with a gradient the bar text must read on both ends
+  final header2 = st?.header2;
+  final onHeader = header2 == null ? _readableOn(header) : _readableOn(Color.lerp(header, header2, 0.5)!);
   final nav = p.nav ?? (light ? surface : scheme.surfaceContainer);
   final r = p.radius;
+  final cardRadius = st?.cardRadius ?? (r + 2);
+  final showBorder = st != null ? st.cardBorder : p.cardStyle == 'outline';
   final cardShape = RoundedRectangleBorder(
-    borderRadius: BorderRadius.circular(r + 2),
-    side: p.cardStyle == 'outline' ? BorderSide(color: scheme.outlineVariant) : BorderSide.none,
+    borderRadius: BorderRadius.circular(cardRadius),
+    side: showBorder ? BorderSide(color: st?.border ?? scheme.outlineVariant) : BorderSide.none,
   );
   final base = ThemeData(
     useMaterial3: true,
     colorScheme: scheme,
-    fontFamily: 'Inter',
+    fontFamily: st == null ? 'Inter' : (st.fontFamily == 'system' ? null : st.fontFamily),
     fontFamilyFallback: const ['NotoNaskhArabic'],
     visualDensity: VisualDensity.standard,
     materialTapTargetSize: MaterialTapTargetSize.padded,
   );
-  final buttonShape = RoundedRectangleBorder(borderRadius: BorderRadius.circular(r));
-  return base.copyWith(
-    extensions: [BrandColors(accent: p.accent, onAccent: _readableOn(p.accent))],
+  final pill = st?.buttonStyle == 'pill';
+  final outlinedButtons = st?.buttonStyle == 'outlined';
+  final buttonShape = RoundedRectangleBorder(borderRadius: BorderRadius.circular(pill ? 999 : r));
+  final themed = base.copyWith(
+    extensions: [BrandColors(accent: p.accent, onAccent: _readableOn(p.accent), price: st?.price, headerGradient: header2 == null ? null : [header, header2])],
     // smooth page changes without heavy animations on low-end phones
     pageTransitionsTheme: const PageTransitionsTheme(builders: {TargetPlatform.android: FadeForwardsPageTransitionsBuilder()}),
     scaffoldBackgroundColor: background,
@@ -114,8 +131,8 @@ ThemeData buildTheme({Brightness brightness = Brightness.light, Color seed = bra
     ),
     floatingActionButtonTheme: FloatingActionButtonThemeData(backgroundColor: fill, foregroundColor: _readableOn(fill), shape: buttonShape),
     cardTheme: CardThemeData(
-      elevation: p.cardStyle == 'shadow' ? 2 : 0,
-      shadowColor: Colors.black26,
+      elevation: st != null ? st.elevation : (p.cardStyle == 'shadow' ? 2 : 0),
+      shadowColor: st != null ? st.shadowColor.withValues(alpha: 0.55) : Colors.black26,
       color: surface,
       surfaceTintColor: Colors.transparent,
       shape: cardShape,
@@ -124,8 +141,9 @@ ThemeData buildTheme({Brightness brightness = Brightness.light, Color seed = bra
     bottomSheetTheme: BottomSheetThemeData(backgroundColor: surface, surfaceTintColor: Colors.transparent),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        backgroundColor: fill,
-        foregroundColor: _readableOn(fill),
+        backgroundColor: outlinedButtons ? Colors.transparent : fill,
+        foregroundColor: outlinedButtons ? textPrimary : _readableOn(fill),
+        side: outlinedButtons ? BorderSide(color: textPrimary, width: 1.5) : null,
         minimumSize: const Size(64, 52),
         shape: buttonShape,
         textStyle: base.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600, fontSize: 16),
@@ -135,4 +153,33 @@ ThemeData buildTheme({Brightness brightness = Brightness.light, Color seed = bra
     inputDecorationTheme: InputDecorationTheme(border: OutlineInputBorder(borderRadius: BorderRadius.circular((r - 2).clamp(4, 30).toDouble())), filled: true, fillColor: surface),
     chipTheme: base.chipTheme.copyWith(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(r + 6))),
   );
+  if (st == null) return themed;
+  // text colour for the whole app (text SIZE is applied in the app builder, on top of the phone's own text-size setting)
+  return themed.copyWith(textTheme: themed.textTheme.apply(bodyColor: scheme.onSurface, displayColor: scheme.onSurface));
+}
+
+
+/// The app's top bar: a normal AppBar, or a gradient bar when the theme has one (Theme Studio). Use it instead of AppBar.
+class DtAppBar extends StatelessWidget implements PreferredSizeWidget {
+  const DtAppBar({super.key, this.title, this.actions, this.leading, this.bottom});
+  final Widget? title;
+  final List<Widget>? actions;
+  final Widget? leading;
+  final PreferredSizeWidget? bottom;
+
+  @override
+  Size get preferredSize => Size.fromHeight(kToolbarHeight + (bottom?.preferredSize.height ?? 0));
+
+  @override
+  Widget build(BuildContext context) {
+    final g = Theme.of(context).extension<BrandColors>()?.headerGradient;
+    return AppBar(
+      title: title,
+      actions: actions,
+      leading: leading,
+      bottom: bottom,
+      flexibleSpace: g == null ? null : DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.centerLeft, end: Alignment.centerRight, colors: g))),
+      backgroundColor: g == null ? null : Colors.transparent,
+    );
+  }
 }

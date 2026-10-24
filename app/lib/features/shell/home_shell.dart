@@ -1,4 +1,5 @@
 import '../online/online_orders_screen.dart';
+import '../../app/theme.dart';
 import '../kitchen/kitchen_screen.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../profile/app_drawer.dart';
@@ -85,7 +86,7 @@ class HomeShell extends ConsumerWidget {
 
     if (wide) {
       return Scaffold(
-        appBar: AppBar(title: title, actions: actions),
+        appBar: DtAppBar(title: title, actions: actions),
         drawer: AppDrawer(onGo: go),
         body: Row(children: [
           LayoutBuilder(
@@ -117,7 +118,7 @@ class HomeShell extends ConsumerWidget {
     final barIndex = inOverflow ? onBar.length : onBar.indexOf(current).clamp(0, onBar.length - 1);
 
     return Scaffold(
-      appBar: AppBar(title: title, actions: actions),
+      appBar: DtAppBar(title: title, actions: actions),
       drawer: AppDrawer(onGo: go),
       body: body,
       bottomNavigationBar: dests.length < 2

@@ -24,6 +24,7 @@ import '../../data/restore.dart';
 import '../../data/payment_method_service.dart';
 import 'payment_accounts.dart';
 import 'print_settings_screen.dart';
+import 'theme_studio_screen.dart';
 import '../../data/queries.dart';
 
 final printersProvider = FutureProvider<List<Map<String, Object?>>>((ref) async =>
@@ -62,6 +63,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
         ]),
         ),
+        ListTile(key: const ValueKey('theme-studio-tile'), contentPadding: EdgeInsets.zero, leading: const Icon(Icons.brush_outlined), title: Text(t['theme_studio']), subtitle: Text(t['theme_studio_hint']), trailing: const Icon(Icons.chevron_right), onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const ThemeStudioScreen()))),
         if (ref.watch(adminThemeProvider).locked) Padding(padding: const EdgeInsets.only(top: 8), child: Text(t['theme_locked_note'], key: const ValueKey('theme-locked-note'), style: Theme.of(context).textTheme.bodySmall)),
         const SizedBox(height: 14),
         Text(t['menu_layout'], style: const TextStyle(fontWeight: FontWeight.w600)),

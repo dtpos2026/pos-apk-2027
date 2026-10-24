@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../app/theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/format.dart';
@@ -79,7 +80,7 @@ class DayCloseScreen extends ConsumerWidget {
     final session = ref.watch(sessionProvider);
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text('${t['day_close']} · $date')),
+      appBar: DtAppBar(title: Text('${t['day_close']} · $date')),
       body: z.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('$e')),

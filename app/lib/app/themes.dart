@@ -18,6 +18,7 @@ class ThemePreset {
     this.dark = false,
     this.cardStyle = 'outline',
     this.radius = 14,
+    this.style,
   });
   final String id;
 
@@ -49,6 +50,9 @@ class ThemePreset {
 
   /// Corner roundness of buttons and cards.
   final double radius;
+
+  /// The extra settings of an owner-made Theme Studio theme (fonts, gradient, shadows...); null for the ready-made themes.
+  final Object? style;
 
   Color get headerColor => header ?? seed;
 }

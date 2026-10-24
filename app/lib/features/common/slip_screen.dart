@@ -1,4 +1,5 @@
 import 'dart:io';
+import '../../app/theme.dart';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -47,7 +48,7 @@ class _SlipScreenState extends ConsumerState<SlipScreen> {
     final t = Strings.of(context);
     final doc = widget.build(_paper);
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
+      appBar: DtAppBar(title: Text(widget.title)),
       body: ListView(padding: const EdgeInsets.all(16), children: [
         Center(child: SegmentedButton<int>(key: const ValueKey('slip-paper'), showSelectedIcon: false, segments: const [ButtonSegment(value: 58, label: Text('58 mm')), ButtonSegment(value: 80, label: Text('80 mm'))], selected: {_paper}, onSelectionChanged: (s) => setState(() => _paper = s.first))),
         const SizedBox(height: 14),

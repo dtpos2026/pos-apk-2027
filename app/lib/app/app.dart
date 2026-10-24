@@ -11,6 +11,7 @@ import '../features/shell/home_shell.dart';
 import 'providers.dart';
 import 'strings.dart';
 import 'theme.dart';
+import 'theme_style.dart';
 import 'themes.dart';
 
 class DtFoodPosApp extends ConsumerWidget {
@@ -22,7 +23,12 @@ class DtFoodPosApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final locale = ref.watch(localeProvider);
-    final preset = presetById(ref.watch(effectiveThemeIdProvider));
+    final themeId = ref.watch(effectiveThemeIdProvider);
+    final style = ref.watch(themeStyleProvider).value;
+    final preset = themeId == 'studio' ? (style ?? ThemeStyle.defaults).toPreset() : presetById(themeId);
+    ref.watch(textOverridesProvider); // loads the owner's edited labels
+    final revision = ref.watch(textRevisionProvider);
+    final fontScale = themeId == 'studio' ? (style ?? ThemeStyle.defaults).fontScale : 1.0;
     return MaterialApp(
       title: 'DT Food POS',
       debugShowCheckedModeBanner: false,
@@ -33,9 +39,16 @@ class DtFoodPosApp extends ConsumerWidget {
       supportedLocales: Strings.supported,
       localizationsDelegates: const [GlobalMaterialLocalizations.delegate, GlobalWidgetsLocalizations.delegate, GlobalCupertinoLocalizations.delegate],
       // Android draws apps edge-to-edge: keep every screen (and bottom sheet) above the phone's navigation bar
-      builder: (context, child) => ColoredBox(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        child: SafeArea(top: false, left: false, right: false, child: child ?? const SizedBox.shrink()),
+      builder: (context, child) => MediaQuery(
+        // the owner's text size multiplies the phone's own text-size setting
+        data: MediaQuery.of(context).copyWith(textScaler: fontScale == 1.0 ? MediaQuery.textScalerOf(context) : _Scaled(MediaQuery.textScalerOf(context), fontScale)),
+        child: TextRevision(
+        revision: revision,
+        child: ColoredBox(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          child: SafeArea(top: false, left: false, right: false, child: child ?? const SizedBox.shrink()),
+        ),
+      ),
       ),
       home: home ?? const Gate(),
     );
@@ -84,4 +97,17 @@ class _LocalGate extends ConsumerWidget {
       },
     );
   }
+}
+
+/// The phone's text scaler times the owner's own factor.
+class _Scaled extends TextScaler {
+  const _Scaled(this.inner, this.factor);
+  final TextScaler inner;
+  final double factor;
+  @override
+  double scale(double fontSize) => inner.scale(fontSize) * factor;
+  @override
+  double get textScaleFactor => inner.scale(1.0) * factor;
+  @override
+  TextScaler clamp({double minScaleFactor = 0, double maxScaleFactor = double.infinity}) => TextScaler.linear((inner.scale(1.0) * factor).clamp(minScaleFactor, maxScaleFactor).toDouble());
 }

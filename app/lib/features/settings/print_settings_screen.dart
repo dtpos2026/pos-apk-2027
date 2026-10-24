@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../app/theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
@@ -75,7 +76,7 @@ class PrintSettingsScreen extends ConsumerWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text(t['print_settings'])),
+      appBar: DtAppBar(title: Text(t['print_settings'])),
       body: ListView(padding: const EdgeInsets.all(14), children: [
         Padding(padding: const EdgeInsets.only(bottom: 10), child: Text(t['print_settings_hint'], style: TextStyle(color: cs.onSurfaceVariant))),
         doc(keyId: 'kot', icon: Icons.soup_kitchen_outlined, title: t['ps_kot'], enabled: cfg.kotEnabled, onEnabled: (v) => save(cfg.copyWith(kotEnabled: v)), autoText: t['ps_auto_kot'], auto: cfg.autoKot, onAuto: (v) => save(cfg.copyWith(autoKot: v))),

@@ -259,3 +259,6 @@ final effectiveThemeIdProvider = Provider<String>((ref) {
 });
 
 final activeModulesProvider = Provider<Set<String>>((ref) => effectiveModules(ref.watch(modulesProvider), ref.watch(adminDisabledModulesProvider)));
+
+/// True when Digital Target assigned a theme and locked it: the owner cannot change colours then.
+final adminLockedThemeProvider = Provider<bool>((ref) => ref.watch(adminThemeProvider).locked);
