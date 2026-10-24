@@ -7,7 +7,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/providers.dart';
 import '../../app/strings.dart';
 import '../../cloud/access_controller.dart';
+import '../../cloud/cloud_copy.dart';
 import '../../cloud/cloud_gateway.dart';
+import '../../data/sync_engine.dart';
 import '../../cloud/location_consent.dart';
 import '../../data/queries.dart';
 
@@ -67,6 +69,11 @@ class CloudReporter {
         if (t != null && (t.bills > 0 || t.refundsMinor > 0)) past.add(t);
       }
       await gw.reportPastDays(uid, past);
+      // the owner's private cloud copy, only when they switched it on
+      if (await getSetting(ref.read(databaseProvider), CloudCopyNotifier.key) == '1') {
+        final stats = await SyncEngine(ref.read(databaseProvider), CloudOutboxTransport(gw, uid), now: ref.read(clockProvider)).drainAll();
+        if (stats.networkError) throw const CloudException('Cloud copy could not reach the server');
+      }
       ref.read(cloudSyncStatusProvider.notifier).succeeded(now);
     } catch (e) {
       ref.read(cloudSyncStatusProvider.notifier).failed(now, e.toString());

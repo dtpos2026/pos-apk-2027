@@ -79,6 +79,13 @@ class FakeCloud implements CloudGateway {
 
   final pastDays = <DayTotals>[];
   bool offline = false;
+  final pushedOps = <CloudOp>[];
+  @override
+  Future<void> pushOps(String uid, List<CloudOp> ops) async {
+    if (failNext != null) throw CloudException(failNext.toString());
+    pushedOps.addAll(ops);
+  }
+
   @override
   Future<void> reportPastDays(String uid, List<DayTotals> days) async {
     if (offline) throw const CloudException('No internet connection.');

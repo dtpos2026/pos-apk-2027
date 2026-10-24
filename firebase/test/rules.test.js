@@ -150,3 +150,27 @@ describe('audit log', () => {
     await assertSucceeds(getDoc(doc(as('adm'), 'auditLog/e1')));
   });
 });
+
+describe('optional cloud copy (backup/{uid}/ops)', () => {
+  const op = (over = {}) => ({ entity: 'customer', entityId: 'c1', op: 'upsert', payload: '{"name":"Ali"}', version: 1, at: serverTimestamp(), ...over });
+  it('the owner can append and read back their own operations', async () => {
+    await assertSucceeds(setDoc(doc(as('u1'), 'backup/u1/ops/customer:c1:v1'), op()));
+    await assertSucceeds(getDoc(doc(as('u1'), 'backup/u1/ops/customer:c1:v1')));
+  });
+  it('nobody else can write or read it, not even an admin', async () => {
+    await seed((db) => setDoc(doc(db, 'backup/u1/ops/k1'), { entity: 'x', entityId: '1', op: 'append', payload: '{}' }));
+    await makeAdmin('adm');
+    await assertFails(getDoc(doc(as('u2'), 'backup/u1/ops/k1')));
+    await assertFails(getDoc(doc(as('adm'), 'backup/u1/ops/k1')));
+    await assertFails(setDoc(doc(as('u2'), 'backup/u1/ops/k2'), op()));
+    await assertFails(setDoc(doc(anon(), 'backup/u1/ops/k3'), op()));
+  });
+  it('it is append-only: no change, no delete, no unknown fields, no huge payload', async () => {
+    await assertSucceeds(setDoc(doc(as('u1'), 'backup/u1/ops/k1'), op()));
+    await assertFails(setDoc(doc(as('u1'), 'backup/u1/ops/k1'), op({ payload: '{"name":"Changed"}' })));
+    await assertFails(deleteDoc(doc(as('u1'), 'backup/u1/ops/k1')));
+    await assertFails(setDoc(doc(as('u1'), 'backup/u1/ops/k4'), op({ extra: 1 })));
+    await assertFails(setDoc(doc(as('u1'), 'backup/u1/ops/k5'), op({ op: 'drop' })));
+    await assertFails(setDoc(doc(as('u1'), 'backup/u1/ops/k6'), op({ payload: 'x'.repeat(20001) })));
+  });
+});

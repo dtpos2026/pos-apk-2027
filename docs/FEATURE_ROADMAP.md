@@ -17,15 +17,16 @@ from the Super Admin "App features" card).
 - Customers (address saved), dashboard, reports, themes (13 + custom, admin lock)
 - Super Admin panel: accounts, plans, modules, theme
 
-## Partial
-- Tokens: department stubs (detachable per department / item / piece) not built
-- Online orders / QR menu, delivery riders: not built
+## Also done
+- Token department / item / piece stubs; staff attendance and wages; purchase orders
+- Online / phone / delivery-app orders (typed in), menu share, WhatsApp-order QR
+- Optional private cloud copy (push-only, off by default)
 
 ## Future (in order)
-1. Detachable department stubs on tokens (department / item / piece)
-2. Online-order inbox (QR menu), delivery rider assignment
-3. Staff shifts and attendance, purchase orders
-4. Optional cloud sync of full data (multi-branch)
+1. Restore from the cloud copy on a new phone, then live multi-device sync (needs conflict rules and real-device tests)
+2. Customer self-ordering page (QR menu) served online and feeding the online-orders inbox
+3. Delivery rider assignment and tracking
+4. Multi-branch reports
 5. Real-printer tuning from the owner's first prints
 
 ## Not planned

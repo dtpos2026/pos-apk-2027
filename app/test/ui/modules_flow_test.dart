@@ -260,6 +260,39 @@ void main() {
     expect(await n(h, "SELECT COUNT(*) AS n FROM cash_movement WHERE direction = 'out' AND amount_minor = 30000"), 1);
   });
 
+  testWidgets('online orders: type in a WhatsApp order, accept it into the kitchen, then take payment in Sell', (t) async {
+    final h = await start(t);
+    await openTab(t, 'online', 'Online orders');
+    expect(find.text('No online orders'), findsOneWidget);
+    await tapKey(t, 'new-online');
+    await t.enterText(find.byKey(const ValueKey('on-name')), 'Ahmed');
+    await t.enterText(find.byKey(const ValueKey('on-phone')), '03001234567');
+    await t.enterText(find.byKey(const ValueKey('on-address')), 'House 5');
+    await tapKey(t, 'on-save');
+    expect(find.byKey(const ValueKey('on-error')), findsOneWidget, reason: 'an order needs at least one item');
+    await Scrollable.ensureVisible(t.element(find.byKey(const ValueKey('on-plus-Zinger Burger'))), alignment: 0.3);
+    await t.pumpAndSettle();
+    await tapKey(t, 'on-plus-Zinger Burger');
+    await tapKey(t, 'on-plus-Zinger Burger');
+    await tapKey(t, 'on-save');
+    expect(find.text('Waiting (1)'), findsOneWidget);
+    expect(find.textContaining('2 x Zinger Burger'), findsOneWidget);
+    expect(find.textContaining('House 5'), findsOneWidget);
+    expect(await n(h, "SELECT COUNT(*) AS n FROM \"order\" WHERE source = 'online' AND status = 'held'"), 1);
+
+    final accept = find.byWidgetPredicate((w) => w.key is ValueKey && (w.key as ValueKey).value.toString().startsWith('accept-'));
+    await t.tap(accept);
+    await t.pumpAndSettle();
+    expect(await n(h, "SELECT COUNT(*) AS n FROM \"order\" WHERE source = 'online' AND status = 'new'"), 1, reason: 'accepted = in the kitchen');
+    expect(find.text('Accepted'), findsOneWidget);
+
+    final pay = find.byWidgetPredicate((w) => w.key is ValueKey && (w.key as ValueKey).value.toString().startsWith('pay-'));
+    await t.tap(pay);
+    await t.pumpAndSettle();
+    expect(h.container.read(cartProvider).items.single.qtyMilli, 2000);
+    expect(h.container.read(cartProvider).orderType, 'delivery');
+  });
+
   testWidgets('purchase orders: order from a supplier, receive it, stock goes up; a received order has no more actions', (t) async {
     final h = await start(t);
     await openTab(t, 'inventory', 'Inventory');

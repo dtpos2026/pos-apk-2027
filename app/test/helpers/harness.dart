@@ -174,6 +174,8 @@ Future<void> openTab(WidgetTester t, String key, String label) async {
   if (direct.evaluate().isNotEmpty) {
     await t.tap(direct.first);
   } else if (rail.evaluate().isNotEmpty) {
+    await t.ensureVisible(rail.first); // a tall rail scrolls: bring the destination into view first
+    await t.pumpAndSettle();
     await t.tap(rail.first);
   } else {
     await t.tap(find.byKey(const ValueKey('nav-more')));

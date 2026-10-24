@@ -67,6 +67,8 @@ class DraftOrder {
     this.guests,
     this.note,
     this.held = false,
+    this.source = 'pos',
+    this.deliveryAddress,
   });
   final String? id;
   final String orderType;
@@ -78,6 +80,10 @@ class DraftOrder {
   final int? guests;
   final String? note;
   final bool held;
+
+  /// Where the order came from: 'pos' (taken at the counter) or 'online' (WhatsApp / phone / delivery app, typed in by staff).
+  final String source;
+  final String? deliveryAddress;
 }
 
 class SettlePayment {
@@ -219,11 +225,11 @@ class PosService {
         final status = d.held ? 'held' : (prior != null && const {'new', 'preparing', 'ready', 'served'}.contains(prior) ? prior : 'draft');
         if (existing.isEmpty) {
           await _exec(
-              'INSERT INTO "order"(id, order_type, status, table_id, customer_id, waiter_id, guests, note, bill_config, subtotal_minor, discount_minor, service_charge_minor, delivery_charge_minor, tax_minor, tip_minor, rounding_minor, total_minor, business_date, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-              [id, d.orderType, status, d.tableId, d.customerId, d.waiterId, d.guests, d.note, jsonEncode(_configToJson(d.config)), bill.subtotalMinor, bill.discountMinor, bill.serviceChargeMinor, bill.deliveryChargeMinor, bill.taxMinor, bill.tipMinor, bill.roundingMinor, bill.totalMinor, _businessDate, now, now]);
+              'INSERT INTO "order"(id, order_type, status, table_id, customer_id, waiter_id, guests, note, bill_config, subtotal_minor, discount_minor, service_charge_minor, delivery_charge_minor, tax_minor, tip_minor, rounding_minor, total_minor, business_date, created_at, updated_at, source, delivery_address) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+              [id, d.orderType, status, d.tableId, d.customerId, d.waiterId, d.guests, d.note, jsonEncode(_configToJson(d.config)), bill.subtotalMinor, bill.discountMinor, bill.serviceChargeMinor, bill.deliveryChargeMinor, bill.taxMinor, bill.tipMinor, bill.roundingMinor, bill.totalMinor, _businessDate, now, now, d.source, d.deliveryAddress]);
         } else {
           await _exec(
-              'UPDATE "order" SET order_type=?, status=?, table_id=?, customer_id=?, waiter_id=?, guests=?, note=?, bill_config=?, subtotal_minor=?, discount_minor=?, service_charge_minor=?, delivery_charge_minor=?, tax_minor=?, tip_minor=?, rounding_minor=?, total_minor=?, updated_at=?, version=version+1 WHERE id=?',
+              'UPDATE "order" SET order_type=?, status=?, table_id=?, customer_id=?, waiter_id=?, guests=?, note=COALESCE(?, note), bill_config=?, subtotal_minor=?, discount_minor=?, service_charge_minor=?, delivery_charge_minor=?, tax_minor=?, tip_minor=?, rounding_minor=?, total_minor=?, updated_at=?, version=version+1 WHERE id=?',
               [d.orderType, status, d.tableId, d.customerId, d.waiterId, d.guests, d.note, jsonEncode(_configToJson(d.config)), bill.subtotalMinor, bill.discountMinor, bill.serviceChargeMinor, bill.deliveryChargeMinor, bill.taxMinor, bill.tipMinor, bill.roundingMinor, bill.totalMinor, now, id]);
           await _exec('DELETE FROM order_item_modifier WHERE order_item_id IN (SELECT id FROM order_item WHERE order_id = ?)', [id]);
           await _exec('DELETE FROM order_item WHERE order_id = ?', [id]);

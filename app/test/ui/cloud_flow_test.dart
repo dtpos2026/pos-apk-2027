@@ -1,8 +1,9 @@
 import 'package:dt_food_pos/cloud/access_controller.dart';
+import 'package:dt_food_pos/cloud/cloud_copy.dart';
 import 'package:dt_food_pos/app/device_channel.dart';
 import 'package:dt_food_pos/cloud/location_consent.dart';
 import 'package:dt_food_pos/data/pos_service.dart';
-import 'package:dt_food_pos/data/queries.dart' show getSetting;
+import 'package:dt_food_pos/data/queries.dart' show getSetting, setSetting;
 import 'package:dt_food_pos/features/cloud/cloud_reporter.dart';
 import 'package:dt_food_pos/domain/account_gate.dart';
 import 'package:flutter/material.dart';
@@ -137,6 +138,28 @@ void main() {
     expect(cloud.sales.last.bills, 0);
     expect(cloud.sales.last.date, '2026-01-12');
     expect(cloud.sales.last.currency, 'PKR');
+    await t.pumpWidget(const SizedBox());
+    h.container.dispose();
+  });
+
+  testWidgets('cloud copy is off by default (nothing leaves the phone); once the owner switches it on, changes are copied exactly once', (t) async {
+    final cloud = FakeCloud();
+    final db = newDb();
+    await seedBusiness(db);
+    final h = await pumpApp(t, db: db, cloud: cloud);
+    await cloud.signInDirect('owner@cafe.pk');
+    final phoneId = await h.container.read(accessProvider.notifier).phoneId();
+    cloud.serverAccount(account(ok: [phoneId]));
+    await settle(t);
+    await t.runAsync(() => h.db.customStatement("INSERT INTO outbox(idempotency_key, entity, entity_id, op, payload, created_at) VALUES ('customer:c1:v1','customer','c1','upsert','{}',1)"));
+    await t.runAsync(() => h.container.read(cloudReporterProvider).reportNow());
+    expect(cloud.pushedOps, isEmpty, reason: 'off by default: only totals are reported');
+
+    await t.runAsync(() => setSetting(h.db, CloudCopyNotifier.key, '1', 1));
+    await t.runAsync(() => h.container.read(cloudReporterProvider).reportNow());
+    expect(cloud.pushedOps.where((o) => o.key == 'customer:c1:v1'), hasLength(1));
+    await t.runAsync(() => h.container.read(cloudReporterProvider).reportNow());
+    expect(cloud.pushedOps.where((o) => o.key == 'customer:c1:v1'), hasLength(1), reason: 'sent once; the next round has nothing new');
     await t.pumpWidget(const SizedBox());
     h.container.dispose();
   });

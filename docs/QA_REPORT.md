@@ -56,6 +56,12 @@ Version **0.4.0** · date 2026-10-24 · prepared from actual test runs (commands
 | 38 | **DT Retail bill look**: boxed TYPE / TABLE / TOKEN, reverse-print TOTAL bar (GS B), powered-by line; fits 58/80 mm | PASS (text + ESC/POS bytes); real-printer look NOT checked |
 | 39 | **Inventory** All / OK / Low-stock boxes and status chips; **dashboard** "vs yesterday" percent; **tokens** picked by categories and/or items (UI + issuing) | PASS |
 | 40 | **Profit report** (revenue, recipe cost at average stock cost, margin) per item; items without a recipe show no cost | PASS |
+| 41 | **Token stubs**: department / item / piece detachable stubs under a token, per rule | PASS (unit + print test) |
+| 42 | **Staff attendance**: clock in/out (Staff tab and profile menu), hours, daily wage, month summary | PASS |
+| 43 | **Purchase orders** (schema v3): create, send to supplier by WhatsApp, receive into stock (supplier payable), cancel; no double receive | PASS |
+| 44 | **Online / phone orders**: type in a WhatsApp/phone/delivery-app order, accept into the kitchen board, take payment in Sell; menu share and WhatsApp-order QR | PASS (no customer self-ordering: that needs a server) |
+| 45 | **Cloud copy** (optional, off by default): outbox changes pushed once to the owner's private space; rules: owner only, append-only, admins cannot read; offline changes wait | PASS (app + 16 rules tests) |
+| 46 | Urdu line on the reverse-print TOTAL bar is printed as an inverted bitmap | PASS (bytes); real printer NOT checked |
 | 22 | Panel end-to-end: register → approve (DTC-0001) → phone limit → block → sales → invoice → payment extends expiry → suspend → chat → settings → admins → audit entries | PASS |
 
 ## 3. Defects found during QC and fixed
@@ -111,4 +117,4 @@ Automated tests cannot prove these; please tick them off before giving the app t
 6. Panel: assign a locked theme and switch off *Food tokens* for a test restaurant; sign in on the phone while online; then turn on airplane mode and restart the app: the theme and module settings must still apply.
 7. Backup + restore; airplane mode for a full day of sales; reconnect and check the panel totals.
 
-Known gaps: USB/Windows printers, barcode block, multi-branch, Windows POS, department stubs on tokens, online orders, staff shifts/attendance, purchase orders (see docs/FEATURE_ROADMAP.md). The Urdu line on the reverse-print TOTAL bar is not inverted. Nothing has been tried on a real printer yet.
+Known gaps: USB/Windows printers, barcode block, multi-branch, Windows POS, customer self-ordering (needs a server), restoring from the cloud copy on a new phone, multi-device live sync (see docs/FEATURE_ROADMAP.md). Nothing has been tried on a real printer yet.

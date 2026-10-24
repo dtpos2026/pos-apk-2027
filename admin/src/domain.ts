@@ -101,6 +101,7 @@ export const APP_MODULES: { id: string; label: string; hint: string }[] = [
   { id: 'expenses', label: 'Expenses', hint: 'Daily expenses' },
   { id: 'staff', label: 'Staff & roles', hint: 'Staff accounts and permissions' },
   { id: 'tokens', label: 'Food tokens & coupons', hint: 'Order/tandoor/stall tokens, prepaid coupons' },
+  { id: 'online', label: 'Online & phone orders', hint: 'WhatsApp / phone / delivery-app orders typed in and sent to the kitchen' },
 ];
 
 /** The app's ready-made themes (ids match the app). main/accent/header/bg are only for the preview swatches. */

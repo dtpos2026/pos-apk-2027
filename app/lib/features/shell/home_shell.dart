@@ -1,3 +1,4 @@
+import '../online/online_orders_screen.dart';
 import '../kitchen/kitchen_screen.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../profile/app_drawer.dart';
@@ -40,6 +41,7 @@ final _destinations = <_Dest>[
   _Dest('dashboard', 'dashboard', Icons.dashboard_outlined, 'reports.view', () => const SizedBox.shrink()),
   _Dest('tables', 'tables', Icons.table_restaurant_outlined, 'pos.sell', () => const TablesScreen(), module: 'tables'),
   _Dest('kitchen', 'kitchen_board', Icons.soup_kitchen_outlined, 'pos.sell', () => const KitchenScreen(), module: 'kitchen'),
+  _Dest('online', 'online', Icons.delivery_dining_outlined, 'pos.sell', () => const OnlineOrdersScreen(), module: 'online'),
   _Dest('tokens', 'tokens', Icons.confirmation_number_outlined, 'pos.sell', () => const TokensScreen(), module: 'tokens'),
   _Dest('bills', 'bills_title', Icons.receipt_long_outlined, 'pos.sell', () => const BillsScreen()),
   _Dest('reports', 'reports', Icons.bar_chart_rounded, 'reports.view', () => const ReportsScreen()),

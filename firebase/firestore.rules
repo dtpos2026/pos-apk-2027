@@ -1,6 +1,6 @@
 rules_version = '2';
-// DT Food POS. Business data stays on the phone; only account state, daily sales totals, device state,
-// support chat and DT invoices live here. See docs/FIREBASE_SETUP.md.
+// DT Food POS. Business data stays on the phone unless the owner switches on the cloud copy (backup/{uid}/ops, private to them);
+// otherwise only account state, daily sales totals, device state, support chat and DT invoices live here. See docs/FIREBASE_SETUP.md.
 service cloud.firestore {
   match /databases/{db}/documents {
 
@@ -59,6 +59,18 @@ service cloud.firestore {
           && request.resource.data.keys().hasAll(['date', 'netMinor', 'bills'])
           && isNum(request.resource.data.netMinor) && isNum(request.resource.data.bills);
       }
+    }
+
+    // ---- optional cloud copy of the restaurant's own data (the owner switches it on in the app) ----
+    // Append-only and private to the restaurant: not even Digital Target's admins can read it.
+    match /backup/{uid}/ops/{key} {
+      allow read: if signedIn() && uid == me();
+      allow create: if signedIn() && uid == me()
+        && request.resource.data.keys().hasOnly(['entity', 'entityId', 'op', 'payload', 'version', 'at'])
+        && request.resource.data.keys().hasAll(['entity', 'entityId', 'op', 'payload'])
+        && request.resource.data.entity is string && request.resource.data.entityId is string
+        && request.resource.data.op in ['upsert', 'delete', 'append']
+        && request.resource.data.payload is string && request.resource.data.payload.size() <= 20000;
     }
 
     // ---- phones ----
