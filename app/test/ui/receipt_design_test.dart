@@ -169,6 +169,39 @@ void main() {
     await shot(t, '22_receipt_design_urdu');
   });
 
+  testWidgets('designer: logo and business name each get their own left / centre / right position, saved and printed', (t) async {
+    final db = newDb();
+    await seedBusiness(db);
+    final dir = Directory.systemTemp.createTempSync('dtlogo');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    await pumpApp(t, db: db, tablet: true, logoPicker: FakeLogoPicker(logoPng()), logoDir: dir);
+    await signIn(t, 'Ali', '1234');
+    await openDesigner(t);
+    await tapScroll(t, 'choose-logo');
+    await settleImages(t);
+    final name = find.descendant(of: find.byKey(const ValueKey('receipt-paper')), matching: find.text('Burger Point'));
+    Future<void> pick(String group, String label) async {
+      final f = find.descendant(of: find.byKey(ValueKey(group)), matching: find.text(label));
+      await t.ensureVisible(f);
+      await t.pumpAndSettle();
+      await t.tap(f);
+      await t.pumpAndSettle();
+    }
+
+    await pick('align-name', 'Left');
+    expect(t.widget<Text>(name).textAlign, TextAlign.left);
+    await pick('align-name', 'Right');
+    expect(t.widget<Text>(name).textAlign, TextAlign.right, reason: 'the name moved to the right');
+    // the logo is independent of the name
+    await pick('align-logo', 'Left');
+    expect(t.getSize(find.byKey(const ValueKey('logo-preview'))).width, closeTo(ReceiptPaper.textWidthFor(32), 1));
+    expect(t.widget<Text>(name).textAlign, TextAlign.right, reason: 'the logo does not move the name');
+    await tapScroll(t, 'rd-save');
+    final saved = await t.runAsync(() => db.customSelect("SELECT config FROM receipt_template WHERE id = 'bill'").getSingle());
+    final cfg = jsonDecode(saved!.data['config'] as String) as Map<String, dynamic>;
+    expect([cfg['logoAlign'], cfg['nameAlign']], ['left', 'right']);
+  });
+
   testWidgets('rasterizer: Urdu text becomes a full-width 1-bit bitmap with ink in it', (t) async {
     await t.runAsync(loadAppFonts);
     final r = await t.runAsync(() => const FlutterTextRasterizer().text('چکن کڑاہی', widthPx: 384, align: PrintAlign.center));

@@ -17,6 +17,8 @@ class BillDesign {
     this.showLogo = true,
     this.nameSize = 2,
     this.headerAlign = PrintAlign.center,
+    this.logoAlign,
+    this.nameAlign,
     this.headerLines = const [],
     this.showAddress = true,
     this.showPhone = true,
@@ -57,6 +59,12 @@ class BillDesign {
   final int nameSize;
   final PrintAlign headerAlign;
 
+  /// Own alignment of the logo and of the business name; null = follow [headerAlign] (as older designs did).
+  final PrintAlign? logoAlign;
+  final PrintAlign? nameAlign;
+  PrintAlign get logoAt => logoAlign ?? headerAlign;
+  PrintAlign get nameAt => nameAlign ?? headerAlign;
+
   /// Extra lines under the name, for example a slogan or a branch name.
   final List<String> headerLines;
   final bool showAddress;
@@ -84,6 +92,8 @@ class BillDesign {
     bool? showLogo,
     int? nameSize,
     PrintAlign? headerAlign,
+    PrintAlign? logoAlign,
+    PrintAlign? nameAlign,
     List<String>? headerLines,
     bool? showAddress,
     bool? showPhone,
@@ -107,6 +117,8 @@ class BillDesign {
         showLogo: showLogo ?? this.showLogo,
         nameSize: (nameSize ?? this.nameSize).clamp(1, 3),
         headerAlign: headerAlign ?? this.headerAlign,
+        logoAlign: logoAlign ?? this.logoAlign,
+        nameAlign: nameAlign ?? this.nameAlign,
         headerLines: headerLines ?? this.headerLines,
         showAddress: showAddress ?? this.showAddress,
         showPhone: showPhone ?? this.showPhone,
@@ -138,6 +150,8 @@ class BillDesign {
         'showLogo': showLogo,
         'nameSize': nameSize,
         'headerAlign': headerAlign.name,
+        if (logoAlign != null) 'logoAlign': logoAlign!.name,
+        if (nameAlign != null) 'nameAlign': nameAlign!.name,
         'headerLines': headerLines,
         'showAddress': showAddress,
         'showPhone': showPhone,
@@ -169,6 +183,8 @@ class BillDesign {
         showLogo: j['showLogo'] as bool? ?? true,
         nameSize: ((j['nameSize'] as num?)?.toInt() ?? 2).clamp(1, 3),
         headerAlign: PrintAlign.values.firstWhere((a) => a.name == j['headerAlign'], orElse: () => PrintAlign.center),
+        logoAlign: PrintAlign.values.where((a) => a.name == j['logoAlign']).firstOrNull,
+        nameAlign: PrintAlign.values.where((a) => a.name == j['nameAlign']).firstOrNull,
         headerLines: lines(j['headerLines'], const []),
         showAddress: j['showAddress'] as bool? ?? true,
         showPhone: j['showPhone'] as bool? ?? true,

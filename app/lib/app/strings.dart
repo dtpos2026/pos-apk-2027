@@ -18,6 +18,9 @@ class Strings {
       (_all[locale.languageCode] ?? _en)[key] ?? _en[key] ?? key;
 
   static const _en = <String, String>{
+    'align_logo': 'Logo position',
+    'align_name': 'Business name position',
+    'align_details': 'Address, phone and tax lines',
     'duplicate': 'Duplicate',
     'tokens': 'Tokens',
     'tokens_title': 'Tokens & designs',
@@ -589,6 +592,9 @@ class Strings {
 };
 
   static const _ur = <String, String>{
+    'align_logo': 'لوگو کی جگہ',
+    'align_name': 'کاروبار کے نام کی جگہ',
+    'align_details': 'پتہ، فون اور ٹیکس لائنیں',
     'duplicate': 'نقل بنائیں',
     'tokens': 'ٹوکن',
     'tokens_title': 'ٹوکن اور ڈیزائن',
@@ -1157,6 +1163,9 @@ class Strings {
 };
 
   static const _ar = <String, String>{
+    'align_logo': 'موضع الشعار',
+    'align_name': 'موضع اسم النشاط',
+    'align_details': 'العنوان والهاتف والضريبة',
     'duplicate': 'تكرار',
     'tokens': 'الرموز',
     'tokens_title': 'الرموز والتصاميم',

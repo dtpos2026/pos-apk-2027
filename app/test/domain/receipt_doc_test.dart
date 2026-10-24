@@ -31,6 +31,19 @@ ReceiptData data({String name = 'Burger Point', RasterImage? logoImg}) => Receip
 int indent(String line) => line.length - line.trimLeft().length;
 
 void main() {
+  group('logo and name have their own position', () {
+    test('each can be left, centre or right; the address lines keep the header position; old designs follow the header', () {
+      final doc = buildBillDoc(data(logoImg: logo(120, 40)), template: const BillDesign(headerAlign: PrintAlign.left, logoAlign: PrintAlign.right, nameAlign: PrintAlign.center));
+      expect(doc.lines.whereType<RImage>().single.align, PrintAlign.right);
+      expect(doc.lines.whereType<RText>().firstWhere((l) => l.text == 'Burger Point').align, PrintAlign.center);
+      expect(doc.lines.whereType<RText>().firstWhere((l) => l.text == 'Main Bazaar, Burewala').align, PrintAlign.left);
+      final old = BillDesign.decode('{"headerAlign":"right"}');
+      expect([old.logoAt, old.nameAt], [PrintAlign.right, PrintAlign.right]);
+      final back = BillDesign.decode(const BillDesign(logoAlign: PrintAlign.left, nameAlign: PrintAlign.right).encode());
+      expect([back.logoAt, back.nameAt, back.headerAlign], [PrintAlign.left, PrintAlign.right, PrintAlign.center]);
+    });
+  });
+
   group('header is centred by default', () {
     test('logo, name, address, phone and tax number are all centred on the paper', () {
       final text = previewBill(data(logoImg: logo(120, 40)), template: const BillDesign(nameSize: 1));

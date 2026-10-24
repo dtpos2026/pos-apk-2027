@@ -229,6 +229,18 @@ class _ReceiptDesignScreenState extends ConsumerState<ReceiptDesignScreen> {
   Widget _sw(String label, bool v, ValueChanged<bool> on, {String? key}) =>
       SwitchListTile(key: key == null ? null : ValueKey(key), dense: true, contentPadding: EdgeInsets.zero, title: Text(label), value: v, onChanged: (x) => setState(() => on(x)));
 
+  Widget _alignPicker(String key, PrintAlign v, void Function(PrintAlign) set, Strings t) => SegmentedButton<PrintAlign>(
+        key: ValueKey(key),
+        showSelectedIcon: false,
+        segments: [
+          ButtonSegment(value: PrintAlign.left, icon: const Icon(Icons.format_align_left), label: Text(t['left'])),
+          ButtonSegment(value: PrintAlign.center, icon: const Icon(Icons.format_align_center), label: Text(t['center'])),
+          ButtonSegment(value: PrintAlign.right, icon: const Icon(Icons.format_align_right), label: Text(t['right'])),
+        ],
+        selected: {v},
+        onSelectionChanged: (s) => setState(() => set(s.first)),
+      );
+
   Widget _heading(String s) => Padding(padding: const EdgeInsets.only(top: 18, bottom: 6), child: Text(s, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)));
 
   List<Widget> _form(Strings t) => [
@@ -271,13 +283,12 @@ class _ReceiptDesignScreenState extends ConsumerState<ReceiptDesignScreen> {
           const SizedBox(width: 10),
           Expanded(child: TextField(controller: _taxNo, onChanged: (_) => setState(() {}), decoration: InputDecoration(labelText: t['tax_number']))),
         ]),
-        _heading(t['align']),
-        SegmentedButton<PrintAlign>(
-          showSelectedIcon: false,
-          segments: [ButtonSegment(value: PrintAlign.left, label: Text(t['left'])), ButtonSegment(value: PrintAlign.center, label: Text(t['center'])), ButtonSegment(value: PrintAlign.right, label: Text(t['right']))],
-          selected: {_d.headerAlign},
-          onSelectionChanged: (s) => setState(() => _d = _d.copyWith(headerAlign: s.first)),
-        ),
+        _heading(t['align_logo']),
+        _alignPicker('align-logo', _d.logoAt, (a) => _d = _d.copyWith(logoAlign: a), t),
+        _heading(t['align_name']),
+        _alignPicker('align-name', _d.nameAt, (a) => _d = _d.copyWith(nameAlign: a), t),
+        _heading(t['align_details']),
+        _alignPicker('align-details', _d.headerAlign, (a) => _d = _d.copyWith(headerAlign: a), t),
         _heading(t['name_size']),
         SegmentedButton<int>(showSelectedIcon: false, segments: const [ButtonSegment(value: 1, label: Text('1x')), ButtonSegment(value: 2, label: Text('2x')), ButtonSegment(value: 3, label: Text('3x'))], selected: {_d.nameSize}, onSelectionChanged: (s) => setState(() => _d = _d.copyWith(nameSize: s.first))),
         const SizedBox(height: 10),

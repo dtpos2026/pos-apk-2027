@@ -104,9 +104,9 @@ ReceiptDoc buildBillDoc(ReceiptData d, {BillDesign template = BillDesign.default
   String money(int v) => _m(v, d.currency);
 
   if (d.isDuplicate) lines.add(RText(L['duplicate'], align: PrintAlign.center, bold: true));
-  if (t.showLogo && d.logo != null) lines.add(RImage(d.logo!, align: h));
+  if (t.showLogo && d.logo != null) lines.add(RImage(d.logo!, align: t.logoAt));
   final name = style == 'modern' ? '- ${d.businessName} -' : d.businessName;
-  lines.add(RText(name, align: h, bold: true, width: t.nameSize, height: t.nameSize));
+  lines.add(RText(name, align: t.nameAt, bold: true, width: t.nameSize, height: t.nameSize));
   for (final l in t.headerLines.where((l) => l.trim().isNotEmpty)) {
     lines.add(RText(l, align: h));
   }
