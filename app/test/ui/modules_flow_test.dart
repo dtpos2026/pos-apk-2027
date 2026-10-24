@@ -211,9 +211,14 @@ void main() {
     await openTab(t, 'pos', 'POS');
     await add(t, 'Zinger Burger');
     await tapKey(t, 'open-cart');
-    // credit is not offered until a customer is attached to the order
+    // credit is always offered; with no customer chosen the cashier is asked (customer, or the Walk-in credit account): never silently lost
     await tapKey(t, 'charge');
-    expect(find.byKey(const ValueKey('method-Credit (udhaar)')), findsNothing);
+    await tapKey(t, 'method-Credit (udhaar)');
+    await tapKey(t, 'confirm-payment');
+    expect(find.byKey(const ValueKey('credit-walkin')), findsOneWidget);
+    await t.tap(find.text('Cancel'));
+    await t.pumpAndSettle();
+    expect(await n(h, "SELECT COUNT(*) AS n FROM \"order\" WHERE status = 'paid'"), 0, reason: 'cancelled: nothing was sold');
     await t.tapAt(const Offset(10, 10)); // dismiss the sheet
     await t.pumpAndSettle();
     await tapKey(t, 'pick-customer');
@@ -225,7 +230,7 @@ void main() {
     expect(h.container.read(cartProvider).isEmpty, isTrue);
 
     await openTab(t, 'customers', 'Customers');
-    expect(find.text('PKR 450.00'), findsOneWidget);
+    expect(text(t, 'udhaar-total').data, 'PKR 450.00', reason: 'the summary strip shows the total owed');
     await t.tap(find.byKey(const ValueKey('customer-Ahmed')));
     await t.pumpAndSettle();
     expect(text(t, 'cust-balance').data, contains('PKR 450.00'));
@@ -248,6 +253,34 @@ void main() {
     expect(find.byKey(const ValueKey('form-error')), findsOneWidget);
   });
 
+  testWidgets('udhaar: a credit sale with no customer goes to the Walk-in credit account; the statement shows bills and payments with a running balance', (t) async {
+    final h = await start(t);
+    await openTab(t, 'pos', 'POS');
+    await add(t, 'Zinger Burger');
+    await tapKey(t, 'open-cart');
+    await tapKey(t, 'charge');
+    await tapKey(t, 'method-Credit (udhaar)');
+    await tapKey(t, 'confirm-payment');
+    await tapKey(t, 'credit-walkin');
+    await tapKey(t, 'new-sale');
+    expect(await n(h, "SELECT COUNT(*) AS n FROM customer WHERE name = 'Walk-in credit'"), 1);
+    expect(await n(h, "SELECT SUM(amount_minor) AS n FROM customer_ledger"), 45000, reason: 'the credit is on the ledger, not lost');
+
+    await openTab(t, 'customers', 'Customers');
+    await tapKey(t, 'owing-only');
+    await t.tap(find.byKey(const ValueKey('customer-Walk-in credit')));
+    await t.pumpAndSettle();
+    expect(find.textContaining('INV-'), findsWidgets, reason: 'the ledger shows the bill number of the credit sale');
+    await tapKey(t, 'receive-payment');
+    await form(t, {'amount': '150'});
+    await tapKey(t, 'form-ok');
+    await tapKey(t, 'customer-statement');
+    expect(find.byKey(const ValueKey('receipt-paper')), findsOneWidget);
+    final paper = receiptPaperText(t);
+    expect(paper, allOf(contains('CREDIT STATEMENT'), contains('Walk-in credit'), contains('450.00'), contains('-150.00'), contains('BALANCE DUE'), contains('300.00')));
+    expect(find.byKey(const ValueKey('slip-csv')), findsOneWidget, reason: 'the statement can be exported for Excel');
+  });
+
   testWidgets('expenses: a cash expense is added and shows in the total', (t) async {
     final h = await start(t);
     await openTab(t, 'expenses', 'Expenses');
@@ -266,6 +299,8 @@ void main() {
     await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
     await t.pumpAndSettle();
     await t.scrollUntilVisible(find.byKey(const ValueKey('print-settings-tile')), 300, scrollable: verticalScroll);
+    await Scrollable.ensureVisible(t.element(find.byKey(const ValueKey('print-settings-tile'))), alignment: 0.4);
+    await t.pumpAndSettle();
     await tapKey(t, 'print-settings-tile');
     expect(t.widget<SwitchListTile>(find.byKey(const ValueKey('ps-kot-enabled'))).value, isTrue);
 

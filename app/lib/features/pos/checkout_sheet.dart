@@ -15,6 +15,7 @@ import '../../data/receipt_loader.dart';
 import '../../domain/money.dart';
 import '../../domain/payments.dart';
 import '../../domain/receipt.dart';
+import '../customers/customers_screen.dart' show pickCustomer;
 import 'cart.dart';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -92,8 +93,40 @@ class _CheckoutSheetState extends ConsumerState<CheckoutSheet> {
     setState(() => _lines.add(_Line(m, TextEditingController(text: remaining == 0 ? '' : formatMinor(remaining, currency: _cur, symbol: false).replaceAll(',', '')))));
   }
 
+  /// Credit with no customer: never lost and never silent. Asks for the customer, or the fixed "Walk-in credit" account.
+  /// Returns false when the cashier backed out.
+  Future<bool> _askCreditCustomer() async {
+    final t = Strings.of(context);
+    final hasCredit = _lines.any((l) => l.method.kind == 'credit' && (parseMinor(l.controller.text, currency: _cur) ?? 0) > 0);
+    if (!hasCredit || ref.read(cartProvider).customerId != null) return true;
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(t['walkin_credit_title']),
+        content: Text(t['walkin_credit_body']),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(t['cancel'])),
+          OutlinedButton(key: const ValueKey('credit-choose'), onPressed: () => Navigator.pop(ctx, 'choose'), child: Text(t['walkin_credit_choose'])),
+          FilledButton(key: const ValueKey('credit-walkin'), onPressed: () => Navigator.pop(ctx, 'walkin'), child: Text(t['walkin_credit_use'])),
+        ],
+      ),
+    );
+    if (choice == null || !mounted) return false;
+    String? id;
+    if (choice == 'walkin') {
+      id = await ref.read(customerServiceProvider).walkInCreditId(staffId: ref.read(sessionProvider)!.staffId);
+    } else {
+      id = await pickCustomer(context, ref);
+      if (id == null || id.isEmpty) return false;
+    }
+    ref.read(cartProvider.notifier).setCustomer(id);
+    await ref.read(cartProvider.notifier).flush();
+    return true;
+  }
+
   Future<void> _confirm() async {
     final t = Strings.of(context);
+    if (!await _askCreditCustomer()) return;
     setState(() {
       _busy = true;
       _error = null;
@@ -137,8 +170,7 @@ class _CheckoutSheetState extends ConsumerState<CheckoutSheet> {
     final t = Strings.of(context);
     final scheme = Theme.of(context).colorScheme;
     final result = _result;
-    final cartHasCustomer = ref.watch(cartProvider).customerId != null;
-    final methods = widget.methods.where((m) => m.kind != 'credit' || cartHasCustomer).toList();
+    final methods = widget.methods;
     final remainingForQuick = (widget.totalMinor - _lines.where((l) => l.method.kind != 'cash').fold<int>(0, (s, l) => s + (parseMinor(l.controller.text, currency: _cur) ?? 0))).clamp(0, widget.totalMinor);
 
     return Padding(

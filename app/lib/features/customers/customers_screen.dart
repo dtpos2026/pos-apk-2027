@@ -7,6 +7,10 @@ import '../../app/whatsapp.dart';
 import '../../app/strings.dart';
 import '../../data/customer_service.dart';
 import '../../data/pos_service.dart';
+import '../../data/queries.dart' show loadBusiness;
+import '../../data/receipt_loader.dart' show formatDateTime;
+import '../../domain/statement_doc.dart';
+import '../common/slip_screen.dart';
 import '../../domain/money.dart';
 import '../common/dialogs.dart';
 
@@ -39,6 +43,8 @@ Future<String?> addCustomerDialog(BuildContext context, WidgetRef ref, {Customer
   return id;
 }
 
+final _outstandingProvider = FutureProvider.autoDispose((ref) => ref.watch(customerServiceProvider).outstanding());
+
 class CustomersScreen extends ConsumerStatefulWidget {
   const CustomersScreen({super.key});
   @override
@@ -47,21 +53,45 @@ class CustomersScreen extends ConsumerStatefulWidget {
 
 class _CustomersScreenState extends ConsumerState<CustomersScreen> {
   String _q = '';
+  bool _owingOnly = false;
 
   @override
   Widget build(BuildContext context) {
     final s = Strings.of(context);
     final list = ref.watch(customersProvider(_q));
+    final owed = ref.watch(_outstandingProvider).value;
     return Scaffold(
       backgroundColor: Colors.transparent,
       floatingActionButton: FloatingActionButton.extended(key: const ValueKey('add-customer'), onPressed: () => addCustomerDialog(context, ref), icon: const Icon(Icons.person_add_alt_1), label: Text(s['add_customer'])),
       body: Column(children: [
-        Padding(padding: const EdgeInsets.all(12), child: TextField(decoration: InputDecoration(prefixIcon: const Icon(Icons.search), hintText: s['search_items'], isDense: true), onChanged: (v) => setState(() => _q = v))),
+        if (owed != null && owed.customers > 0)
+          Container(
+            key: const ValueKey('udhaar-summary'),
+            margin: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(color: Theme.of(context).colorScheme.error.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(14), border: Border.all(color: Theme.of(context).colorScheme.error.withValues(alpha: 0.35))),
+            child: Row(children: [
+              Icon(Icons.menu_book_outlined, color: Theme.of(context).colorScheme.error),
+              const SizedBox(width: 10),
+              Expanded(child: Text('${s['udhaar_due']} · ${owed.customers}', style: const TextStyle(fontWeight: FontWeight.w600))),
+              Text(ref.money(owed.totalMinor), key: const ValueKey('udhaar-total'), style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: Theme.of(context).colorScheme.error)),
+            ]),
+          ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+          child: Row(children: [
+            Expanded(child: TextField(decoration: InputDecoration(prefixIcon: const Icon(Icons.search), hintText: s['search_items'], isDense: true), onChanged: (v) => setState(() => _q = v))),
+            const SizedBox(width: 8),
+            FilterChip(key: const ValueKey('owing-only'), label: Text(s['owing_only']), selected: _owingOnly, showCheckmark: false, onSelected: (v) => setState(() => _owingOnly = v)),
+          ]),
+        ),
         Expanded(
           child: list.when(
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => Center(child: Text('$e')),
-            data: (rows) => rows.isEmpty
+            data: (all) {
+              final rows = _owingOnly ? all.where((c) => c.balanceMinor > 0).toList() : all;
+              return rows.isEmpty
                 ? Center(child: Text(s['no_customers']))
                 : ListView.builder(
                     padding: const EdgeInsets.fromLTRB(12, 0, 12, 90),
@@ -84,7 +114,8 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
                         ),
                       );
                     },
-                  ),
+                  );
+            },
           ),
         ),
       ]),
@@ -118,6 +149,25 @@ class _CustomerDialogState extends ConsumerState<_CustomerDialog> {
       _c = all.firstWhere((c) => c.id == widget.id);
       _ledger = led;
     });
+  }
+
+  Future<void> _openStatement(CustomerRow c) async {
+    final biz = await loadBusiness(ref.read(databaseProvider));
+    final cur = biz?.currency ?? Currency.pkr;
+    final lines = [
+      for (final e in _ledger.reversed)
+        StatementLine(at: DateTime.fromMillisecondsSinceEpoch(e.at), description: e.kind == 'sale_credit' ? (e.invoiceNo ?? 'Credit sale') : (e.kind == 'recovery' ? 'Payment received' : e.kind), amountMinor: e.amountMinor, balanceMinor: e.balanceAfterMinor),
+    ];
+    final printedAt = formatDateTime(ref.read(clockProvider)());
+    if (!mounted) return;
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => SlipScreen(
+        title: '${Strings.of(context)['statement']} · ${c.name}',
+        fileName: 'statement-${c.name}',
+        build: (_) => buildStatementDoc(businessName: biz?.name ?? '', customerName: c.name, phone: c.phone, lines: lines, balanceMinor: c.balanceMinor, currency: cur, printedAt: printedAt),
+        csv: () => statementCsv(lines, currency: cur),
+      ),
+    ));
   }
 
   Future<void> _receive() async {
@@ -161,7 +211,13 @@ class _CustomerDialogState extends ConsumerState<_CustomerDialog> {
                       ? Padding(padding: const EdgeInsets.all(8), child: Text(s['no_ledger']))
                       : ListView(shrinkWrap: true, children: [
                           for (final e in _ledger)
-                            ListTile(dense: true, contentPadding: EdgeInsets.zero, title: Text(e.kind == 'sale_credit' ? s['owes'] : (e.kind == 'recovery' ? s['receive_payment'] : e.kind)), subtitle: Text(DateTime.fromMillisecondsSinceEpoch(e.at).toString().substring(0, 16)), trailing: Text(ref.money(e.amountMinor), style: TextStyle(fontWeight: FontWeight.w700, color: e.amountMinor < 0 ? Colors.green.shade700 : null))),
+                            ListTile(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(e.kind == 'sale_credit' ? '${s['owes']}${e.invoiceNo == null ? '' : ' · ${e.invoiceNo}'}' : (e.kind == 'recovery' ? s['receive_payment'] : e.kind)),
+                              subtitle: Text('${DateTime.fromMillisecondsSinceEpoch(e.at).toString().substring(0, 16)}  ·  ${s['balance']}: ${ref.money(e.balanceAfterMinor)}'),
+                              trailing: Text(ref.money(e.amountMinor), style: TextStyle(fontWeight: FontWeight.w700, color: e.amountMinor < 0 ? Colors.green.shade700 : null)),
+                            ),
                         ]),
                 ),
               ]),
@@ -171,6 +227,13 @@ class _CustomerDialogState extends ConsumerState<_CustomerDialog> {
         TextButton(onPressed: c == null ? null : () async {
           if (await addCustomerDialog(context, ref, existing: c) != null) _load();
         }, child: Text(s['edit'])),
+        if (c != null && _ledger.isNotEmpty)
+          TextButton.icon(
+            key: const ValueKey('customer-statement'),
+            icon: const Icon(Icons.description_outlined, size: 18),
+            label: Text(s['statement']),
+            onPressed: () => _openStatement(c),
+          ),
         if (c != null && c.balanceMinor > 0)
           TextButton.icon(
             key: const ValueKey('udhaar-reminder'),

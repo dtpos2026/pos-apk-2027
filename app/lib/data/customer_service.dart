@@ -14,7 +14,11 @@ class CustomerRow {
 }
 
 class LedgerEntry {
-  const LedgerEntry({required this.kind, required this.amountMinor, required this.at, this.note, this.orderId});
+  const LedgerEntry({required this.kind, required this.amountMinor, required this.at, this.note, this.orderId, this.invoiceNo, this.balanceAfterMinor = 0});
+
+  /// The bill number of a credit sale, and the customer's balance after this entry (oldest to newest).
+  final String? invoiceNo;
+  final int balanceAfterMinor;
   final String kind;
   final int amountMinor;
   final int at;
@@ -57,10 +61,36 @@ class CustomerService {
     return [for (final r in rows) CustomerRow(id: r['id'] as String, name: r['name'] as String, phone: r['phone'] as String?, address: r['address'] as String?, creditLimitMinor: r['credit_limit_minor'] as int, balanceMinor: r['bal'] as int)];
   }
 
-  Future<List<LedgerEntry>> ledger(String customerId) async => [
-        for (final r in await h.q('SELECT kind, amount_minor, created_at, note, order_id FROM customer_ledger WHERE customer_id = ? ORDER BY created_at DESC, rowid DESC', [customerId]))
-          LedgerEntry(kind: r['kind'] as String, amountMinor: r['amount_minor'] as int, at: r['created_at'] as int, note: r['note'] as String?, orderId: r['order_id'] as String?)
-      ];
+  /// Newest first, each entry with its bill number and the balance after it (so the list can show a running balance).
+  Future<List<LedgerEntry>> ledger(String customerId) async {
+    final rows = await h.q(
+        'SELECT l.kind, l.amount_minor, l.created_at, l.note, l.order_id, o.invoice_no FROM customer_ledger l LEFT JOIN "order" o ON o.id = l.order_id WHERE l.customer_id = ? ORDER BY l.created_at ASC, l.rowid ASC',
+        [customerId]);
+    var bal = 0;
+    final out = <LedgerEntry>[];
+    for (final r in rows) {
+      bal += r['amount_minor'] as int;
+      out.add(LedgerEntry(kind: r['kind'] as String, amountMinor: r['amount_minor'] as int, at: r['created_at'] as int, note: r['note'] as String?, orderId: r['order_id'] as String?, invoiceNo: r['invoice_no'] as String?, balanceAfterMinor: bal));
+    }
+    return out.reversed.toList();
+  }
+
+  /// Total owed to the business and how many customers owe something.
+  Future<({int totalMinor, int customers})> outstanding() async {
+    final r = (await h.q('SELECT COUNT(*) AS n, COALESCE(SUM(b),0) AS s FROM (SELECT SUM(amount_minor) AS b FROM customer_ledger GROUP BY customer_id HAVING SUM(amount_minor) > 0)')).first;
+    return (totalMinor: r['s'] as int, customers: r['n'] as int);
+  }
+
+  /// The account used when a credit sale has no named customer: one fixed "Walk-in credit" customer, created on first use. The sale is
+  /// never lost and the money owed shows under one clear name; its limit can be changed like any customer's.
+  Future<String> walkInCreditId({required String staffId}) async {
+    final saved = await h.one("SELECT setting_value AS v FROM setting WHERE setting_key = 'walkin.customer_id'");
+    final id = saved?['v'] as String?;
+    if (id != null && await h.one('SELECT id FROM customer WHERE id = ? AND deleted_at IS NULL', [id]) != null) return id;
+    final cid = await save(name: 'Walk-in credit', creditLimitMinor: 5000000, staffId: staffId);
+    await h.exec("INSERT OR REPLACE INTO setting(setting_key, setting_value, updated_at) VALUES ('walkin.customer_id', ?, ?)", [cid, h.ts]);
+    return cid;
+  }
 
   /// The customer pays back part or all of what they owe. Cash received goes into the open shift's drawer.
   /// Paying more than is owed is refused (advance balances are not supported).

@@ -62,6 +62,12 @@ Version **0.4.0** · date 2026-10-24 · prepared from actual test runs (commands
 | 44 | **Online / phone orders**: type in a WhatsApp/phone/delivery-app order, accept into the kitchen board, take payment in Sell; menu share and WhatsApp-order QR | PASS (no customer self-ordering: that needs a server) |
 | 45 | **Cloud copy** (optional, off by default): outbox changes pushed once to the owner's private space; rules: owner only, append-only, admins cannot read; offline changes wait | PASS (app + 16 rules tests) |
 | 46 | Urdu line on the reverse-print TOTAL bar is printed as an inverted bitmap | PASS (bytes); real printer NOT checked |
+| 47 | **Day Close bug.** Root cause: `closeDay` refused while ANY shift (any user, any date) was open, and the only "Close shift" button was in the cart header, so a forgotten shift blocked the day forever. Fix: open shifts that belong to the day are closed inside the same transaction (counted if a count is entered, otherwise "not counted", never an invented number); figures are reconciled first (bills vs payments, refunds); the full Z report is saved as a snapshot and shown from it afterwards; a second close is refused; new sales and expenses after a close belong to the next business day; an order held before the close and paid after it is the next day's sale | PASS (data + UI regression tests) |
+| 48 | Kitchen/cart: Send to kitchen clears the cart, order stays running (same id), Bills tabs, cancelled status (table rebuild migration), kitchen history table | PASS |
+| 49 | Payment accounts (details, logo, delete only when unused), udhaar statement + Walk-in credit, expenses with optional category | PASS |
+| 50 | Print switches (KOT / token / bill, automatic per order type, Send with or without KOT, Print KOT) | PASS |
+| 51 | Backup / PDF / PNG / CSV saved to Downloads or the gallery through Android MediaStore | PASS with a fake saver; the Android code is compiled by CI but NOT tried on a phone |
+| 52 | Theme Studio (data-driven theme, contrast guard) and the label editor | PASS |
 | 22 | Panel end-to-end: register → approve (DTC-0001) → phone limit → block → sales → invoice → payment extends expiry → suspend → chat → settings → admins → audit entries | PASS |
 
 ## 3. Defects found during QC and fixed

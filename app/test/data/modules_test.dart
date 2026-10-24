@@ -145,9 +145,10 @@ void main() {
 
     test('validation', () async {
       await expectLater(svc.add(amountMinor: 0, category: 'Gas', methodId: cashId, staffId: owner), throwsA(isA<PosException>()));
-      await expectLater(svc.add(amountMinor: 1, category: ' ', methodId: cashId, staffId: owner), throwsA(isA<PosException>()));
+      // the category is optional: an expense with only an amount is fine
+      await svc.add(amountMinor: 1, category: ' ', methodId: cashId, staffId: owner);
       await expectLater(svc.add(amountMinor: 1, category: 'Gas', methodId: 'nope', staffId: owner), throwsA(isA<PosException>()));
-      expect(await count('SELECT COUNT(*) AS n FROM expense'), 0);
+      expect(await count('SELECT COUNT(*) AS n FROM expense'), 1, reason: 'only the amount-only expense was saved');
     });
   });
 

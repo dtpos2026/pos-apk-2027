@@ -15,7 +15,7 @@ import 'dialogs.dart';
 /// Any slip (day close, reports): preview exactly what the printer prints, then print it, share it as text or as a PNG
 /// picture (WhatsApp, email...), or save the PNG on the phone.
 class SlipScreen extends ConsumerStatefulWidget {
-  const SlipScreen({super.key, required this.title, required this.fileName, required this.build});
+  const SlipScreen({super.key, required this.title, required this.fileName, required this.build, this.csv});
   final String title;
 
   /// Used for the PNG file name and the share subject.
@@ -23,6 +23,9 @@ class SlipScreen extends ConsumerStatefulWidget {
 
   /// The document for a paper width (58 or 80 mm).
   final ReceiptDoc Function(int paperMm) build;
+
+  /// When given, a "Spreadsheet (CSV)" button shares the same figures as a file Excel opens.
+  final String Function()? csv;
 
   @override
   ConsumerState<SlipScreen> createState() => _SlipScreenState();
@@ -95,6 +98,22 @@ class _SlipScreenState extends ConsumerState<SlipScreen> {
               }
             },
           ),
+          if (widget.csv != null)
+            OutlinedButton.icon(
+              key: const ValueKey('slip-csv'),
+              icon: const Icon(Icons.table_chart_outlined),
+              label: Text(t['export_csv']),
+              onPressed: () async {
+                final name = widget.fileName.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_');
+                final dir = ref.read(exportDirProvider)..createSync(recursive: true);
+                final f = File('${dir.path}/$name.csv')..writeAsStringSync('\u{FEFF}${widget.csv!()}'); // BOM so Excel reads Urdu names correctly
+                try {
+                  final where = await ref.read(phoneFileSaverProvider).save(path: f.path, name: '$name.csv', mime: 'text/csv');
+                  if (context.mounted) showMessage(context, '${t['saved_to']}: $where');
+                } catch (_) {}
+                await ref.read(shareServiceProvider).shareFile(f.path, mimeType: 'text/csv', subject: widget.fileName);
+              },
+            ),
           OutlinedButton.icon(
             key: const ValueKey('slip-share-text'),
             icon: const Icon(Icons.share_outlined),
