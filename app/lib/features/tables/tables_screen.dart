@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/format.dart';
 import '../../app/providers.dart';
 import '../../app/strings.dart';
+import '../../app/theme.dart' show BrandColorsX;
 import '../../data/pos_service.dart';
 import '../../data/table_service.dart';
 import '../common/dialogs.dart';
@@ -21,6 +22,7 @@ class TablesScreen extends ConsumerStatefulWidget {
 
 class _TablesScreenState extends ConsumerState<TablesScreen> {
   String? _area;
+  bool _takeaway = false;
 
   void _refresh() {
     ref.invalidate(_areasProvider);
@@ -28,10 +30,10 @@ class _TablesScreenState extends ConsumerState<TablesScreen> {
   }
 
   Color _color(BuildContext c, String status) => switch (status) {
-        'occupied' => const Color(0xFFE8590C),
-        'reserved' => const Color(0xFF5B3CC4),
-        'cleaning' => const Color(0xFFC28A00),
-        _ => const Color(0xFF2B8A3E),
+        'occupied' => const Color(0xFFE5484D),
+        'reserved' => const Color(0xFF6A2BD9),
+        'cleaning' => const Color(0xFFF2A100),
+        _ => const Color(0xFF2E9E57),
       };
 
   Future<void> _open(TableInfo t) async {
@@ -123,8 +125,33 @@ class _TablesScreenState extends ConsumerState<TablesScreen> {
     final tables = ref.watch(_tablesProvider(_area));
     return Scaffold(
       backgroundColor: Colors.transparent,
-      floatingActionButton: canManage ? FloatingActionButton.extended(key: const ValueKey('add-table'), onPressed: _addTable, icon: const Icon(Icons.add), label: Text(s['add_table'])) : null,
+      floatingActionButton: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [
+        if (canManage) ...[
+          FloatingActionButton.small(key: const ValueKey('add-table'), heroTag: 'add-table', tooltip: s['add_table'], onPressed: _addTable, child: const Icon(Icons.add)),
+          const SizedBox(height: 10),
+        ],
+        FloatingActionButton.extended(
+          key: const ValueKey('new-order'),
+          heroTag: 'new-order',
+          backgroundColor: context.accent,
+          foregroundColor: context.onAccent,
+          onPressed: () {
+            ref.read(cartProvider.notifier).setOrderType(_takeaway ? 'takeaway' : 'counter');
+            ref.read(shellTabProvider.notifier).go('pos');
+          },
+          icon: const Icon(Icons.add_shopping_cart),
+          label: Text(s['new_order']),
+        ),
+      ]),
       body: Column(children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+          child: Row(children: [
+            Expanded(child: _ModeButton(key: const ValueKey('mode-dinein'), label: s['dine_in'], selected: !_takeaway, onTap: () => setState(() => _takeaway = false))),
+            const SizedBox(width: 8),
+            Expanded(child: _ModeButton(key: const ValueKey('mode-takeaway'), label: s['takeaway'], selected: _takeaway, onTap: () => setState(() => _takeaway = true))),
+          ]),
+        ),
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
           child: Container(
@@ -148,7 +175,7 @@ class _TablesScreenState extends ConsumerState<TablesScreen> {
                     key: ValueKey('count-$st'),
                     margin: const EdgeInsetsDirectional.only(end: 6),
                     padding: const EdgeInsets.symmetric(vertical: 8),
-                    decoration: BoxDecoration(color: _color(context, st).withValues(alpha: 0.10), borderRadius: BorderRadius.circular(12)),
+                    decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: Theme.of(context).colorScheme.outlineVariant)),
                     child: Column(children: [
                       Text('${tables.value!.where((x) => x.status == st).length}', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: _color(context, st))),
                       Row(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -169,13 +196,13 @@ class _TablesScreenState extends ConsumerState<TablesScreen> {
                 ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(s['no_tables'], textAlign: TextAlign.center)))
                 : GridView.builder(
                     padding: const EdgeInsets.fromLTRB(12, 4, 12, 90),
-                    gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 130, mainAxisSpacing: 10, crossAxisSpacing: 10, mainAxisExtent: 142),
+                    gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 130, mainAxisSpacing: 10, crossAxisSpacing: 10, mainAxisExtent: 128),
                     itemCount: list.length,
                     itemBuilder: (_, i) {
                       final t = list[i];
                       final c = _color(context, t.status);
                       return Material(
-                        color: Theme.of(context).colorScheme.surface,
+                        color: c.withValues(alpha: 0.06),
                         elevation: 0,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: c.withValues(alpha: 0.55), width: 1.4)),
                         child: InkWell(
@@ -186,16 +213,16 @@ class _TablesScreenState extends ConsumerState<TablesScreen> {
                           child: Padding(
                             padding: const EdgeInsets.fromLTRB(8, 10, 8, 8),
                             child: Column(children: [
-                              SizedBox(width: 74, height: 56, child: CustomPaint(painter: TableSeatsPainter(seats: t.seats, color: c))),
+                              Container(width: 38, height: 38, decoration: BoxDecoration(color: c.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(11)), child: Icon(Icons.table_restaurant, color: c, size: 22)),
                               const SizedBox(height: 4),
-                              Text(t.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+                              Text(t.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 22)),
                               Text(t.orderTotalMinor != null ? ref.money(t.orderTotalMinor!) : '${t.seats} ${s['seats']}', key: t.orderTotalMinor != null ? ValueKey('table-total-${t.label}') : null, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, fontWeight: t.orderTotalMinor != null ? FontWeight.w800 : FontWeight.w500, color: t.orderTotalMinor != null ? c : Theme.of(context).colorScheme.onSurfaceVariant)),
                               const Spacer(),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(color: c.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(999)),
-                                child: Text(t.waiterName != null && t.status == 'occupied' ? t.waiterName! : s[t.status], maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: c, fontWeight: FontWeight.w700, fontSize: 11.5)),
-                              ),
+                              Row(mainAxisAlignment: MainAxisAlignment.center, mainAxisSize: MainAxisSize.min, children: [
+                                Icon(Icons.circle, size: 8, color: c),
+                                const SizedBox(width: 4),
+                                Flexible(child: Text(t.waiterName != null && t.status == 'occupied' ? t.waiterName! : s[t.status], maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: c, fontWeight: FontWeight.w700, fontSize: 12))),
+                              ]),
                             ]),
                           ),
                         ),
@@ -259,4 +286,24 @@ class TableSeatsPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(TableSeatsPainter old) => old.seats != seats || old.color != color;
+}
+
+class _ModeButton extends StatelessWidget {
+  const _ModeButton({super.key, required this.label, required this.selected, required this.onTap});
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Material(
+      color: selected ? context.accent : cs.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: onTap,
+        child: Padding(padding: const EdgeInsets.symmetric(vertical: 11), child: Center(child: Text(label, style: TextStyle(fontWeight: FontWeight.w800, color: selected ? context.onAccent : cs.onSurfaceVariant)))),
+      ),
+    );
+  }
 }

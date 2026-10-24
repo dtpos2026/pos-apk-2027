@@ -86,7 +86,7 @@ class _CartBar extends ConsumerWidget {
           padding: const EdgeInsets.all(10),
           child: FilledButton(
             key: const ValueKey('open-cart'),
-            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(60), backgroundColor: context.accent, foregroundColor: context.onAccent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18))),
+            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(60), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18))),
             onPressed: () => showModalBottomSheet<void>(
               context: context,
               isScrollControlled: true,
@@ -96,15 +96,10 @@ class _CartBar extends ConsumerWidget {
             child: Row(children: [
               Badge(isLabelVisible: count > 0, label: Text('$count'), child: const Icon(Icons.shopping_bag_outlined)),
               const SizedBox(width: 12),
-              Expanded(
-                child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(ref.money(cart.bill.totalMinor), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
-                  Text('$count ${t['items_word']}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
-                ]),
-              ),
-              Text(t['go_to_cart'], style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-              const SizedBox(width: 4),
-              const Icon(Icons.arrow_circle_right_outlined),
+              Expanded(child: Text('${t['view_cart']} ($count)', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16))),
+              Text(ref.money(cart.bill.totalMinor), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+              const SizedBox(width: 8),
+              const Icon(Icons.shopping_cart_outlined),
             ]),
           ),
         ),
