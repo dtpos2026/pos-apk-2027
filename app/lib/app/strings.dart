@@ -18,6 +18,8 @@ class Strings {
       (_all[locale.languageCode] ?? _en)[key] ?? _en[key] ?? key;
 
   static const _en = <String, String>{
+    'items_word': 'items',
+    'go_to_cart': 'Go to Cart',
     'theme_royalgold': 'Royal Plum & Gold',
     'theme_rosegold': 'Rose Gold',
     'bill_style_minimal': 'Minimal',
@@ -642,6 +644,8 @@ class Strings {
 };
 
   static const _ur = <String, String>{
+    'items_word': 'آئٹمز',
+    'go_to_cart': 'کارٹ میں جائیں',
     'theme_royalgold': 'رائل پلم اور گولڈ',
     'theme_rosegold': 'روز گولڈ',
     'bill_style_minimal': 'سادہ',
@@ -1263,6 +1267,8 @@ class Strings {
 };
 
   static const _ar = <String, String>{
+    'items_word': 'أصناف',
+    'go_to_cart': 'إلى السلة',
     'theme_royalgold': 'أرجواني وذهبي ملكي',
     'theme_rosegold': 'ذهبي وردي',
     'bill_style_minimal': 'بسيط',

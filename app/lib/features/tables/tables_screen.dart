@@ -125,13 +125,18 @@ class _TablesScreenState extends ConsumerState<TablesScreen> {
       backgroundColor: Colors.transparent,
       floatingActionButton: canManage ? FloatingActionButton.extended(key: const ValueKey('add-table'), onPressed: _addTable, icon: const Icon(Icons.add), label: Text(s['add_table'])) : null,
       body: Column(children: [
-        SizedBox(
-          height: 56,
-          child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.all(8), children: [
-            Padding(padding: const EdgeInsetsDirectional.only(end: 8), child: ChoiceChip(label: Text(s['all']), selected: _area == null, onSelected: (_) => setState(() => _area = null))),
-            for (final a in areas) Padding(padding: const EdgeInsetsDirectional.only(end: 8), child: ChoiceChip(label: Text(a.name), selected: _area == a.id, onSelected: (_) => setState(() => _area = a.id))),
-            if (canManage) ActionChip(key: const ValueKey('add-area'), avatar: const Icon(Icons.add, size: 18), label: Text(s['add_area']), onPressed: _addArea),
-          ]),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+          child: Container(
+            height: 44,
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(color: Theme.of(context).colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(999)),
+            child: ListView(scrollDirection: Axis.horizontal, children: [
+              _AreaTab(label: s['all'], selected: _area == null, onTap: () => setState(() => _area = null)),
+              for (final a in areas) _AreaTab(label: a.name, selected: _area == a.id, onTap: () => setState(() => _area = a.id)),
+              if (canManage) Padding(padding: const EdgeInsets.only(left: 4), child: ActionChip(key: const ValueKey('add-area'), avatar: const Icon(Icons.add, size: 16), label: Text(s['add_area']), onPressed: _addArea, visualDensity: VisualDensity.compact)),
+            ]),
+          ),
         ),
         if (tables.value != null && tables.value!.isNotEmpty)
           Padding(
@@ -164,41 +169,33 @@ class _TablesScreenState extends ConsumerState<TablesScreen> {
                 ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(s['no_tables'], textAlign: TextAlign.center)))
                 : GridView.builder(
                     padding: const EdgeInsets.fromLTRB(12, 4, 12, 90),
-                    gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 150, mainAxisSpacing: 10, crossAxisSpacing: 10, mainAxisExtent: 150),
+                    gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 130, mainAxisSpacing: 10, crossAxisSpacing: 10, mainAxisExtent: 142),
                     itemCount: list.length,
                     itemBuilder: (_, i) {
                       final t = list[i];
                       final c = _color(context, t.status);
                       return Material(
-                        color: c.withValues(alpha: 0.08),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: c.withValues(alpha: 0.6), width: 1.5)),
+                        color: Theme.of(context).colorScheme.surface,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: c.withValues(alpha: 0.55), width: 1.4)),
                         child: InkWell(
                           key: ValueKey('table-${t.label}'),
                           borderRadius: BorderRadius.circular(16),
                           onTap: t.status == 'free' || t.status == 'occupied' ? () => _open(t) : () => _menu(t),
                           onLongPress: () => _menu(t),
                           child: Padding(
-                            padding: const EdgeInsets.all(10),
+                            padding: const EdgeInsets.fromLTRB(8, 10, 8, 8),
                             child: Column(children: [
-                              Container(
-                                width: 34,
-                                height: 34,
-                                decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(10)),
-                                child: const Icon(Icons.table_restaurant, color: Colors.white, size: 20),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(t.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 20)),
-                              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                                Icon(Icons.circle, size: 8, color: c),
-                                const SizedBox(width: 4),
-                                Text(s[t.status], style: TextStyle(color: c, fontWeight: FontWeight.w700, fontSize: 12.5)),
-                              ]),
+                              SizedBox(width: 74, height: 56, child: CustomPaint(painter: TableSeatsPainter(seats: t.seats, color: c))),
+                              const SizedBox(height: 4),
+                              Text(t.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+                              Text(t.orderTotalMinor != null ? ref.money(t.orderTotalMinor!) : '${t.seats} ${s['seats']}', key: t.orderTotalMinor != null ? ValueKey('table-total-${t.label}') : null, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, fontWeight: t.orderTotalMinor != null ? FontWeight.w800 : FontWeight.w500, color: t.orderTotalMinor != null ? c : Theme.of(context).colorScheme.onSurfaceVariant)),
                               const Spacer(),
-                              if (t.orderTotalMinor != null)
-                                Text(ref.money(t.orderTotalMinor!), key: ValueKey('table-total-${t.label}'), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13))
-                              else
-                                Text('${t.seats} ${s['seats']}', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                              if (t.waiterName != null) Text(t.waiterName!, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5)),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(color: c.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(999)),
+                                child: Text(t.waiterName != null && t.status == 'occupied' ? t.waiterName! : s[t.status], maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: c, fontWeight: FontWeight.w700, fontSize: 11.5)),
+                              ),
                             ]),
                           ),
                         ),
@@ -210,4 +207,56 @@ class _TablesScreenState extends ConsumerState<TablesScreen> {
       ]),
     );
   }
+}
+
+class _AreaTab extends StatelessWidget {
+  const _AreaTab({required this.label, required this.selected, required this.onTap});
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        margin: const EdgeInsets.only(right: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 18),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(color: selected ? cs.primary : Colors.transparent, borderRadius: BorderRadius.circular(999)),
+        child: Text(label, style: TextStyle(fontWeight: FontWeight.w700, color: selected ? cs.onPrimary : cs.onSurfaceVariant)),
+      ),
+    );
+  }
+}
+
+/// A table seen from above with its chairs (2, 4, 6 or more seats), coloured by status, like a restaurant floor plan.
+class TableSeatsPainter extends CustomPainter {
+  const TableSeatsPainter({required this.seats, required this.color});
+  final int seats;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final fill = Paint()..color = color;
+    final chair = Paint()..color = color.withValues(alpha: 0.55);
+    final w = size.width, h = size.height;
+    final table = RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.14, h * 0.24, w * 0.72, h * 0.52), const Radius.circular(8));
+    final n = seats.clamp(1, 12);
+    final top = (n + 1) ~/ 2, bottom = n - top;
+    void row(int count, double y) {
+      for (var i = 0; i < count; i++) {
+        final cx = w * (0.14 + 0.72 * (i + 0.5) / (count == 0 ? 1 : count));
+        canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: Offset(cx, y), width: (w * 0.72 / (count < 3 ? 3 : count)) * 0.8, height: h * 0.16), const Radius.circular(4)), chair);
+      }
+    }
+
+    row(top, h * 0.1);
+    row(bottom, h * 0.9);
+    canvas.drawRRect(table, fill);
+  }
+
+  @override
+  bool shouldRepaint(TableSeatsPainter old) => old.seats != seats || old.color != color;
 }
