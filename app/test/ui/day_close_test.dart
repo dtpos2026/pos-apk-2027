@@ -31,6 +31,40 @@ void main() {
     expect(share.shared.single, contains('Burger Point'));
   });
 
+  testWidgets('REGRESSION: a cash shift that was never closed by hand no longer blocks Day Close; sales -> close -> saved Z report -> next business day', (t) async {
+    final db = newDb();
+    await seedBusiness(db);
+    final share = FakeShare();
+    final h = await pumpApp(t, db: db, share: share);
+    await signIn(t, 'Ali', '1234');
+    await tapKey(t, 'open-shift'); // the cashier opened the drawer (as in the owner's phone) and never closed the shift
+    await tapKey(t, 'amount-ok');
+    await tapProduct(t, 'Zinger Burger');
+    await t.pumpAndSettle();
+    await tapKey(t, 'open-cart');
+    await tapKey(t, 'charge');
+    await tapKey(t, 'method-Cash');
+    await tapKey(t, 'confirm-payment');
+    await tapKey(t, 'new-sale');
+    expect(await _n(db, 'SELECT COUNT(*) AS n FROM shift WHERE closed_at IS NULL'), 1, reason: 'the stale shift is open');
+
+    await openTab(t, 'reports', 'Reports');
+    await t.ensureVisible(find.byKey(const ValueKey('open-day-close')));
+    await tapKey(t, 'open-day-close');
+    expect(find.text('A cash shift is still open. Close all shifts first.'), findsNothing, reason: 'the old blocking message is gone');
+    expect(find.byKey(const ValueKey('day-problems')), findsNothing);
+    await t.ensureVisible(find.byKey(const ValueKey('day-close')));
+    await tapKey(t, 'day-close');
+    expect(find.byKey(const ValueKey('day-shifts-note')), findsOneWidget, reason: 'the dialog explains the open shift is closed with the day');
+    await tapKey(t, 'day-close-confirm');
+
+    expect(find.textContaining('This report is final'), findsOneWidget);
+    expect(await _n(db, 'SELECT COUNT(*) AS n FROM day_close'), 1, reason: 'the Z report is saved');
+    expect(await _n(db, 'SELECT COUNT(*) AS n FROM shift WHERE closed_at IS NULL'), 0, reason: 'the shift was closed with the day');
+    expect(find.byKey(const ValueKey('day-close')), findsNothing, reason: 'cannot be closed twice');
+    expect(h.container.read(shiftProvider), isNull, reason: 'the signed-in cashier must open a new shift for the next business day');
+  });
+
   testWidgets('a report slip can be previewed, printed, shared or saved as a PNG picture', (t) async {
     final db = newDb();
     await seedBusiness(db);
@@ -94,3 +128,5 @@ class _Sink implements PrinterTransport {
   @override
   Future<void> send(Uint8List bytes) async => out.add(bytes);
 }
+
+Future<int> _n(dynamic db, String q) async => (await db.customSelect(q).getSingle()).data['n'] as int;

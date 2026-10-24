@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Variable;
 import 'package:drift/native.dart';
 import 'package:dt_food_pos/data/auth_service.dart';
 import 'package:dt_food_pos/data/db/database.dart';
@@ -128,15 +129,92 @@ void main() {
       await expectLater(shifts.cashMovement(s, cashIn: true, amountMinor: 0, reason: 'x', staffId: 's1'), throwsA(isA<PosException>()));
     });
 
-    test('day close: refused while a shift is open, snapshot once, then locked', () async {
-      final s = await shifts.openShift('s1');
+    test('day close does not depend on a cash shift being closed by hand: the open shift is closed WITH the day, uncounted, nothing invented', () async {
+      final s = await shifts.openShift('s1', openingCashMinor: 20000);
       await sell(s, 'cash', 10000);
-      await expectLater(shifts.closeDay('2026-01-12', staffId: 's1'), throwsA(isA<PosException>().having((e) => e.code, 'code', 'shift_open')));
-      await shifts.closeShift(s, countedMinor: 10000);
-      await shifts.closeDay('2026-01-12', staffId: 's1');
+      final z = await shifts.closeDay('2026-01-12', staffId: 's1');
+      expect(z.closedAt, isNotNull);
+      final sh = (await db.customSelect('SELECT * FROM shift').getSingle()).data;
+      expect(sh['closed_at'], isNotNull, reason: 'the shift was closed by the day close');
+      expect(sh['expected_cash_minor'], 30000, reason: 'opening 200 + cash sale 100');
+      expect(sh['closing_cash_counted_minor'], isNull, reason: 'nobody counted: no count is made up');
+      expect(sh['variance_minor'], isNull);
+      expect(sh['note'], startsWith('Closed by day close'));
+      expect(z.shifts.single.autoClosed, isTrue);
       expect(await one('SELECT gross_sales_minor AS s FROM day_close'), 10000);
       expect(await one('SELECT net_sales_minor AS s FROM day_close'), 10000);
       await expectLater(shifts.closeDay('2026-01-12', staffId: 's1'), throwsA(isA<PosException>().having((e) => e.code, 'code', 'day_closed')));
+    });
+
+    test('a cash count entered at day close is kept with its variance', () async {
+      final s = await shifts.openShift('s1', openingCashMinor: 20000);
+      await sell(s, 'cash', 10000);
+      await shifts.closeDay('2026-01-12', staffId: 's1', countedByShift: {s: 29500});
+      final sh = (await db.customSelect('SELECT * FROM shift').getSingle()).data;
+      expect([sh['closing_cash_counted_minor'], sh['variance_minor']], [29500, -500]);
+    });
+
+    test('the stale-shift case: a shift left open from an earlier day, and another user\'s shift, no longer block closing', () async {
+      await sql("INSERT INTO staff(id,name,role_id,pin_hash,pin_salt,updated_at) VALUES ('s2','Sara','r','h','s',1)");
+      clock = DateTime(2026, 1, 10, 22);
+      final stale = await shifts.openShift('s2', openingCashMinor: 5000); // opened two days ago, never closed
+      clock = DateTime(2026, 1, 12, 9);
+      final mine = await shifts.openShift('s1');
+      await sell(mine, 'cash', 10000);
+      await shifts.closeDay('2026-01-12', staffId: 's1');
+      expect(await one('SELECT COUNT(*) AS s FROM shift WHERE closed_at IS NULL'), 0);
+      expect((await db.customSelect('SELECT closed_at FROM shift WHERE id = ?', variables: [Variable.withString(stale)]).getSingle()).data['closed_at'], isNotNull);
+    });
+
+    test('a shift that starts AFTER the closed day is left alone', () async {
+      await shifts.closeDay('2026-01-11', staffId: 's1');
+      final today = await shifts.openShift('s1');
+      expect((await db.customSelect('SELECT closed_at FROM shift WHERE id = ?', variables: [Variable.withString(today)]).getSingle()).data['closed_at'], isNull);
+    });
+
+    test('the figures must add up: a bill whose payments do not cover it blocks the close, with a plain explanation', () async {
+      final s = await shifts.openShift('s1');
+      final o = await sell(s, 'cash', 10000);
+      await sql("UPDATE \"order\" SET total_minor = 99999 WHERE id = '$o'"); // e.g. damaged data: the bill says 999.99, the payments say 100
+      final z = await shifts.zReport('2026-01-12');
+      expect(z.problems, isNotEmpty);
+      await expectLater(shifts.closeDay('2026-01-12', staffId: 's1'), throwsA(isA<PosException>().having((e) => e.code, 'code', 'reconcile_failed')));
+      expect(await one('SELECT COUNT(*) AS s FROM day_close'), 0, reason: 'nothing half-saved');
+      expect(await one('SELECT COUNT(*) AS s FROM shift WHERE closed_at IS NULL'), 1, reason: 'the shift was not touched either: all or nothing');
+    });
+
+    test('the saved Z report is permanent: a refund made later does not change the closed day', () async {
+      final s = await shifts.openShift('s1');
+      final o = await sell(s, 'cash', 10000);
+      await shifts.closeDay('2026-01-12', staffId: 's1');
+      clock = DateTime(2026, 1, 13, 10);
+      final s2 = await shifts.openShift('s1');
+      await pos.refundOrder(orderId: o, staffId: 's1', reason: 'Late refund', methodId: 'cash', shiftId: s2);
+      final z = await shifts.zReport('2026-01-12');
+      expect([z.grossMinor, z.refundsMinor, z.netMinor, z.bills], [10000, 0, 10000, 1], reason: 'shows what was closed, not a recalculation');
+    });
+
+    test('next business day: after closing, new sales and expenses belong to the next day, numbered from 1', () async {
+      final s = await shifts.openShift('s1');
+      await sell(s, 'cash', 10000);
+      await shifts.closeDay('2026-01-12', staffId: 's1');
+      final s2 = await shifts.openShift('s1');
+      final o2 = await sell(s2, 'cash', 10000); // same calendar day, after the Z report
+      final row = (await db.customSelect('SELECT business_date, invoice_no FROM "order" WHERE id = ?', variables: [Variable.withString(o2)]).getSingle()).data;
+      expect(row['business_date'], '2026-01-13');
+      expect(row['invoice_no'], 'INV-20260113-0001');
+      expect((await shifts.zReport('2026-01-12')).bills, 1, reason: 'the closed day did not grow');
+      expect((await shifts.zReport('2026-01-13')).bills, 1);
+    });
+
+    test('an order held before the close and paid after it is that next day\'s sale', () async {
+      final s = await shifts.openShift('s1');
+      final held = await pos.saveDraft(const DraftOrder(orderType: 'counter', items: [CartItem(productId: 'p', name: 'Tea', qtyMilli: 1000, unitPriceMinor: 10000)], held: true), staffId: 's1');
+      await shifts.closeDay('2026-01-12', staffId: 's1');
+      final s2 = await shifts.openShift('s1');
+      await pos.settleOrder(orderId: held, payments: [const SettlePayment(methodId: 'cash', amountMinor: 10000)], staffId: 's1', shiftId: s2);
+      expect((await db.customSelect('SELECT business_date FROM "order" WHERE id = ?', variables: [Variable.withString(held)]).getSingle()).data['business_date'], '2026-01-13');
+      expect(s, isNotEmpty);
     });
   });
 }

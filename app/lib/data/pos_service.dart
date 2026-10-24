@@ -171,6 +171,16 @@ class PosService {
     return '${n.year.toString().padLeft(4, '0')}-${n.month.toString().padLeft(2, '0')}-${n.day.toString().padLeft(2, '0')}';
   }
 
+  /// Today, or the day after the last closed day when today was already closed (see [DbHelper.openBusinessDate]).
+  Future<String> _openBusinessDate() async {
+    final today = _businessDate;
+    final last = (await _select('SELECT MAX(business_date) AS d FROM day_close')).first['d'] as String?;
+    if (last == null || last.compareTo(today) < 0) return today;
+    final p = last.split('-').map(int.parse).toList();
+    final next = DateTime(p[0], p[1], p[2] + 1);
+    return '${next.year.toString().padLeft(4, '0')}-${next.month.toString().padLeft(2, '0')}-${next.day.toString().padLeft(2, '0')}';
+  }
+
   // ---- low level helpers ----
   Variable _v(Object? o) {
     if (o == null) return const Variable<Object>(null);
@@ -226,7 +236,7 @@ class PosService {
         if (existing.isEmpty) {
           await _exec(
               'INSERT INTO "order"(id, order_type, status, table_id, customer_id, waiter_id, guests, note, bill_config, subtotal_minor, discount_minor, service_charge_minor, delivery_charge_minor, tax_minor, tip_minor, rounding_minor, total_minor, business_date, created_at, updated_at, source, delivery_address) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-              [id, d.orderType, status, d.tableId, d.customerId, d.waiterId, d.guests, d.note, jsonEncode(_configToJson(d.config)), bill.subtotalMinor, bill.discountMinor, bill.serviceChargeMinor, bill.deliveryChargeMinor, bill.taxMinor, bill.tipMinor, bill.roundingMinor, bill.totalMinor, _businessDate, now, now, d.source, d.deliveryAddress]);
+              [id, d.orderType, status, d.tableId, d.customerId, d.waiterId, d.guests, d.note, jsonEncode(_configToJson(d.config)), bill.subtotalMinor, bill.discountMinor, bill.serviceChargeMinor, bill.deliveryChargeMinor, bill.taxMinor, bill.tipMinor, bill.roundingMinor, bill.totalMinor, await _openBusinessDate(), now, now, d.source, d.deliveryAddress]);
         } else {
           await _exec(
               'UPDATE "order" SET order_type=?, status=?, table_id=?, customer_id=?, waiter_id=?, guests=?, note=COALESCE(?, note), bill_config=?, subtotal_minor=?, discount_minor=?, service_charge_minor=?, delivery_charge_minor=?, tax_minor=?, tip_minor=?, rounding_minor=?, total_minor=?, updated_at=?, version=version+1 WHERE id=?',
@@ -348,8 +358,8 @@ class PosService {
       });
 
   // ---- settlement ----
-  Future<String> _nextInvoiceNo() async {
-    final period = _businessDate.replaceAll('-', '');
+  Future<String> _nextInvoiceNo(String businessDate) async {
+    final period = businessDate.replaceAll('-', '');
     await _exec('INSERT OR IGNORE INTO invoice_sequence(prefix, period, last_no) VALUES (?,?,0)', ['INV', period]);
     await _exec('UPDATE invoice_sequence SET last_no = last_no + 1 WHERE prefix = ? AND period = ?', ['INV', period]);
     final n = (await _select('SELECT last_no FROM invoice_sequence WHERE prefix = ? AND period = ?', ['INV', period])).first['last_no'] as int;
@@ -420,7 +430,9 @@ class PosService {
           }
         }
 
-        final invoiceNo = await _nextInvoiceNo();
+        // a sale belongs to the day it is PAID (an order held yesterday and paid today is today's sale), and never to a closed day
+        final saleDate = await _openBusinessDate();
+        final invoiceNo = await _nextInvoiceNo(saleDate);
         final now = _ts;
         for (var i = 0; i < itemRows.length; i++) {
           await _exec('UPDATE order_item SET tax_minor = ?, line_total_minor = ? WHERE id = ?', [bill.lines[i].taxMinor, bill.lines[i].totalMinor, itemRows[i]['id']]);
@@ -434,8 +446,8 @@ class PosService {
               [_newId(), orderId, p.methodId, methods[p.methodId]!['kind'], applied, p.reference, isCash ? p.amountMinor : null, isCash ? p.amountMinor - applied : null, staffId, shiftId, now]);
         }
         await _exec(
-            "UPDATE \"order\" SET status='paid', invoice_no=?, subtotal_minor=?, discount_minor=?, service_charge_minor=?, delivery_charge_minor=?, tax_minor=?, tip_minor=?, rounding_minor=?, total_minor=?, paid_minor=?, cashier_id=?, shift_id=?, settled_at=?, updated_at=?, version=version+1 WHERE id=?",
-            [invoiceNo, bill.subtotalMinor, bill.discountMinor, bill.serviceChargeMinor, bill.deliveryChargeMinor, bill.taxMinor, bill.tipMinor, bill.roundingMinor, bill.totalMinor, result.paidMinor, staffId, shiftId, now, now, orderId]);
+            "UPDATE \"order\" SET status='paid', business_date=?, invoice_no=?, subtotal_minor=?, discount_minor=?, service_charge_minor=?, delivery_charge_minor=?, tax_minor=?, tip_minor=?, rounding_minor=?, total_minor=?, paid_minor=?, cashier_id=?, shift_id=?, settled_at=?, updated_at=?, version=version+1 WHERE id=?",
+            [saleDate, invoiceNo, bill.subtotalMinor, bill.discountMinor, bill.serviceChargeMinor, bill.deliveryChargeMinor, bill.taxMinor, bill.tipMinor, bill.roundingMinor, bill.totalMinor, result.paidMinor, staffId, shiftId, now, now, orderId]);
 
         await _applyStock(orderId, itemRows, sign: -1, reason: 'sale', staffId: staffId);
         if (creditTotal > 0) {
@@ -446,7 +458,7 @@ class PosService {
           await _exec("UPDATE dining_table SET status='free', updated_at=?, version=version+1 WHERE id=?", [now, o['table_id']]);
         }
         await _audit('bill.settle', staffId: staffId, entity: 'order', entityId: orderId, after: {'invoice': invoiceNo, 'total': bill.totalMinor});
-        await _outbox('order', orderId, 'append', {'id': orderId, 'invoice_no': invoiceNo, 'total_minor': bill.totalMinor, 'tax_minor': bill.taxMinor, 'business_date': o['business_date'], 'status': 'paid'}, 'order:$orderId:settle');
+        await _outbox('order', orderId, 'append', {'id': orderId, 'invoice_no': invoiceNo, 'total_minor': bill.totalMinor, 'tax_minor': bill.taxMinor, 'business_date': saleDate, 'status': 'paid'}, 'order:$orderId:settle');
         // food tokens (if the owner switched any on) are numbered in the same transaction as the sale: all or nothing
         await _tokens.issueForOrder(orderId);
         return SettledOrder(orderId: orderId, invoiceNo: invoiceNo, totalMinor: bill.totalMinor, changeMinor: result.changeMinor, alreadySettled: false);

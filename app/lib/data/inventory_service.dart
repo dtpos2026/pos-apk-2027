@@ -103,7 +103,7 @@ class InventoryService {
         if (paidMinor > total) throw PosException('overpaid', 'Paid more than the purchase total');
         if (paidMinor < total && supplierId == null) throw PosException('supplier_required', 'Choose a supplier for a credit purchase');
         final pid = h.id;
-        await h.exec('INSERT INTO purchase(id, supplier_id, invoice_ref, total_minor, paid_minor, business_date, created_at, staff_id) VALUES (?,?,?,?,?,?,?,?)', [pid, supplierId, invoiceRef?.trim(), total, paidMinor, h.businessDate, h.ts, staffId]);
+        await h.exec('INSERT INTO purchase(id, supplier_id, invoice_ref, total_minor, paid_minor, business_date, created_at, staff_id) VALUES (?,?,?,?,?,?,?,?)', [pid, supplierId, invoiceRef?.trim(), total, paidMinor, await h.openBusinessDate(), h.ts, staffId]);
         for (final l in lines) {
           final item = await h.one('SELECT avg_cost_minor_per_unit FROM stock_item WHERE id = ? AND deleted_at IS NULL', [l.stockItemId]);
           if (item == null) throw PosException('not_found', 'Stock item not found');

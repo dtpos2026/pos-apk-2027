@@ -54,6 +54,7 @@ class SetupService {
       } else {
         await method('Easypaisa', 'wallet', 3);
         await method('JazzCash', 'wallet', 4);
+        await method('G Wallet', 'wallet', 5);
       }
       await method('Credit (udhaar)', 'credit', 9);
 

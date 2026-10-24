@@ -33,7 +33,7 @@ class ExpenseService {
         if (m == null) throw PosException('bad_method', 'Choose a payment method');
         final cat = await categoryId(category);
         final id = h.id;
-        await h.exec('INSERT INTO expense(id, category_id, amount_minor, method_id, note, business_date, staff_id, created_at) VALUES (?,?,?,?,?,?,?,?)', [id, cat, amountMinor, methodId, note?.trim(), h.businessDate, staffId, h.ts]);
+        await h.exec('INSERT INTO expense(id, category_id, amount_minor, method_id, note, business_date, staff_id, created_at) VALUES (?,?,?,?,?,?,?,?)', [id, cat, amountMinor, methodId, note?.trim(), await h.openBusinessDate(), staffId, h.ts]);
         if (m['kind'] == 'cash') {
           final shift = await h.openShiftOf(staffId);
           if (shift != null) {
@@ -41,7 +41,7 @@ class ExpenseService {
           }
         }
         await h.audit('expense.add', staffId: staffId, entity: 'expense', entityId: id, after: {'amount': amountMinor, 'category': category.trim()});
-        await h.outbox('expense', id, 'append', {'id': id, 'amount_minor': amountMinor, 'category': category.trim(), 'date': h.businessDate}, 'expense:$id');
+        await h.outbox('expense', id, 'append', {'id': id, 'amount_minor': amountMinor, 'category': category.trim(), 'date': await h.openBusinessDate()}, 'expense:$id');
         return id;
       });
 

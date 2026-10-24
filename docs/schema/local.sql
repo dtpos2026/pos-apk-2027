@@ -38,6 +38,7 @@ CREATE TABLE payment_method (
   id TEXT PRIMARY KEY, name TEXT NOT NULL,
   kind TEXT NOT NULL CHECK (kind IN ('cash','card','bank','wallet','credit','other')),
   enabled INTEGER NOT NULL DEFAULT 1, sort INTEGER NOT NULL DEFAULT 0,
+  provider TEXT, account_no TEXT, holder TEXT, image_path TEXT,   -- bank / wallet details shown on the account card
   version INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL, deleted_at INTEGER
 );
 

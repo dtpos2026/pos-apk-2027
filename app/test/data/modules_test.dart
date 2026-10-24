@@ -76,7 +76,7 @@ void main() {
       expect(before.expensesMinor, 3000);
       expect(before.anyShiftOpen, isTrue);
       expect(before.closedAt, isNull);
-      await expectLater(shifts.closeDay('2026-01-12', staffId: owner), throwsA(isA<PosException>().having((e) => e.code, 'code', 'shift_open')));
+      // an open shift no longer blocks the day: it is counted here and closed together with the day
       final exp = (await shifts.summary(shift)).expectedMinor;
       await shifts.closeShift(shift, countedMinor: exp - 500);
       await shifts.closeDay('2026-01-12', staffId: owner);

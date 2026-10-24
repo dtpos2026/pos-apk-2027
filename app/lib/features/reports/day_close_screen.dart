@@ -29,24 +29,46 @@ class DayCloseScreen extends ConsumerWidget {
 
   Future<void> _close(BuildContext context, WidgetRef ref, ZReport z) async {
     final t = Strings.of(context);
+    final openShifts = z.shifts.where((x) => x.closedAt == null).toList();
+    final counts = {for (final s in openShifts) s.id: TextEditingController()};
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
         title: Text(t['close_day_btn']),
-        content: Text(t['day_close_confirm'].replaceAll('{d}', date)),
+        content: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(t['day_close_confirm'].replaceAll('{d}', date)),
+            if (z.openOrders > 0) Padding(padding: const EdgeInsets.only(top: 10), child: Text(t['day_open_orders_note'].replaceAll('{n}', '${z.openOrders}'), key: const ValueKey('day-open-orders'), style: TextStyle(color: Theme.of(c).colorScheme.onSurfaceVariant))),
+            if (openShifts.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(t['day_close_shifts_note'], key: const ValueKey('day-shifts-note'), style: const TextStyle(fontWeight: FontWeight.w600)),
+              for (final s in openShifts)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: TextField(key: ValueKey('count-${s.staff}'), controller: counts[s.id], keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: InputDecoration(labelText: '${s.staff}: ${t['counted_cash']} (${t['optional']})')),
+                ),
+            ],
+          ]),
+        ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(c, false), child: Text(t['cancel'])),
           FilledButton(key: const ValueKey('day-close-confirm'), onPressed: () => Navigator.pop(c, true), child: Text(t['close_day_btn'])),
         ],
       ),
     );
+    final entered = {for (final e in counts.entries) if (e.value.text.trim().isNotEmpty) e.key: parseMinor(e.value.text, currency: ref.currency) ?? -1};
+    for (final c in counts.values) {
+      c.dispose();
+    }
     if (ok != true) return;
     try {
-      await ref.read(shiftServiceProvider).closeDay(date, staffId: ref.read(sessionProvider)!.staffId);
+      await ref.read(shiftServiceProvider).closeDay(date, staffId: ref.read(sessionProvider)!.staffId, countedByShift: entered);
       ref.invalidate(zReportProvider(date));
+      // the signed-in user's own shift was closed with the day: the next sale asks for a new opening cash
+      await ref.read(shiftProvider.notifier).refresh();
       if (context.mounted) showMessage(context, t['day_closed_ok']);
     } on PosException catch (e) {
-      if (context.mounted) showMessage(context, e.code == 'shift_open' ? t['shift_open_warning'] : e.message);
+      if (context.mounted) showMessage(context, e.message);
     }
   }
 
@@ -89,9 +111,17 @@ class DayCloseScreen extends ConsumerWidget {
               child: Row(children: [
                 Icon(z.closedAt != null ? Icons.lock_outline : Icons.lock_open_outlined, color: z.closedAt != null ? const Color(0xFF1E7B3A) : const Color(0xFF8A5A00)),
                 const SizedBox(width: 10),
-                Expanded(child: Text(style: TextStyle(color: z.closedAt != null ? const Color(0xFF1E7B3A) : const Color(0xFF6B4500), fontWeight: FontWeight.w600), z.closedAt != null ? t['day_already_closed'].replaceAll('{t}', formatDateTime(DateTime.fromMillisecondsSinceEpoch(z.closedAt!))) : (z.anyShiftOpen ? t['shift_open_warning'] : t['day_open']))),
+                Expanded(child: Text(style: TextStyle(color: z.closedAt != null ? const Color(0xFF1E7B3A) : const Color(0xFF6B4500), fontWeight: FontWeight.w600), z.closedAt != null ? t['day_already_closed'].replaceAll('{t}', formatDateTime(DateTime.fromMillisecondsSinceEpoch(z.closedAt!))) : (z.problems.isNotEmpty ? t['day_problems'] : (z.anyShiftOpen ? t['day_open_shifts_info'] : t['day_open'])))),
               ]),
             ),
+            if (z.closedAt == null && z.problems.isNotEmpty)
+              Container(
+                key: const ValueKey('day-problems'),
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(color: scheme.errorContainer, borderRadius: BorderRadius.circular(12)),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [for (final p in z.problems) Text('• $p', style: TextStyle(color: scheme.onErrorContainer))]),
+              ),
             card(t['summary'], [
               Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: Row(children: [Expanded(child: Text(t['bills'])), Text('${z.bills}', style: const TextStyle(fontWeight: FontWeight.w600))])),
               row(t['gross_sales'], z.grossMinor),
@@ -117,6 +147,7 @@ class DayCloseScreen extends ConsumerWidget {
                 row(t['opening_cash'], s.openingMinor),
                 if (s.expectedMinor != null) row(t['expected_cash'], s.expectedMinor!),
                 if (s.countedMinor != null) row(t['counted_cash'], s.countedMinor!),
+                if (s.closedAt != null && s.countedMinor == null) Text(t['cash_not_counted'], key: ValueKey('not-counted-${s.staff}'), style: TextStyle(color: scheme.onSurfaceVariant)),
                 if (s.varianceMinor != null) row(t['short_over'], s.varianceMinor!, strong: true, color: s.varianceMinor! < 0 ? scheme.error : Colors.green.shade700),
                 const SizedBox(height: 6),
               ],
@@ -124,7 +155,7 @@ class DayCloseScreen extends ConsumerWidget {
             const SizedBox(height: 4),
             Wrap(spacing: 8, runSpacing: 8, children: [
               if (z.closedAt == null && (session?.can('day.close') ?? false))
-                FilledButton.icon(key: const ValueKey('day-close'), onPressed: () => _close(context, ref, z), icon: const Icon(Icons.lock_outline), label: Text(t['close_day_btn'])),
+                FilledButton.icon(key: const ValueKey('day-close'), onPressed: z.problems.isNotEmpty ? null : () => _close(context, ref, z), icon: const Icon(Icons.lock_outline), label: Text(t['close_day_btn'])),
               OutlinedButton.icon(
                 key: const ValueKey('day-preview'),
                 icon: const Icon(Icons.visibility_outlined),

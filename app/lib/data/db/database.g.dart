@@ -1775,6 +1775,48 @@ class PaymentMethod extends Table
     $customConstraints: 'NOT NULL DEFAULT 0',
     defaultValue: const CustomExpression('0'),
   );
+  static const VerificationMeta _providerMeta = const VerificationMeta(
+    'provider',
+  );
+  late final GeneratedColumn<String> provider = GeneratedColumn<String>(
+    'provider',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: '',
+  );
+  static const VerificationMeta _accountNoMeta = const VerificationMeta(
+    'accountNo',
+  );
+  late final GeneratedColumn<String> accountNo = GeneratedColumn<String>(
+    'account_no',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: '',
+  );
+  static const VerificationMeta _holderMeta = const VerificationMeta('holder');
+  late final GeneratedColumn<String> holder = GeneratedColumn<String>(
+    'holder',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: '',
+  );
+  static const VerificationMeta _imagePathMeta = const VerificationMeta(
+    'imagePath',
+  );
+  late final GeneratedColumn<String> imagePath = GeneratedColumn<String>(
+    'image_path',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: '',
+  );
   static const VerificationMeta _versionMeta = const VerificationMeta(
     'version',
   );
@@ -1816,6 +1858,10 @@ class PaymentMethod extends Table
     kind,
     enabled,
     sort,
+    provider,
+    accountNo,
+    holder,
+    imagePath,
     version,
     updatedAt,
     deletedAt,
@@ -1861,6 +1907,30 @@ class PaymentMethod extends Table
       context.handle(
         _sortMeta,
         sort.isAcceptableOrUnknown(data['sort']!, _sortMeta),
+      );
+    }
+    if (data.containsKey('provider')) {
+      context.handle(
+        _providerMeta,
+        provider.isAcceptableOrUnknown(data['provider']!, _providerMeta),
+      );
+    }
+    if (data.containsKey('account_no')) {
+      context.handle(
+        _accountNoMeta,
+        accountNo.isAcceptableOrUnknown(data['account_no']!, _accountNoMeta),
+      );
+    }
+    if (data.containsKey('holder')) {
+      context.handle(
+        _holderMeta,
+        holder.isAcceptableOrUnknown(data['holder']!, _holderMeta),
+      );
+    }
+    if (data.containsKey('image_path')) {
+      context.handle(
+        _imagePathMeta,
+        imagePath.isAcceptableOrUnknown(data['image_path']!, _imagePathMeta),
       );
     }
     if (data.containsKey('version')) {
@@ -1912,6 +1982,22 @@ class PaymentMethod extends Table
         DriftSqlType.int,
         data['${effectivePrefix}sort'],
       )!,
+      provider: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}provider'],
+      ),
+      accountNo: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}account_no'],
+      ),
+      holder: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}holder'],
+      ),
+      imagePath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}image_path'],
+      ),
       version: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}version'],
@@ -1943,6 +2029,12 @@ class PaymentMethodData extends DataClass
   final String kind;
   final int enabled;
   final int sort;
+  final String? provider;
+  final String? accountNo;
+  final String? holder;
+  final String? imagePath;
+
+  /// bank / wallet details shown on the account card
   final int version;
   final int updatedAt;
   final int? deletedAt;
@@ -1952,6 +2044,10 @@ class PaymentMethodData extends DataClass
     required this.kind,
     required this.enabled,
     required this.sort,
+    this.provider,
+    this.accountNo,
+    this.holder,
+    this.imagePath,
     required this.version,
     required this.updatedAt,
     this.deletedAt,
@@ -1966,6 +2062,18 @@ class PaymentMethodData extends DataClass
     map['kind'] = Variable<String>(kind);
     map['enabled'] = Variable<int>(enabled);
     map['sort'] = Variable<int>(sort);
+    if (!nullToAbsent || provider != null) {
+      map['provider'] = Variable<String>(provider);
+    }
+    if (!nullToAbsent || accountNo != null) {
+      map['account_no'] = Variable<String>(accountNo);
+    }
+    if (!nullToAbsent || holder != null) {
+      map['holder'] = Variable<String>(holder);
+    }
+    if (!nullToAbsent || imagePath != null) {
+      map['image_path'] = Variable<String>(imagePath);
+    }
     map['version'] = Variable<int>(version);
     map['updated_at'] = Variable<int>(updatedAt);
     if (!nullToAbsent || deletedAt != null) {
@@ -1981,6 +2089,18 @@ class PaymentMethodData extends DataClass
       kind: Value(kind),
       enabled: Value(enabled),
       sort: Value(sort),
+      provider: provider == null && nullToAbsent
+          ? const Value.absent()
+          : Value(provider),
+      accountNo: accountNo == null && nullToAbsent
+          ? const Value.absent()
+          : Value(accountNo),
+      holder: holder == null && nullToAbsent
+          ? const Value.absent()
+          : Value(holder),
+      imagePath: imagePath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(imagePath),
       version: Value(version),
       updatedAt: Value(updatedAt),
       deletedAt: deletedAt == null && nullToAbsent
@@ -2000,6 +2120,10 @@ class PaymentMethodData extends DataClass
       kind: serializer.fromJson<String>(json['kind']),
       enabled: serializer.fromJson<int>(json['enabled']),
       sort: serializer.fromJson<int>(json['sort']),
+      provider: serializer.fromJson<String?>(json['provider']),
+      accountNo: serializer.fromJson<String?>(json['account_no']),
+      holder: serializer.fromJson<String?>(json['holder']),
+      imagePath: serializer.fromJson<String?>(json['image_path']),
       version: serializer.fromJson<int>(json['version']),
       updatedAt: serializer.fromJson<int>(json['updated_at']),
       deletedAt: serializer.fromJson<int?>(json['deleted_at']),
@@ -2014,6 +2138,10 @@ class PaymentMethodData extends DataClass
       'kind': serializer.toJson<String>(kind),
       'enabled': serializer.toJson<int>(enabled),
       'sort': serializer.toJson<int>(sort),
+      'provider': serializer.toJson<String?>(provider),
+      'account_no': serializer.toJson<String?>(accountNo),
+      'holder': serializer.toJson<String?>(holder),
+      'image_path': serializer.toJson<String?>(imagePath),
       'version': serializer.toJson<int>(version),
       'updated_at': serializer.toJson<int>(updatedAt),
       'deleted_at': serializer.toJson<int?>(deletedAt),
@@ -2026,6 +2154,10 @@ class PaymentMethodData extends DataClass
     String? kind,
     int? enabled,
     int? sort,
+    Value<String?> provider = const Value.absent(),
+    Value<String?> accountNo = const Value.absent(),
+    Value<String?> holder = const Value.absent(),
+    Value<String?> imagePath = const Value.absent(),
     int? version,
     int? updatedAt,
     Value<int?> deletedAt = const Value.absent(),
@@ -2035,6 +2167,10 @@ class PaymentMethodData extends DataClass
     kind: kind ?? this.kind,
     enabled: enabled ?? this.enabled,
     sort: sort ?? this.sort,
+    provider: provider.present ? provider.value : this.provider,
+    accountNo: accountNo.present ? accountNo.value : this.accountNo,
+    holder: holder.present ? holder.value : this.holder,
+    imagePath: imagePath.present ? imagePath.value : this.imagePath,
     version: version ?? this.version,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
@@ -2046,6 +2182,10 @@ class PaymentMethodData extends DataClass
       kind: data.kind.present ? data.kind.value : this.kind,
       enabled: data.enabled.present ? data.enabled.value : this.enabled,
       sort: data.sort.present ? data.sort.value : this.sort,
+      provider: data.provider.present ? data.provider.value : this.provider,
+      accountNo: data.accountNo.present ? data.accountNo.value : this.accountNo,
+      holder: data.holder.present ? data.holder.value : this.holder,
+      imagePath: data.imagePath.present ? data.imagePath.value : this.imagePath,
       version: data.version.present ? data.version.value : this.version,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
@@ -2060,6 +2200,10 @@ class PaymentMethodData extends DataClass
           ..write('kind: $kind, ')
           ..write('enabled: $enabled, ')
           ..write('sort: $sort, ')
+          ..write('provider: $provider, ')
+          ..write('accountNo: $accountNo, ')
+          ..write('holder: $holder, ')
+          ..write('imagePath: $imagePath, ')
           ..write('version: $version, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt')
@@ -2068,8 +2212,20 @@ class PaymentMethodData extends DataClass
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, kind, enabled, sort, version, updatedAt, deletedAt);
+  int get hashCode => Object.hash(
+    id,
+    name,
+    kind,
+    enabled,
+    sort,
+    provider,
+    accountNo,
+    holder,
+    imagePath,
+    version,
+    updatedAt,
+    deletedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2079,6 +2235,10 @@ class PaymentMethodData extends DataClass
           other.kind == this.kind &&
           other.enabled == this.enabled &&
           other.sort == this.sort &&
+          other.provider == this.provider &&
+          other.accountNo == this.accountNo &&
+          other.holder == this.holder &&
+          other.imagePath == this.imagePath &&
           other.version == this.version &&
           other.updatedAt == this.updatedAt &&
           other.deletedAt == this.deletedAt);
@@ -2090,6 +2250,10 @@ class PaymentMethodCompanion extends UpdateCompanion<PaymentMethodData> {
   final Value<String> kind;
   final Value<int> enabled;
   final Value<int> sort;
+  final Value<String?> provider;
+  final Value<String?> accountNo;
+  final Value<String?> holder;
+  final Value<String?> imagePath;
   final Value<int> version;
   final Value<int> updatedAt;
   final Value<int?> deletedAt;
@@ -2100,6 +2264,10 @@ class PaymentMethodCompanion extends UpdateCompanion<PaymentMethodData> {
     this.kind = const Value.absent(),
     this.enabled = const Value.absent(),
     this.sort = const Value.absent(),
+    this.provider = const Value.absent(),
+    this.accountNo = const Value.absent(),
+    this.holder = const Value.absent(),
+    this.imagePath = const Value.absent(),
     this.version = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
@@ -2111,6 +2279,10 @@ class PaymentMethodCompanion extends UpdateCompanion<PaymentMethodData> {
     required String kind,
     this.enabled = const Value.absent(),
     this.sort = const Value.absent(),
+    this.provider = const Value.absent(),
+    this.accountNo = const Value.absent(),
+    this.holder = const Value.absent(),
+    this.imagePath = const Value.absent(),
     this.version = const Value.absent(),
     required int updatedAt,
     this.deletedAt = const Value.absent(),
@@ -2124,6 +2296,10 @@ class PaymentMethodCompanion extends UpdateCompanion<PaymentMethodData> {
     Expression<String>? kind,
     Expression<int>? enabled,
     Expression<int>? sort,
+    Expression<String>? provider,
+    Expression<String>? accountNo,
+    Expression<String>? holder,
+    Expression<String>? imagePath,
     Expression<int>? version,
     Expression<int>? updatedAt,
     Expression<int>? deletedAt,
@@ -2135,6 +2311,10 @@ class PaymentMethodCompanion extends UpdateCompanion<PaymentMethodData> {
       if (kind != null) 'kind': kind,
       if (enabled != null) 'enabled': enabled,
       if (sort != null) 'sort': sort,
+      if (provider != null) 'provider': provider,
+      if (accountNo != null) 'account_no': accountNo,
+      if (holder != null) 'holder': holder,
+      if (imagePath != null) 'image_path': imagePath,
       if (version != null) 'version': version,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (deletedAt != null) 'deleted_at': deletedAt,
@@ -2148,6 +2328,10 @@ class PaymentMethodCompanion extends UpdateCompanion<PaymentMethodData> {
     Value<String>? kind,
     Value<int>? enabled,
     Value<int>? sort,
+    Value<String?>? provider,
+    Value<String?>? accountNo,
+    Value<String?>? holder,
+    Value<String?>? imagePath,
     Value<int>? version,
     Value<int>? updatedAt,
     Value<int?>? deletedAt,
@@ -2159,6 +2343,10 @@ class PaymentMethodCompanion extends UpdateCompanion<PaymentMethodData> {
       kind: kind ?? this.kind,
       enabled: enabled ?? this.enabled,
       sort: sort ?? this.sort,
+      provider: provider ?? this.provider,
+      accountNo: accountNo ?? this.accountNo,
+      holder: holder ?? this.holder,
+      imagePath: imagePath ?? this.imagePath,
       version: version ?? this.version,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
@@ -2184,6 +2372,18 @@ class PaymentMethodCompanion extends UpdateCompanion<PaymentMethodData> {
     if (sort.present) {
       map['sort'] = Variable<int>(sort.value);
     }
+    if (provider.present) {
+      map['provider'] = Variable<String>(provider.value);
+    }
+    if (accountNo.present) {
+      map['account_no'] = Variable<String>(accountNo.value);
+    }
+    if (holder.present) {
+      map['holder'] = Variable<String>(holder.value);
+    }
+    if (imagePath.present) {
+      map['image_path'] = Variable<String>(imagePath.value);
+    }
     if (version.present) {
       map['version'] = Variable<int>(version.value);
     }
@@ -2207,6 +2407,10 @@ class PaymentMethodCompanion extends UpdateCompanion<PaymentMethodData> {
           ..write('kind: $kind, ')
           ..write('enabled: $enabled, ')
           ..write('sort: $sort, ')
+          ..write('provider: $provider, ')
+          ..write('accountNo: $accountNo, ')
+          ..write('holder: $holder, ')
+          ..write('imagePath: $imagePath, ')
           ..write('version: $version, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
@@ -29348,6 +29552,10 @@ typedef $PaymentMethodCreateCompanionBuilder =
       required String kind,
       Value<int> enabled,
       Value<int> sort,
+      Value<String?> provider,
+      Value<String?> accountNo,
+      Value<String?> holder,
+      Value<String?> imagePath,
       Value<int> version,
       required int updatedAt,
       Value<int?> deletedAt,
@@ -29360,6 +29568,10 @@ typedef $PaymentMethodUpdateCompanionBuilder =
       Value<String> kind,
       Value<int> enabled,
       Value<int> sort,
+      Value<String?> provider,
+      Value<String?> accountNo,
+      Value<String?> holder,
+      Value<String?> imagePath,
       Value<int> version,
       Value<int> updatedAt,
       Value<int?> deletedAt,
@@ -29459,6 +29671,26 @@ class $PaymentMethodFilterComposer
 
   ColumnFilters<int> get sort => $composableBuilder(
     column: $table.sort,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get provider => $composableBuilder(
+    column: $table.provider,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get accountNo => $composableBuilder(
+    column: $table.accountNo,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get holder => $composableBuilder(
+    column: $table.holder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get imagePath => $composableBuilder(
+    column: $table.imagePath,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -29587,6 +29819,26 @@ class $PaymentMethodOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get provider => $composableBuilder(
+    column: $table.provider,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get accountNo => $composableBuilder(
+    column: $table.accountNo,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get holder => $composableBuilder(
+    column: $table.holder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get imagePath => $composableBuilder(
+    column: $table.imagePath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get version => $composableBuilder(
     column: $table.version,
     builder: (column) => ColumnOrderings(column),
@@ -29626,6 +29878,18 @@ class $PaymentMethodAnnotationComposer
 
   GeneratedColumn<int> get sort =>
       $composableBuilder(column: $table.sort, builder: (column) => column);
+
+  GeneratedColumn<String> get provider =>
+      $composableBuilder(column: $table.provider, builder: (column) => column);
+
+  GeneratedColumn<String> get accountNo =>
+      $composableBuilder(column: $table.accountNo, builder: (column) => column);
+
+  GeneratedColumn<String> get holder =>
+      $composableBuilder(column: $table.holder, builder: (column) => column);
+
+  GeneratedColumn<String> get imagePath =>
+      $composableBuilder(column: $table.imagePath, builder: (column) => column);
 
   GeneratedColumn<int> get version =>
       $composableBuilder(column: $table.version, builder: (column) => column);
@@ -29749,6 +30013,10 @@ class $PaymentMethodTableManager
                 Value<String> kind = const Value.absent(),
                 Value<int> enabled = const Value.absent(),
                 Value<int> sort = const Value.absent(),
+                Value<String?> provider = const Value.absent(),
+                Value<String?> accountNo = const Value.absent(),
+                Value<String?> holder = const Value.absent(),
+                Value<String?> imagePath = const Value.absent(),
                 Value<int> version = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
                 Value<int?> deletedAt = const Value.absent(),
@@ -29759,6 +30027,10 @@ class $PaymentMethodTableManager
                 kind: kind,
                 enabled: enabled,
                 sort: sort,
+                provider: provider,
+                accountNo: accountNo,
+                holder: holder,
+                imagePath: imagePath,
                 version: version,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
@@ -29771,6 +30043,10 @@ class $PaymentMethodTableManager
                 required String kind,
                 Value<int> enabled = const Value.absent(),
                 Value<int> sort = const Value.absent(),
+                Value<String?> provider = const Value.absent(),
+                Value<String?> accountNo = const Value.absent(),
+                Value<String?> holder = const Value.absent(),
+                Value<String?> imagePath = const Value.absent(),
                 Value<int> version = const Value.absent(),
                 required int updatedAt,
                 Value<int?> deletedAt = const Value.absent(),
@@ -29781,6 +30057,10 @@ class $PaymentMethodTableManager
                 kind: kind,
                 enabled: enabled,
                 sort: sort,
+                provider: provider,
+                accountNo: accountNo,
+                holder: holder,
+                imagePath: imagePath,
                 version: version,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,

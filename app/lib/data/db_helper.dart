@@ -23,6 +23,17 @@ class DbHelper {
     return '${n.year.toString().padLeft(4, '0')}-${n.month.toString().padLeft(2, '0')}-${n.day.toString().padLeft(2, '0')}';
   }
 
+  /// The business date new sales and expenses belong to: today, unless today (or a later date) has already been closed with
+  /// a Z report, in which case it is the day after the last closed day. A closed day's figures never change.
+  Future<String> openBusinessDate() async {
+    final today = businessDate;
+    final last = (await q('SELECT MAX(business_date) AS d FROM day_close')).first['d'] as String?;
+    if (last == null || last.compareTo(today) < 0) return today;
+    final p = last.split('-').map(int.parse).toList();
+    final next = DateTime(p[0], p[1], p[2] + 1);
+    return '${next.year.toString().padLeft(4, '0')}-${next.month.toString().padLeft(2, '0')}-${next.day.toString().padLeft(2, '0')}';
+  }
+
   Variable _v(Object? o) {
     if (o == null) return const Variable<Object>(null);
     if (o is int) return Variable.withInt(o);

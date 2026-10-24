@@ -73,6 +73,7 @@ Future<void> migrateToV3(AppDatabase db) async {
   ]) {
     await db.customStatement(sql);
   }
+  await _paymentAccountDetails(db);
   await _allowCancelledOrders(db);
   // orders already in the kitchen get their first history row from their current state
   await db.customStatement("""INSERT INTO kitchen_event(id, order_id, status, at)
@@ -112,5 +113,23 @@ Future<void> _allowCancelledOrders(AppDatabase db) async {
     'CREATE INDEX IF NOT EXISTS order_table_ix ON "order"(table_id, status)',
   ]) {
     await db.customStatement(stmt);
+  }
+}
+
+/// Payment accounts keep their provider, account number / IBAN, holder name and logo; Pakistani businesses get the
+/// standard wallets (Easypaisa, JazzCash, G Wallet) and a bank transfer account if they are missing.
+Future<void> _paymentAccountDetails(AppDatabase db) async {
+  final cols = {for (final r in await db.customSelect('PRAGMA table_info(payment_method)').get()) r.data['name'] as String};
+  for (final c in const ['provider', 'account_no', 'holder', 'image_path']) {
+    if (!cols.contains(c)) await db.customStatement('ALTER TABLE payment_method ADD COLUMN $c TEXT');
+  }
+  final cur = (await db.customSelect("SELECT currency FROM business_profile WHERE id = 'self'").getSingleOrNull())?.data['currency'] as String?;
+  if (cur == null || cur == 'AED') return;
+  final now = DateTime.now().millisecondsSinceEpoch;
+  var sort = ((await db.customSelect('SELECT COALESCE(MAX(sort),0) AS m FROM payment_method WHERE sort < 9').getSingle()).data['m'] as int) + 1;
+  for (final (name, kind) in const [('Bank transfer', 'bank'), ('Easypaisa', 'wallet'), ('JazzCash', 'wallet'), ('G Wallet', 'wallet')]) {
+    final have = await db.customSelect('SELECT 1 AS x FROM payment_method WHERE lower(name) = lower(?) AND deleted_at IS NULL', variables: [Variable.withString(name)]).get();
+    if (have.isNotEmpty) continue;
+    await db.customStatement('INSERT INTO payment_method(id, name, kind, sort, updated_at) VALUES (?,?,?,?,?)', ['pm-${name.toLowerCase().replaceAll(' ', '-')}', name, kind, sort++, now]);
   }
 }
