@@ -99,7 +99,7 @@ void main() {
 
     expect(find.byKey(const ValueKey('invoice-no')), findsOneWidget);
     expect(t.widget<Text>(find.byKey(const ValueKey('invoice-no'))).data, 'INV-20260112-0001');
-    final receipt = t.widget<Text>(find.byKey(const ValueKey('receipt-text'))).data!;
+    final receipt = receiptPaperText(t);
     expect(receipt, contains('Burger Point'));
     expect(receipt, contains('2 x Zinger Burger'));
     expect(receipt, contains('Change'));

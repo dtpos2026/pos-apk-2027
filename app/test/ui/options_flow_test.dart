@@ -83,7 +83,7 @@ void main() {
     await tapKey(t, 'charge');
     await tapKey(t, 'method-Cash');
     await tapKey(t, 'confirm-payment');
-    final receipt = t.widget<Text>(find.byKey(const ValueKey('receipt-text'))).data!;
+    final receipt = receiptPaperText(t);
     expect(receipt, contains('Pizza (Large)'));
     expect(receipt, contains('+ Extra cheese'));
     expect(receipt, contains('+ Olives'));

@@ -75,9 +75,9 @@ class LogoStore {
   }
 }
 
-Future<void> updateBusinessProfile(AppDatabase db, {required String name, String? phone, String? address, String? taxLabel, String? taxNumber, required int now}) =>
+Future<void> updateBusinessProfile(AppDatabase db, {required String name, String? ownerName, String? phone, String? address, String? taxLabel, String? taxNumber, required int now}) =>
     db.customStatement(
-        "UPDATE business_profile SET name=?, phone=?, address=?, tax_number_label=?, tax_number=?, updated_at=? WHERE id='self'",
-        [name.trim(), _nullIfEmpty(phone), _nullIfEmpty(address), _nullIfEmpty(taxLabel), _nullIfEmpty(taxNumber), now]);
+        "UPDATE business_profile SET name=?, owner_name=COALESCE(?, owner_name), phone=?, address=?, tax_number_label=?, tax_number=?, updated_at=? WHERE id='self'",
+        [name.trim(), _nullIfEmpty(ownerName), _nullIfEmpty(phone), _nullIfEmpty(address), _nullIfEmpty(taxLabel), _nullIfEmpty(taxNumber), now]);
 
 String? _nullIfEmpty(String? s) => (s == null || s.trim().isEmpty) ? null : s.trim();

@@ -1,3 +1,4 @@
+import '../profile/app_drawer.dart';
 import '../tokens/tokens_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -79,6 +80,7 @@ class HomeShell extends ConsumerWidget {
     if (wide) {
       return Scaffold(
         appBar: AppBar(title: title, actions: actions),
+        drawer: AppDrawer(onGo: go),
         body: Row(children: [
           LayoutBuilder(
             builder: (context, c) => SingleChildScrollView(
@@ -110,6 +112,7 @@ class HomeShell extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: title, actions: actions),
+      drawer: AppDrawer(onGo: go),
       body: body,
       bottomNavigationBar: dests.length < 2
           ? null

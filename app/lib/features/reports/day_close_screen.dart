@@ -12,6 +12,7 @@ import '../../domain/day_close_doc.dart';
 import '../../domain/money.dart';
 import '../../domain/receipt_doc.dart';
 import '../common/dialogs.dart';
+import '../common/slip_screen.dart';
 
 final zReportProvider = FutureProvider.autoDispose.family<ZReport, String>((ref, date) => ref.watch(shiftServiceProvider).zReport(date));
 
@@ -124,6 +125,16 @@ class DayCloseScreen extends ConsumerWidget {
             Wrap(spacing: 8, runSpacing: 8, children: [
               if (z.closedAt == null && (session?.can('day.close') ?? false))
                 FilledButton.icon(key: const ValueKey('day-close'), onPressed: () => _close(context, ref, z), icon: const Icon(Icons.lock_outline), label: Text(t['close_day_btn'])),
+              OutlinedButton.icon(
+                key: const ValueKey('day-preview'),
+                icon: const Icon(Icons.visibility_outlined),
+                label: Text(t['preview']),
+                onPressed: () async {
+                  final build = await _doc(ref, z);
+                  if (!context.mounted) return;
+                  await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => SlipScreen(title: '${t['day_close']} $date', fileName: 'day-close-$date', build: build)));
+                },
+              ),
               OutlinedButton.icon(
                 key: const ValueKey('day-print'),
                 icon: const Icon(Icons.print_outlined),

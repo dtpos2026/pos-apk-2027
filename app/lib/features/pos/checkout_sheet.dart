@@ -13,6 +13,14 @@ import '../../domain/money.dart';
 import '../../domain/payments.dart';
 import '../../domain/receipt.dart';
 import 'cart.dart';
+import 'dart:io';
+import 'dart:ui' as ui;
+import 'package:flutter/rendering.dart';
+import '../../app/whatsapp.dart';
+import '../../data/token_service.dart' show IssuedToken;
+import '../../domain/receipt_doc.dart';
+import '../../domain/receipt_template.dart';
+import '../settings/receipt_paper.dart';
 
 /// [closeParent]: when the cart is shown in a bottom sheet (phones), close it once the sale is done so the
 /// receipt appears over the menu and the next customer can be served straight away.
@@ -195,33 +203,102 @@ Future<void> showReceipt(BuildContext context, WidgetRef ref, SettledOrder order
     printSvc.queueKot(order.orderId, onlyNew: true).then((_) => printSvc.processQueue());
   }
   if (!context.mounted) return;
-  final t = Strings.of(context);
+  final design = await ref.read(receiptTemplateStoreProvider).load();
+  if (!context.mounted) return;
   await showDialog<void>(
     context: context,
-    builder: (ctx) => AlertDialog(
-      title: Row(children: [const Icon(Icons.check_circle, color: Colors.green), const SizedBox(width: 8), Text(order.invoiceNo, key: const ValueKey('invoice-no'), style: const TextStyle(fontSize: 18))]),
-      content: SingleChildScrollView(
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Container(
-            width: double.maxFinite,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.black12)),
-            child: Text(previewBill(data), key: const ValueKey('receipt-text'), style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 11.5, height: 1.25, color: Colors.black87)),
-          ),
-          if (issued.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Wrap(
-              key: const ValueKey('receipt-tokens'),
-              spacing: 8,
-              runSpacing: 6,
-              children: [for (final x in issued) Chip(avatar: Icon(kindIcon(x.kind), size: 16), label: Text('${x.label}${x.counter.isEmpty ? '' : ' · ${x.counter}'}', style: const TextStyle(fontWeight: FontWeight.w800)))],
-            ),
-          ],
-          const SizedBox(height: 10),
-          Text(jobs.isEmpty ? t['no_printer'] : t['print_queued'], style: TextStyle(color: Theme.of(ctx).colorScheme.onSurfaceVariant, fontSize: 12.5)),
-        ]),
-      ),
-      actions: [FilledButton(key: const ValueKey('new-sale'), onPressed: () => Navigator.pop(ctx), child: Text(t['new_sale']))],
-    ),
+    builder: (ctx) => _ReceiptDialog(order: order, data: data, design: design, issued: issued, printed: billJobs.isNotEmpty, queued: jobs.isNotEmpty),
   );
+}
+
+/// After payment: the receipt as it prints (logo, saved design), with Print, Share, picture and WhatsApp.
+class _ReceiptDialog extends ConsumerStatefulWidget {
+  const _ReceiptDialog({required this.order, required this.data, required this.design, required this.issued, required this.printed, required this.queued});
+  final SettledOrder order;
+  final ReceiptData data;
+  final BillDesign design;
+  final List<IssuedToken> issued;
+
+  /// The bill already went to a printer when the sale was saved (a second print is then marked DUPLICATE).
+  final bool printed;
+  final bool queued;
+
+  @override
+  ConsumerState<_ReceiptDialog> createState() => _ReceiptDialogState();
+}
+
+class _ReceiptDialogState extends ConsumerState<_ReceiptDialog> {
+  final _paperKey = GlobalKey();
+  late bool _printed = widget.printed;
+  String? _note;
+
+  String get _text => docToText(buildBillDoc(widget.data, template: widget.design), 58);
+
+  Future<void> _print() async {
+    final t = Strings.of(context);
+    final svc = ref.read(printServiceProvider);
+    final jobs = await svc.queueBill(widget.order.orderId, duplicate: _printed, staffId: ref.read(sessionProvider)?.staffId);
+    if (jobs.isNotEmpty) {
+      _printed = true;
+      svc.processQueue();
+    }
+    if (mounted) setState(() => _note = jobs.isEmpty ? t['no_printer'] : t['print_queued']);
+  }
+
+  Future<void> _image() async {
+    final boundary = _paperKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+    if (boundary == null) return;
+    final image = await boundary.toImage(pixelRatio: 3);
+    final png = await image.toByteData(format: ui.ImageByteFormat.png);
+    if (png == null) return;
+    final dir = ref.read(exportDirProvider)..createSync(recursive: true);
+    final f = File('${dir.path}/${widget.order.invoiceNo.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_')}.png')..writeAsBytesSync(png.buffer.asUint8List());
+    await ref.read(shareServiceProvider).shareFile(f.path, mimeType: 'image/png', subject: widget.order.invoiceNo);
+  }
+
+  Future<void> _whatsApp() async {
+    final t = Strings.of(context);
+    final phone = await askPhone(context, title: t['send_whatsapp'], label: t['customer_phone'], ok: t['send'], cancel: t['cancel']);
+    if (phone == null || !mounted) return;
+    await sendViaWhatsApp(ref, phone, _text);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Strings.of(context);
+    final cs = Theme.of(context).colorScheme;
+    final doc = buildBillDoc(widget.data, template: widget.design);
+    return AlertDialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 24),
+      title: Row(children: [const Icon(Icons.check_circle, color: Colors.green), const SizedBox(width: 8), Expanded(child: Text(widget.order.invoiceNo, key: const ValueKey('invoice-no'), style: const TextStyle(fontSize: 18)))]),
+      content: SizedBox(
+        width: 380,
+        child: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.center, children: [
+            RepaintBoundary(key: _paperKey, child: ReceiptPaper(doc: doc, paperMm: 58)),
+            if (widget.issued.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Wrap(
+                key: const ValueKey('receipt-tokens'),
+                spacing: 8,
+                runSpacing: 6,
+                alignment: WrapAlignment.center,
+                children: [for (final x in widget.issued) Chip(avatar: Icon(kindIcon(x.kind), size: 16), label: Text('${x.label}${x.counter.isEmpty ? '' : ' · ${x.counter}'}', style: const TextStyle(fontWeight: FontWeight.w800)))],
+              ),
+            ],
+            const SizedBox(height: 10),
+            Text(_note ?? (widget.queued ? t['print_queued'] : t['no_printer']), style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12.5), textAlign: TextAlign.center),
+            const SizedBox(height: 10),
+            Wrap(alignment: WrapAlignment.center, spacing: 8, runSpacing: 6, children: [
+              FilledButton.tonalIcon(key: const ValueKey('receipt-print'), onPressed: _print, icon: const Icon(Icons.print_outlined, size: 18), label: Text(t['print'])),
+              OutlinedButton.icon(key: const ValueKey('receipt-share'), onPressed: () => ref.read(shareServiceProvider).shareText(_text, subject: widget.order.invoiceNo), icon: const Icon(Icons.share_outlined, size: 18), label: Text(t['share'])),
+              OutlinedButton.icon(key: const ValueKey('receipt-image'), onPressed: _image, icon: const Icon(Icons.image_outlined, size: 18), label: Text(t['share_image'])),
+              OutlinedButton.icon(key: const ValueKey('receipt-whatsapp'), onPressed: _whatsApp, icon: const Icon(Icons.chat_outlined, size: 18), label: const Text('WhatsApp')),
+            ]),
+          ]),
+        ),
+      ),
+      actions: [FilledButton(key: const ValueKey('new-sale'), onPressed: () => Navigator.pop(context), child: Text(t['new_sale']))],
+    );
+  }
 }

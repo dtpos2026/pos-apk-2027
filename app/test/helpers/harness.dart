@@ -210,3 +210,7 @@ Future<void> showThemeCard(WidgetTester t, String key) async {
 
 /// The innermost vertical scrolling list on screen (the settings page has a horizontal theme row inside it).
 Finder get verticalScroll => find.byWidgetPredicate((w) => w is Scrollable && w.axisDirection == AxisDirection.down).last;
+
+/// The text on the receipt shown after a sale (what the printer prints).
+String receiptPaperText(WidgetTester t) =>
+    t.widgetList<Text>(find.descendant(of: find.byKey(const ValueKey('receipt-paper')), matching: find.byType(Text))).map((w) => w.data ?? '').join('\n');
