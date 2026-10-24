@@ -11,6 +11,7 @@ import '../data/expense_service.dart';
 import '../data/inventory_service.dart';
 import '../data/report_service.dart';
 import '../data/staff_service.dart';
+import '../data/kitchen_service.dart';
 import '../data/table_service.dart';
 import '../data/backup_service.dart';
 import '../data/db/database.dart';
@@ -47,6 +48,7 @@ final customerServiceProvider = Provider<CustomerService>((ref) => CustomerServi
 final expenseServiceProvider = Provider<ExpenseService>((ref) => ExpenseService(ref.watch(dbHelperProvider)));
 final inventoryServiceProvider = Provider<InventoryService>((ref) => InventoryService(ref.watch(dbHelperProvider)));
 final tableServiceProvider = Provider<TableService>((ref) => TableService(ref.watch(dbHelperProvider)));
+final kitchenServiceProvider = Provider<KitchenService>((ref) => KitchenService(ref.watch(dbHelperProvider)));
 final reportServiceProvider = Provider<ReportService>((ref) => ReportService(ref.watch(dbHelperProvider)));
 
 /// Where exported report files are written before sharing. Defaults to the system temp (cache) folder.

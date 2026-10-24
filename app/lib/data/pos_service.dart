@@ -203,7 +203,9 @@ class PosService {
   Future<String> saveDraft(DraftOrder d, {String? staffId}) => db.transaction(() async {
         final id = d.id ?? _newId();
         final existing = await _select('SELECT status FROM "order" WHERE id = ?', [id]);
-        if (existing.isNotEmpty && !{'draft', 'held'}.contains(existing.first['status'])) {
+        // an order already sent to the kitchen (new/preparing/ready/served) can still get more items until it is paid
+        const editable = {'draft', 'held', 'new', 'preparing', 'ready', 'served'};
+        if (existing.isNotEmpty && !editable.contains(existing.first['status'])) {
           throw PosException('not_editable', 'Order ${existing.first['status']} can no longer be edited');
         }
         final hasDiscount = d.config.billDiscount != null || d.items.any((i) => i.lineDiscountMinor > 0);
@@ -213,7 +215,8 @@ class PosService {
         }
         final bill = calculateBill(d.items.map(_toInput).toList(), d.config);
         final now = _ts;
-        final status = d.held ? 'held' : 'draft';
+        final prior = existing.isEmpty ? null : existing.first['status'] as String;
+        final status = d.held ? 'held' : (prior != null && const {'new', 'preparing', 'ready', 'served'}.contains(prior) ? prior : 'draft');
         if (existing.isEmpty) {
           await _exec(
               'INSERT INTO "order"(id, order_type, status, table_id, customer_id, waiter_id, guests, note, bill_config, subtotal_minor, discount_minor, service_charge_minor, delivery_charge_minor, tax_minor, tip_minor, rounding_minor, total_minor, business_date, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
@@ -259,7 +262,7 @@ class PosService {
   }
 
   Future<DraftOrder?> loadDraft(String id) async {
-    final rows = await _select('SELECT * FROM "order" WHERE id = ? AND status IN (\'draft\', \'held\')', [id]);
+    final rows = await _select('SELECT * FROM "order" WHERE id = ? AND status IN (\'draft\', \'held\', \'new\', \'preparing\', \'ready\', \'served\')', [id]);
     if (rows.isEmpty) return null;
     final o = rows.first;
     final items = <CartItem>[];
@@ -304,7 +307,7 @@ class PosService {
   Future<void> discardDraft(String id) => db.transaction(() async {
         final rows = await _select('SELECT status, table_id FROM "order" WHERE id = ?', [id]);
         if (rows.isEmpty) return;
-        if (!{'draft', 'held'}.contains(rows.first['status'])) throw PosException('not_editable', 'Only unsettled orders can be discarded');
+        if (!{'draft', 'held', 'new', 'preparing', 'ready', 'served'}.contains(rows.first['status'])) throw PosException('not_editable', 'Only unsettled orders can be discarded');
         await _exec('DELETE FROM order_item_modifier WHERE order_item_id IN (SELECT id FROM order_item WHERE order_id = ?)', [id]);
         await _exec('DELETE FROM order_item WHERE order_id = ?', [id]);
         await _exec('DELETE FROM "order" WHERE id = ?', [id]);

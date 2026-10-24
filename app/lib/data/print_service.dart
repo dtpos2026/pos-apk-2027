@@ -134,7 +134,11 @@ class PrintService {
   /// (a kot printer with no station receives everything not claimed by a station printer).
   Future<List<String>> queueKot(String orderId, {bool reprint = false, bool onlyNew = false}) async {
     final printers = await _select("SELECT * FROM printer WHERE enabled = 1 AND deleted_at IS NULL AND role IN ('kot','both') ORDER BY name");
-    if (printers.isEmpty) return [];
+    if (printers.isEmpty) {
+      // no kitchen printer: the on-screen kitchen board still gets the order
+      if (onlyNew) await _markSentToKitchen(orderId);
+      return [];
+    }
     final o = (await _select('SELECT * FROM "order" WHERE id = ?', [orderId])).first;
     var items = await _select("SELECT * FROM order_item WHERE order_id = ? AND status = 'active' ${onlyNew ? 'AND qty_milli > kot_qty_milli' : ''} ORDER BY rowid", [orderId]);
     if (items.isEmpty) return [];
@@ -173,11 +177,17 @@ class PrintService {
       final bytes = ((await EscPosRenderer(paperMm: p['paper_mm'] as int, rasterizer: rasterizer).render(doc))..cut()).toBytes();
       ids.add(await _enqueue(p['id'] as String, 'kot', orderId, bytes, reprint));
     }
-    if (onlyNew && ids.isNotEmpty) {
-      // remember what the kitchen already has, so the next "send" only prints what was added since
-      await db.customStatement("UPDATE order_item SET kot_qty_milli = qty_milli, kot_sent_at = ? WHERE order_id = ? AND status = 'active' AND qty_milli > kot_qty_milli", [_ts, orderId]);
-    }
+    // remember what the kitchen already has, so the next "send" only prints what was added since
+    if (onlyNew && ids.isNotEmpty) await _markSentToKitchen(orderId);
     return ids;
+  }
+
+  /// Items count as sent, and the order shows as NEW on the kitchen board (again, if more was added after it was ready).
+  Future<void> _markSentToKitchen(String orderId) async {
+    final fresh = (await _select("SELECT COUNT(*) AS n FROM order_item WHERE order_id = ? AND status = 'active' AND qty_milli > kot_qty_milli", [orderId])).first['n'] as int;
+    if (fresh == 0) return;
+    await db.customStatement("UPDATE order_item SET kot_qty_milli = qty_milli, kot_sent_at = ? WHERE order_id = ? AND status = 'active' AND qty_milli > kot_qty_milli", [_ts, orderId]);
+    await db.customStatement("UPDATE \"order\" SET status = 'new', updated_at = ?, version = version + 1 WHERE id = ? AND status IN ('draft','held','new','preparing','ready','served')", [_ts, orderId]);
   }
 
   // ---- food tokens ----

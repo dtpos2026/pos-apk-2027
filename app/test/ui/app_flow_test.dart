@@ -173,7 +173,7 @@ void main() {
     for (final hidden in ['Menu', 'Settings', 'Reports', 'Inventory', 'Staff']) {
       expect(find.descendant(of: find.byType(NavigationBar), matching: find.text(hidden)), findsNothing, reason: hidden);
     }
-    expect(find.byKey(const ValueKey('nav-more')), findsNothing); // exactly five destinations fit on the bar
+    expect(find.byKey(const ValueKey('nav-more')), findsOneWidget); // Kitchen is the sixth destination, so it sits under More
     await tapKey(t, 'open-shift');
     await tapKey(t, 'amount-ok');
     await tapProduct(t, 'Fries');
