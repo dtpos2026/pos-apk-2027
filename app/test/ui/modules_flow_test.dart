@@ -323,15 +323,16 @@ void main() {
 
   testWidgets('online orders: type in a WhatsApp order, accept it into the kitchen, then take payment in Sell', (t) async {
     final h = await start(t);
-    await openTab(t, 'online', 'Online orders');
-    expect(find.text('No online orders'), findsOneWidget);
+    await openTab(t, 'online', 'Delivery Orders');
+    expect(find.text('No delivery orders'), findsOneWidget);
     await tapKey(t, 'new-online');
     await t.enterText(find.byKey(const ValueKey('on-name')), 'Ahmed');
     await t.enterText(find.byKey(const ValueKey('on-phone')), '03001234567');
     await t.enterText(find.byKey(const ValueKey('on-address')), 'House 5');
     await tapKey(t, 'on-save');
     expect(find.byKey(const ValueKey('on-error')), findsOneWidget, reason: 'an order needs at least one item');
-    await Scrollable.ensureVisible(t.element(find.byKey(const ValueKey('on-plus-Zinger Burger'))), alignment: 0.3);
+    await t.scrollUntilVisible(find.byKey(const ValueKey('on-plus-Zinger Burger')), 200, scrollable: verticalScroll);
+    await t.ensureVisible(find.byKey(const ValueKey('on-plus-Zinger Burger')));
     await t.pumpAndSettle();
     await tapKey(t, 'on-plus-Zinger Burger');
     await tapKey(t, 'on-plus-Zinger Burger');
@@ -497,6 +498,11 @@ void main() {
 
     await t.tap(find.text('Dine-in'));
     await t.pumpAndSettle();
+    // choosing Dine-in asks for the table at once (as in DT Enterprise)
+    await tapKey(t, 'dinein-table');
+    await t.tap(find.text('K1').last);
+    await t.pumpAndSettle();
+    await tapKey(t, 'dinein-ok');
     await add(t, 'Zinger Burger', times: 2);
     await send(1);
     expect(got.single, contains('2 x Zinger Burger'));

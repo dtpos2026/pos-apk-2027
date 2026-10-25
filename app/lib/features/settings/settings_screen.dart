@@ -19,6 +19,7 @@ import '../../app/providers.dart';
 import '../../cloud/access_controller.dart';
 import '../../cloud/location_consent.dart';
 import '../common/dialogs.dart';
+import '../online/order_sources_screen.dart';
 import '../../app/strings.dart';
 import '../../data/backup_service.dart';
 import '../../domain/modules.dart';
@@ -143,6 +144,7 @@ class SettingsScreen extends ConsumerWidget {
       ]),
       _Section(t['payment_accounts'], [
         for (final m in ref.watch(allPaymentMethodsProvider).value ?? const <PaymentMethodRow>[]) PaymentAccountCard(method: m),
+        if (ref.watch(activeModulesProvider).contains('online')) ListTile(key: const ValueKey('order-sources-tile'), leading: const Icon(Icons.storefront_outlined), title: Text(t['dl_sources']), subtitle: Text(t['dl_pay_instructions']), trailing: const Icon(Icons.chevron_right), onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const OrderSourcesScreen()))),
         Align(alignment: AlignmentDirectional.centerStart, child: TextButton.icon(key: const ValueKey('add-payment-method'), onPressed: () => showPaymentAccountDialog(context, ref), icon: const Icon(Icons.add), label: Text(t['add_payment_account']))),
       ]),
       _Section(t['printers'], [

@@ -9,6 +9,7 @@ import '../common/menu_image.dart';
 import '../../data/menu_service.dart';
 import '../../data/queries.dart';
 import 'cart.dart';
+import '../../data/pos_service.dart' show CartItem;
 import 'options_sheet.dart';
 import 'weight_dialog.dart';
 import 'cart_panel.dart';
@@ -204,7 +205,20 @@ class _ProductTile extends ConsumerWidget {
   /// Text-only tile: more items on screen and faster on old phones.
   final bool compact;
 
+  /// "from 600" for an item sold in sizes, "Open price" when the cashier types it, otherwise the price.
+  String _priceText(BuildContext context, WidgetRef ref) {
+    final t = Strings.of(context);
+    if (p.askPrice) return t['open_price'];
+    return p.hasVariants ? '${t['mn_from']} ${ref.money(p.priceMinor)}' : ref.money(p.priceMinor);
+  }
+
   Future<void> _add(BuildContext context, WidgetRef ref) async {
+    if (p.askPrice) {
+      // an open-price item: the cashier types what to charge for this one
+      final minor = await showOpenPriceDialog(context, ref, p.name);
+      if (minor != null) ref.read(cartProvider.notifier).addConfigured(CartItem(productId: p.id, name: p.name, qtyMilli: 1000, unitPriceMinor: minor, taxRateBp: p.taxBp, taxInclusive: p.taxInclusive, station: p.station));
+      return;
+    }
     final opts = await ref.read(menuServiceProvider).optionsFor(p.id);
     if (opts.isEmpty) {
       if (const {'kg', 'g', 'l', 'ml'}.contains(p.unit)) {
@@ -254,7 +268,7 @@ class _ProductTile extends ConsumerWidget {
                     ]),
                     const SizedBox(height: 6),
                     Expanded(child: Text(p.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, height: 1.2))),
-                    Align(alignment: AlignmentDirectional.centerStart, child: PriceBadge(text: ref.money(p.priceMinor), suffix: p.unit == 'pc' ? null : '/ ${p.unit}')),
+                    Align(alignment: AlignmentDirectional.centerStart, child: PriceBadge(text: _priceText(context, ref), suffix: p.unit == 'pc' || p.askPrice ? null : '/ ${p.unit}')),
                   ])
                 : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Expanded(
@@ -271,7 +285,7 @@ class _ProductTile extends ConsumerWidget {
                         child: Text('× $inCart', style: TextStyle(color: scheme.onPrimary, fontWeight: FontWeight.w800, fontSize: 12)),
                       ),
                     ),
-                  PositionedDirectional(bottom: 6, start: 6, child: PriceBadge(text: ref.money(p.priceMinor), suffix: p.unit == 'pc' ? null : '/ ${p.unit}')),
+                  PositionedDirectional(bottom: 6, start: 6, child: PriceBadge(text: _priceText(context, ref), suffix: p.unit == 'pc' || p.askPrice ? null : '/ ${p.unit}')),
                   if (!p.available)
                     Center(child: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3), color: Colors.black54, child: Text(Strings.of(context)['unavailable'], style: const TextStyle(color: Colors.white, fontSize: 12)))),
                 ]),

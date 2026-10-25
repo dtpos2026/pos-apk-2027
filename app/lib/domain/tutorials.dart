@@ -20,7 +20,7 @@ const tutorials = <Tutorial>[
   }, {
     TutorialLang.en: [
       'Open the app and tap your name, then type your PIN.',
-      'On the Sell screen tap "Open shift" and type the cash in the drawer. You can sell without a shift, but the cash count needs one.',
+      'On the Sell screen tap "Start day" and type the cash in the drawer. At night tap "Close day": today starts again from zero and the closed day stays in Reports.',
       'Open the side menu (three lines, top left) to reach Settings, Menu, Reports and the rest.',
       'Add your menu first: Menu > add items with price. Use categories so items are easy to find.',
       'Add a printer in Settings > Printers (Bluetooth or WiFi) and print a test slip.',

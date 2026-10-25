@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/format.dart';
 import '../../app/strings.dart';
+import '../../domain/money.dart';
 
 /// Quantity of a product sold by weight or volume, from what the cashier entered.
 /// [productUnit] is the unit the price is per (kg, g, l, ml); [value] is typed in grams / millilitres, or in kg / litres when [big].
@@ -132,4 +134,36 @@ class _WeightDialogState extends ConsumerState<_WeightDialog> {
       ],
     );
   }
+}
+
+/// Asks for the price of an open-price item. null = cancelled.
+Future<int?> showOpenPriceDialog(BuildContext context, WidgetRef ref, String name) {
+  final t = Strings.of(context);
+  final c = TextEditingController();
+  return showDialog<int>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(name),
+      content: TextField(
+        key: const ValueKey('open-price-input'),
+        controller: c,
+        autofocus: true,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+        decoration: InputDecoration(labelText: t['price'], prefixIcon: const Icon(Icons.payments_outlined)),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: Text(t['cancel'])),
+        FilledButton(
+          key: const ValueKey('open-price-ok'),
+          onPressed: () {
+            final v = parseMinor(c.text.trim().isEmpty ? '0' : c.text.trim(), currency: ref.currency);
+            if (v != null && v > 0) Navigator.pop(ctx, v);
+          },
+          child: Text(t['ok']),
+        ),
+      ],
+    ),
+  );
 }

@@ -36,6 +36,8 @@ void main() {
     await t.pumpAndSettle();
 
     await t.scrollUntilVisible(find.byKey(const ValueKey('pm-switch-JazzCash 0300-1234567')), 200, scrollable: verticalScroll);
+    await Scrollable.ensureVisible(t.element(find.byKey(const ValueKey('pm-switch-JazzCash 0300-1234567'))), alignment: 0.5);
+    await t.pumpAndSettle();
     await tapKey(t, 'pm-switch-JazzCash 0300-1234567');
     h.container.invalidate(paymentMethodsProvider);
     names = (await t.runAsync(() => h.container.read(paymentMethodsProvider.future)))!.map((m) => m.name);

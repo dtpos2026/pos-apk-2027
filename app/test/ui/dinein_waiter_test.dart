@@ -22,7 +22,9 @@ void main() {
     await t.tap(find.text('Dine-in').last);
     await t.pumpAndSettle();
 
-    // Hold: the window opens, cancelling keeps the order unheld
+    // choosing Dine-in opens the table window at once; cancelling keeps the order unheld
+    expect(find.byKey(const ValueKey('dinein-table')), findsOneWidget);
+    await tapKey(t, 'dinein-cancel');
     await tapKey(t, 'hold');
     expect(find.byKey(const ValueKey('dinein-table')), findsOneWidget);
     await shot(t, '92_dinein_pick');

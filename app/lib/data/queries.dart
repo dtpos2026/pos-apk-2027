@@ -29,7 +29,7 @@ class MenuCategory {
 }
 
 class MenuProduct {
-  const MenuProduct({required this.id, required this.name, required this.priceMinor, this.categoryId, this.categoryName, this.taxBp = 0, this.taxInclusive = false, this.station, this.ownStation, this.available = true, this.unit = 'pc', this.sku, this.imagePath, this.categoryImagePath});
+  const MenuProduct({required this.id, required this.name, required this.priceMinor, this.categoryId, this.categoryName, this.taxBp = 0, this.taxInclusive = false, this.station, this.ownStation, this.available = true, this.unit = 'pc', this.sku, this.imagePath, this.categoryImagePath, this.description, this.askPrice = false, this.hasVariants = false});
   final String id;
   final String name;
   final int priceMinor;
@@ -48,6 +48,15 @@ class MenuProduct {
   /// Local file of the item picture (null = none); categoryImagePath is used when the item has no picture.
   final String? imagePath;
   final String? categoryImagePath;
+
+  /// A line about the dish, shown on the shared menu picture.
+  final String? description;
+
+  /// The cashier types the price when selling it (open price).
+  final bool askPrice;
+
+  /// Sold in sizes: the price shown is the lowest one ("from").
+  final bool hasVariants;
 }
 
 class PaymentMethodInfo {
@@ -128,7 +137,7 @@ Future<List<MenuProduct>> loadProducts(AppDatabase db, {String? categoryId, Stri
   if (!includeUnavailable) where.add('p.available = 1');
   final rows = await _rows(
       db,
-      'SELECT p.*, c.name AS category_name, COALESCE(p.station, c.station) AS station, p.station AS own_station, c.image_path AS category_image, t.rate_bp AS tax_bp, t.inclusive AS tax_inclusive '
+      'SELECT p.*, c.name AS category_name, COALESCE(p.station, c.station) AS station, p.station AS own_station, EXISTS(SELECT 1 FROM product_variant v WHERE v.product_id = p.id AND v.deleted_at IS NULL) AS has_variants, c.image_path AS category_image, t.rate_bp AS tax_bp, t.inclusive AS tax_inclusive '
       'FROM product p LEFT JOIN category c ON c.id = p.category_id LEFT JOIN tax_rate t ON t.id = p.tax_rate_id '
       'WHERE ${where.join(' AND ')} ORDER BY p.name',
       args);
@@ -149,6 +158,9 @@ Future<List<MenuProduct>> loadProducts(AppDatabase db, {String? categoryId, Stri
         sku: r['sku'] as String?,
         imagePath: r['image_path'] as String?,
         categoryImagePath: r['category_image'] as String?,
+        description: r['description'] as String?,
+        askPrice: ((r['ask_price'] as int?) ?? 0) == 1,
+        hasVariants: ((r['has_variants'] as int?) ?? 0) == 1,
       )
   ];
 }

@@ -21,63 +21,72 @@ def u(v):
     return int(round(v * S))
 
 
-OX, OY = 5, 2  # the receipt sits in the middle of the icon; the small coin tucks into its lower-right corner
+# Everything sits inside a circle of radius 31 around the centre (54, 54), so no launcher shape (circle, squircle, the
+# Android 12 splash circle) can cut any of it off. The coin with the fork and knife is printed ON the receipt.
+RX0, RX1, RY0, RY1, TIP = 38, 70, 26, 76, 81
+COIN = (54, 64.5, 9.2)
 
 
 def receipt_mask(d, fill):
     """The paper: rounded top, zig-zag torn bottom."""
-    d.rounded_rectangle([u(29 + OX), u(19 + OY), u(69 + OX), u(70 + OY)], radius=u(5), fill=fill)
-    d.rectangle([u(29 + OX), u(40 + OY), u(69 + OX), u(78 + OY)], fill=fill)
-    pts = [(29 + OX, 78 + OY)]
+    d.rounded_rectangle([u(RX0), u(RY0), u(RX1), u(RY1)], radius=u(4), fill=fill)
+    d.rectangle([u(RX0), u(RY0 + 12), u(RX1), u(RY1 + 2)], fill=fill)
+    pts = [(RX0, RY1)]
     n = 8
-    w = 40 / n
+    w = (RX1 - RX0) / n
     for i in range(n):
-        pts.append((29 + OX + w * (i + 0.5), 84 + OY))
-        pts.append((29 + OX + w * (i + 1), 78 + OY))
+        pts.append((RX0 + w * (i + 0.5), TIP))
+        pts.append((RX0 + w * (i + 1), RY1))
     d.polygon([(u(a), u(b)) for a, b in pts], fill=fill)
 
 
-def cutlery(d, cx, cy, color):
-    """Fork and knife, centred on (cx, cy)."""
-    # fork (left): three tines + neck + handle
-    fx = cx - 4.6
+def cutlery(d, cx, cy, color, k=0.62):
+    """Fork and knife, centred on (cx, cy), scaled by k."""
+    def X(v):
+        return u(cx + v * k)
+
+    def Y(v):
+        return u(cy + v * k)
+
+    fx = -4.6
     for dx in (-2.4, 0, 2.4):
-        d.rounded_rectangle([u(fx + dx - 0.55), u(cy - 8), u(fx + dx + 0.55), u(cy - 1.5)], radius=u(0.5), fill=color)
-    d.rounded_rectangle([u(fx - 3), u(cy - 3.2), u(fx + 3), u(cy - 0.2)], radius=u(1.4), fill=color)
-    d.rounded_rectangle([u(fx - 0.75), u(cy - 2), u(fx + 0.75), u(cy + 8)], radius=u(0.7), fill=color)
-    # knife (right): blade + handle
-    kx = cx + 4.6
-    d.rounded_rectangle([u(kx - 1.6), u(cy - 8), u(kx + 1.4), u(cy + 0.5)], radius=u(1.4), fill=color)
-    d.rounded_rectangle([u(kx - 0.75), u(cy - 1), u(kx + 1.4), u(cy + 8)], radius=u(0.7), fill=color)
+        d.rounded_rectangle([X(fx + dx - 0.6), Y(-8), X(fx + dx + 0.6), Y(-1.5)], radius=u(0.35), fill=color)
+    d.rounded_rectangle([X(fx - 3), Y(-3.2), X(fx + 3), Y(-0.2)], radius=u(0.9), fill=color)
+    d.rounded_rectangle([X(fx - 0.8), Y(-2), X(fx + 0.8), Y(8)], radius=u(0.5), fill=color)
+    kx = 4.6
+    d.rounded_rectangle([X(kx - 1.7), Y(-8), X(kx + 1.5), Y(0.5)], radius=u(1.0), fill=color)
+    d.rounded_rectangle([X(kx - 0.8), Y(-1), X(kx + 1.5), Y(8)], radius=u(0.5), fill=color)
 
 
 def foreground(mono=False):
     im = Image.new('RGBA', (u(108), u(108)), (0, 0, 0, 0))
     d = ImageDraw.Draw(im)
-    cx, cy, r = 77, 77, 12  # the coin
+    cx, cy, r = COIN
+    mx = (RX0 + RX1) / 2 - 7.5
     if mono:
         receipt_mask(d, (0, 0, 0, 255))
-        # details are cut out so the themed icon still reads as a receipt
-        im.paste((0, 0, 0, 0), (u(39 + OX), u(23 + OY)), mark_mask(20))
-        for y0, y1, x1 in ((46, 48.4, 62), (52.5, 54.9, 53)):
-            d.rounded_rectangle([u(35 + OX), u(y0 + OY), u(x1 + OX), u(y1 + OY)], radius=u(1), fill=(0, 0, 0, 0))
-        d.ellipse([u(cx - r - 2), u(cy - r - 2), u(cx + r + 2), u(cy + r + 2)], fill=(0, 0, 0, 0))
+        im.paste((0, 0, 0, 0), (u(mx), u(RY0 + 4)), mark_mask(15))
+        for y0, x1 in ((RY0 + 22, RX1 - 6), (RY0 + 26.5, RX1 - 13)):
+            d.rounded_rectangle([u(RX0 + 6), u(y0), u(x1), u(y0 + 2)], radius=u(1), fill=(0, 0, 0, 0))
+        d.ellipse([u(cx - r - 1.6), u(cy - r - 1.6), u(cx + r + 1.6), u(cy + r + 1.6)], fill=(0, 0, 0, 0))
         d.ellipse([u(cx - r), u(cy - r), u(cx + r), u(cy + r)], fill=(0, 0, 0, 255))
         cutlery(d, cx, cy, (0, 0, 0, 0))
         return im
-    # soft shadow under the paper and the coin
+    # soft shadow under the paper
     sh = Image.new('RGBA', im.size, (0, 0, 0, 0))
     sd = ImageDraw.Draw(sh)
-    receipt_mask(sd, (0, 0, 0, 70))
-    sh = sh.transform(sh.size, Image.AFFINE, (1, 0, 0, 0, 1, -u(1.2)))
+    receipt_mask(sd, (0, 0, 0, 80))
+    sh = sh.transform(sh.size, Image.AFFINE, (1, 0, 0, 0, 1, -u(1.3)))
     im.alpha_composite(sh)
     receipt_mask(d, WHITE)
-    im.paste(RED, (u(39 + OX), u(23 + OY)), mark_mask(20))  # the brand mark, now in restaurant red
-    for y0, x1 in ((46, 62), (52.5, 53), (59, 51)):
-        d.rounded_rectangle([u(35 + OX), u(y0 + OY), u(x1 + OX), u(y0 + OY + 2.6)], radius=u(1.3), fill=TINT)
-    d.rounded_rectangle([u(35 + OX), u(65.5 + OY), u(52 + OX), u(67.9 + OY)], radius=u(1.2), fill=BLACK)
-    d.ellipse([u(cx - r - 2), u(cy - r - 2), u(cx + r + 2), u(cy + r + 2)], fill=WHITE)  # white ring keeps the coin apart from the paper
-    d.ellipse([u(cx - r), u(cy - r), u(cx + r), u(cy + r)], fill=GOLD)
+    im.paste(RED, (u(mx), u(RY0 + 4)), mark_mask(15))  # the brand mark in restaurant red
+    for y0, x1 in ((RY0 + 22, RX1 - 6), (RY0 + 26.5, RX1 - 13)):
+        d.rounded_rectangle([u(RX0 + 6), u(y0), u(x1), u(y0 + 2)], radius=u(1), fill=TINT)
+    # the gold coin: drop shadow, dark rim, bright face with a soft highlight, black fork and knife
+    d.ellipse([u(cx - r + 0.4), u(cy - r + 1.2), u(cx + r + 0.4), u(cy + r + 1.2)], fill=(0, 0, 0, 60))
+    d.ellipse([u(cx - r), u(cy - r), u(cx + r), u(cy + r)], fill=(176, 120, 0))
+    d.ellipse([u(cx - r + 0.9), u(cy - r + 0.9), u(cx + r - 0.9), u(cy + r - 0.9)], fill=GOLD)
+    d.ellipse([u(cx - r + 1.6), u(cy - r + 1.6), u(cx + r - 1.6), u(cy + r - 1.6)], outline=(255, 214, 90), width=u(0.35))
     cutlery(d, cx, cy, BLACK)
     return im
 

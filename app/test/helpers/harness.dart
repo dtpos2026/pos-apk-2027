@@ -73,6 +73,9 @@ class FakeShare implements ShareService {
   Future<void> shareText(String text, {String? subject}) async => shared.add(text);
   @override
   Future<void> shareFile(String path, {String? mimeType, String? subject}) async => files.add(path);
+  final multi = <({List<String> paths, String? text})>[];
+  @override
+  Future<void> shareFiles(List<String> paths, {String? text, String? mimeType, String? subject}) async => multi.add((paths: paths, text: text));
 }
 
 /// Stands in for Android's Downloads / gallery: remembers what was saved and where.

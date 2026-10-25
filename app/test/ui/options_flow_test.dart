@@ -21,18 +21,12 @@ void main() {
     await openTab(t, 'menu', 'Menu');
     await tapKey(t, 'add-item');
     await typeInto(t, find.byKey(const ValueKey('item-name')), 'Pizza');
-    await typeInto(t, find.byKey(const ValueKey('item-price')), '800');
     await typeInto(t, find.byKey(const ValueKey('item-category')), 'Pizza');
-    await tapKey(t, 'item-save');
-    await t.tap(find.byKey(const ValueKey('menu-Pizza')));
-    await t.pumpAndSettle();
-    await tapKey(t, 'edit-variants');
-    await tapKey(t, 'var-quick-Small');
-    await tapKey(t, 'var-add');
-    await typeInto(t, find.byKey(const ValueKey('var-price-0')), '600');
-    await typeInto(t, find.byKey(const ValueKey('var-name-1')), 'Large');
-    await typeInto(t, find.byKey(const ValueKey('var-price-1')), '1100');
-    await tapKey(t, 'var-save');
+    await tapKey(t, 'mode-size'); // the usual sizes appear, ready for prices (as in DT Enterprise)
+    await typeInto(t, find.byKey(const ValueKey('size-price-0')), '600');
+    await typeInto(t, find.byKey(const ValueKey('size-price-2')), '1100');
+    await tapKey(t, 'size-del-3'); // no Extra Large
+    await tapKey(t, 'size-del-1'); // no Medium
     await tapKey(t, 'edit-addons');
     await tapKey(t, 'new-group');
     await typeInto(t, find.byKey(const ValueKey('f-name')), 'Toppings');

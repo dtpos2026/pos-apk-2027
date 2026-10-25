@@ -78,7 +78,7 @@ class DashboardService {
   }
 
   Future<DashboardData> load() async {
-    final today = h.businessDate;
+    final today = await h.openBusinessDate(); // after the day is closed, "today" starts again from zero
     final from7 = dateMinus(today, 6);
     final t = (await h.q("SELECT COUNT(*) AS n, COALESCE(SUM(total_minor),0) AS gross, COALESCE(SUM(discount_minor),0) AS disc FROM \"order\" WHERE business_date = ? AND status IN ('paid','void','refunded')", [today])).first;
     final refunds = (await h.q('SELECT COALESCE(SUM(r.amount_minor),0) AS s FROM refund r JOIN "order" o ON o.id = r.order_id WHERE o.business_date = ?', [today])).first['s'] as int;

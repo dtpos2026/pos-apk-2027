@@ -7,7 +7,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -19,6 +19,7 @@ class AppDatabase extends _$AppDatabase {
           if (from < 6) await migrateToV6(this);
           if (from < 7) await migrateToV7(this);
           if (from < 8) await migrateToV8(this);
+          if (from < 9) await migrateToV9(this);
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
@@ -52,6 +53,31 @@ Future<void> migrateToV2(AppDatabase db) async {
   ]) {
     await db.customStatement(sql);
   }
+}
+
+/// Version 9: delivery orders (status chain + history), a city for customers, a description for menu items. Mirrors docs/schema/local.sql.
+Future<void> migrateToV9(AppDatabase db) async {
+  for (final c in const [('customer', 'city', 'TEXT'), ('product', 'description', 'TEXT'), ('product', 'ask_price', 'INTEGER NOT NULL DEFAULT 0')]) {
+    final cols = await db.customSelect('PRAGMA table_info(${c.$1})').get();
+    if (!cols.any((x) => x.data['name'] == c.$2)) await db.customStatement('ALTER TABLE ${c.$1} ADD COLUMN ${c.$2} ${c.$3}');
+  }
+  await db.customStatement("""CREATE TABLE IF NOT EXISTS order_source (
+  id TEXT PRIMARY KEY, name TEXT NOT NULL, kind TEXT NOT NULL DEFAULT 'direct' CHECK (kind IN ('direct','platform')),
+  active INTEGER NOT NULL DEFAULT 1, sort INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL, deleted_at INTEGER
+)""");
+  await db.customStatement("""CREATE TABLE IF NOT EXISTS delivery_info (
+  order_id TEXT PRIMARY KEY REFERENCES "order"(id),
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','confirmed','preparing','ready','dispatched','delivered','cancelled')),
+  city TEXT, channel TEXT NOT NULL DEFAULT 'phone', customer_name TEXT, note TEXT,
+  source_id TEXT REFERENCES order_source(id), platform_ref TEXT,
+  fulfilment TEXT NOT NULL DEFAULT 'delivery' CHECK (fulfilment IN ('delivery','pickup')),
+  updated_at INTEGER NOT NULL
+)""");
+  await db.customStatement("""CREATE TABLE IF NOT EXISTS delivery_status_log (
+  id TEXT PRIMARY KEY, order_id TEXT NOT NULL REFERENCES "order"(id),
+  status TEXT NOT NULL, staff_id TEXT REFERENCES staff(id), created_at INTEGER NOT NULL
+)""");
+  await db.customStatement('CREATE INDEX IF NOT EXISTS delivery_status_log_ix ON delivery_status_log(order_id, created_at)');
 }
 
 /// Version 8: which account (cash, bank, wallet) a purchase or a supplier payment was paid from. Mirrors docs/schema/local.sql.

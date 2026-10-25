@@ -18,18 +18,13 @@ void main() {
     await openTab(t, 'menu', 'Menu');
     await tapKey(t, 'add-item');
     await typeInto(t, find.byKey(const ValueKey('item-name')), 'Pizza');
-    await typeInto(t, find.byKey(const ValueKey('item-price')), '800');
     await typeInto(t, find.byKey(const ValueKey('item-category')), 'Pizza');
-    await tapKey(t, 'item-save');
-    await t.tap(find.byKey(const ValueKey('menu-Pizza')));
-    await t.pumpAndSettle();
-    await tapKey(t, 'edit-variants');
-    await tapKey(t, 'var-quick-Small');
-    await tapKey(t, 'var-quick-Large');
-    await typeInto(t, find.byKey(const ValueKey('var-price-0')), '600');
-    await typeInto(t, find.byKey(const ValueKey('var-price-1')), '1100');
+    await tapKey(t, 'mode-size');
+    await typeInto(t, find.byKey(const ValueKey('size-price-0')), '600');
+    await typeInto(t, find.byKey(const ValueKey('size-price-2')), '1100');
+    await tapKey(t, 'size-del-3');
+    await tapKey(t, 'size-del-1');
     await shot(t, '94_variants_rows');
-    await tapKey(t, 'var-save');
     await tapKey(t, 'item-save');
 
     // the Recipes screen: one row per size

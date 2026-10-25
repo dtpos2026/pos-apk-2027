@@ -2,11 +2,12 @@ import 'db_helper.dart';
 import 'pos_service.dart' show PosException;
 
 class CustomerRow {
-  const CustomerRow({required this.id, required this.name, this.phone, this.address, this.imagePath, required this.creditLimitMinor, required this.balanceMinor});
+  const CustomerRow({required this.id, required this.name, this.phone, this.address, this.city, this.imagePath, required this.creditLimitMinor, required this.balanceMinor});
   final String id;
   final String name;
   final String? phone;
   final String? address;
+  final String? city;
   final String? imagePath;
   final int creditLimitMinor;
 
@@ -32,7 +33,7 @@ class CustomerService {
   CustomerService(this.h);
   final DbHelper h;
 
-  Future<String> save({String? id, required String name, String? phone, String? address, int creditLimitMinor = 0, required String staffId}) => h.db.transaction(() async {
+  Future<String> save({String? id, required String name, String? phone, String? address, String? city, int creditLimitMinor = 0, required String staffId}) => h.db.transaction(() async {
         if (name.trim().isEmpty) throw PosException('name_required', 'Name is required');
         if (creditLimitMinor < 0) throw PosException('bad_amount', 'Credit limit cannot be negative');
         final p = phone?.trim().isEmpty ?? true ? null : phone!.trim();
@@ -42,9 +43,9 @@ class CustomerService {
         }
         final cid = id ?? h.id;
         if (id == null) {
-          await h.exec('INSERT INTO customer(id, name, phone, address, credit_limit_minor, updated_at) VALUES (?,?,?,?,?,?)', [cid, name.trim(), p, address?.trim(), creditLimitMinor, h.ts]);
+          await h.exec('INSERT INTO customer(id, name, phone, address, city, credit_limit_minor, updated_at) VALUES (?,?,?,?,?,?,?)', [cid, name.trim(), p, address?.trim(), (city ?? '').trim().isEmpty ? null : city!.trim(), creditLimitMinor, h.ts]);
         } else {
-          await h.exec('UPDATE customer SET name=?, phone=?, address=?, credit_limit_minor=?, updated_at=?, version=version+1 WHERE id=?', [name.trim(), p, address?.trim(), creditLimitMinor, h.ts, id]);
+          await h.exec('UPDATE customer SET name=?, phone=?, address=?, city=COALESCE(?, city), credit_limit_minor=?, updated_at=?, version=version+1 WHERE id=?', [name.trim(), p, address?.trim(), city?.trim(), creditLimitMinor, h.ts, id]);
         }
         final v = await h.intValue('SELECT version FROM customer WHERE id = ?', [cid]);
         await h.outbox('customer', cid, 'upsert', {'id': cid, 'name': name.trim(), 'phone': p}, 'customer:$cid:v$v', version: v);
@@ -56,10 +57,10 @@ class CustomerService {
   Future<List<CustomerRow>> list({String search = ''}) async {
     final like = '%${search.trim()}%';
     final rows = await h.q(
-        'SELECT c.id, c.name, c.phone, c.address, c.image_path, c.credit_limit_minor, COALESCE((SELECT SUM(amount_minor) FROM customer_ledger WHERE customer_id = c.id),0) AS bal '
+        'SELECT c.id, c.name, c.phone, c.address, c.city, c.image_path, c.credit_limit_minor, COALESCE((SELECT SUM(amount_minor) FROM customer_ledger WHERE customer_id = c.id),0) AS bal '
         'FROM customer c WHERE c.deleted_at IS NULL AND (c.name LIKE ? OR c.phone LIKE ?) ORDER BY c.name',
         [like, like]);
-    return [for (final r in rows) CustomerRow(id: r['id'] as String, name: r['name'] as String, phone: r['phone'] as String?, address: r['address'] as String?, imagePath: r['image_path'] as String?, creditLimitMinor: r['credit_limit_minor'] as int, balanceMinor: r['bal'] as int)];
+    return [for (final r in rows) CustomerRow(id: r['id'] as String, name: r['name'] as String, phone: r['phone'] as String?, address: r['address'] as String?, city: r['city'] as String?, imagePath: r['image_path'] as String?, creditLimitMinor: r['credit_limit_minor'] as int, balanceMinor: r['bal'] as int)];
   }
 
   /// Newest first, each entry with its bill number and the balance after it (so the list can show a running balance).

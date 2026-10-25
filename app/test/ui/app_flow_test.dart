@@ -62,7 +62,7 @@ void main() {
     await seedBusiness(db);
     final h = await pumpApp(t, db: db);
     await signIn(t, 'Ali', '1234');
-    expect(find.text('Open a shift to start selling'), findsOneWidget);
+    expect(find.text('Start the day to begin selling'), findsOneWidget);
     await shot(t, '04_shift_required');
 
     await tapKey(t, 'open-shift');

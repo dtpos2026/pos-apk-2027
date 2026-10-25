@@ -71,7 +71,8 @@ class CartPanel extends ConsumerWidget {
     final cart = ref.read(cartProvider);
     if (cart.orderType != 'dine_in') return true;
     final waiters = await ref.read(teamServiceProvider).waiters(activeOnly: true);
-    if (cart.tableId != null && (waiters.isEmpty || cart.waiterId != null)) return true;
+    // as in DT Enterprise: only a missing table opens the window (the waiter stays optional, never asked twice)
+    if (cart.tableId != null) return true;
     final tables = (await ref.read(tableServiceProvider).tables()).where((x) => x.status == 'free' || x.id == cart.tableId).toList();
     if (!context.mounted) return false;
     final r = await showDialog<({String table, String? waiter})>(
@@ -152,7 +153,7 @@ class CartPanel extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
             child: Row(children: [
               Expanded(child: Text(t['current_order'], style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700))),
-              OutlinedButton.icon(key: const ValueKey('close-shift'), onPressed: () => closeShiftDialog(context, ref), icon: const Icon(Icons.lock_outline, size: 18), label: Text(t['close_shift'])),
+              if (ref.watch(sessionProvider)?.can('day.close') ?? false) OutlinedButton.icon(key: const ValueKey('close-shift'), onPressed: () => closeDayFromPos(context, ref), icon: const Icon(Icons.lock_outline, size: 18), label: Text(t['close_shift'])),
               if (inSheet) IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
             ]),
           ),
@@ -163,7 +164,11 @@ class CartPanel extends ConsumerWidget {
               style: const ButtonStyle(visualDensity: VisualDensity.compact, padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 4))),
               segments: [for (final k in (ref.watch(quickCounterProvider).value ?? false) ? ['counter', 'takeaway'] : ['dine_in', 'takeaway', 'delivery', 'counter']) ButtonSegment(value: k, label: Text(t[k], maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)))],
               selected: {cart.orderType},
-              onSelectionChanged: (s) => notifier.setOrderType(s.first),
+              onSelectionChanged: (s) {
+                notifier.setOrderType(s.first);
+                // choosing Dine-in asks for the table (and waiter) at once, like DT Enterprise
+                if (s.first == 'dine_in' && cart.tableId == null) _ensureDineIn(context, ref, notifier, t);
+              },
             ),
           ),
           if (cart.orderType == 'delivery') DeliveryCard(key: ValueKey('dlv-${cart.draftId}')),
@@ -302,7 +307,10 @@ class CartPanel extends ConsumerWidget {
                   ]),
               ]),
               const SizedBox(height: 8),
-              SizedBox(width: double.infinity, child: FilledButton(key: const ValueKey('charge'), onPressed: cart.isEmpty ? null : () => showCheckout(context, ref, closeParent: inSheet), child: Text('${t['charge']}  ·  ${ref.money(bill.totalMinor)}'))),
+              SizedBox(width: double.infinity, child: FilledButton(key: const ValueKey('charge'), onPressed: cart.isEmpty ? null : () async {
+                if (!await _ensureDineIn(context, ref, notifier, t)) return;
+                if (context.mounted) showCheckout(context, ref, closeParent: inSheet);
+              }, child: Text('${t['charge']}  ·  ${ref.money(bill.totalMinor)}'))),
             ]),
           ),
         ]),

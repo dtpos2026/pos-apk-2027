@@ -1,4 +1,4 @@
-import '../online/online_orders_screen.dart';
+import '../online/delivery_orders_screen.dart';
 import '../../app/theme.dart';
 import '../cloud/notices.dart';
 import '../kitchen/kitchen_screen.dart';

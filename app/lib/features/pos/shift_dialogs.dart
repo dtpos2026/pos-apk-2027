@@ -6,6 +6,7 @@ import '../../app/format.dart';
 import '../../app/providers.dart';
 import '../../app/strings.dart';
 import '../../domain/money.dart';
+import '../reports/day_close_screen.dart';
 
 Future<int?> _askAmount(BuildContext context, WidgetRef ref, String title, String label, {String initial = ''}) {
   final c = TextEditingController(text: initial);
@@ -30,18 +31,11 @@ Future<void> openShiftDialog(BuildContext context, WidgetRef ref) async {
   await ref.read(shiftProvider.notifier).open(amount);
 }
 
-Future<void> closeShiftDialog(BuildContext context, WidgetRef ref) async {
-  final t = Strings.of(context);
-  final amount = await _askAmount(context, ref, t['close_shift'], t['counted_cash']);
-  if (amount == null) return;
-  final variance = await ref.read(shiftProvider.notifier).close(amount);
+/// "Close day" on the sell screen: opens the end-of-day report for the open business date. Closing it ends the cash drawer
+/// for the day too, and the next sale starts a fresh day (Today's sales shows zero; the closed day stays in Reports).
+Future<void> closeDayFromPos(BuildContext context, WidgetRef ref) async {
+  final date = await ref.read(dbHelperProvider).openBusinessDate();
   if (!context.mounted) return;
-  await showDialog<void>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: Text(t['variance']),
-      content: Text(ref.money(variance), key: const ValueKey('variance'), style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: variance == 0 ? Colors.green : Theme.of(ctx).colorScheme.error)),
-      actions: [FilledButton(onPressed: () => Navigator.pop(ctx), child: Text(t['ok']))],
-    ),
-  );
+  await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => DayCloseScreen(date: date)));
+  await ref.read(shiftProvider.notifier).refresh();
 }

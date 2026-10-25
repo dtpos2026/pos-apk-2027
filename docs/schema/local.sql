@@ -82,7 +82,9 @@ CREATE TABLE product (
   available INTEGER NOT NULL DEFAULT 1, track_stock INTEGER NOT NULL DEFAULT 0,
   kind TEXT NOT NULL DEFAULT 'item' CHECK (kind IN ('item','combo')),
   station TEXT,                             -- counter/station override (tandoor, tea, bbq...); null = the category's station
-  version INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL, deleted_at INTEGER
+  version INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL, deleted_at INTEGER,
+  description TEXT,                         -- a line about the dish, printed on the shared menu picture
+  ask_price INTEGER NOT NULL DEFAULT 0      -- 1 = the cashier types the price when selling it (open price)
 );
 CREATE UNIQUE INDEX product_sku_uq ON product(sku) WHERE sku IS NOT NULL AND deleted_at IS NULL;
 CREATE INDEX product_barcode_ix ON product(barcode) WHERE barcode IS NOT NULL;
@@ -125,6 +127,24 @@ CREATE TABLE team_member (                 -- delivery riders and dine-in waiter
   version INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL, deleted_at INTEGER
 );
 
+CREATE TABLE order_source (                 -- where an order came from: direct (the restaurant's own) or a third-party platform; editable in Settings
+  id TEXT PRIMARY KEY, name TEXT NOT NULL, kind TEXT NOT NULL DEFAULT 'direct' CHECK (kind IN ('direct','platform')),
+  active INTEGER NOT NULL DEFAULT 1, sort INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL, deleted_at INTEGER
+);
+CREATE TABLE delivery_info (                -- the delivery side of an order: where it is in the chain, who ordered, where it came from
+  order_id TEXT PRIMARY KEY REFERENCES "order"(id),
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','confirmed','preparing','ready','dispatched','delivered','cancelled')),
+  city TEXT, channel TEXT NOT NULL DEFAULT 'phone', customer_name TEXT, note TEXT,
+  source_id TEXT REFERENCES order_source(id), platform_ref TEXT,   -- the platform's own order number
+  fulfilment TEXT NOT NULL DEFAULT 'delivery' CHECK (fulfilment IN ('delivery','pickup')),
+  updated_at INTEGER NOT NULL
+);
+CREATE TABLE delivery_status_log (          -- append-only history of every status an order went through
+  id TEXT PRIMARY KEY, order_id TEXT NOT NULL REFERENCES "order"(id),
+  status TEXT NOT NULL, staff_id TEXT REFERENCES staff(id), created_at INTEGER NOT NULL
+);
+CREATE INDEX delivery_status_log_ix ON delivery_status_log(order_id, created_at);
+
 CREATE TABLE combo_item (                   -- components of a product with kind = 'combo'
   combo_id TEXT NOT NULL REFERENCES product(id),
   product_id TEXT NOT NULL REFERENCES product(id),
@@ -157,7 +177,8 @@ CREATE TABLE dining_table (
 CREATE TABLE customer (
   id TEXT PRIMARY KEY, name TEXT NOT NULL, phone TEXT, address TEXT, notes TEXT, image_path TEXT,
   credit_limit_minor INTEGER NOT NULL DEFAULT 0, loyalty_points INTEGER NOT NULL DEFAULT 0,
-  version INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL, deleted_at INTEGER
+  version INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL, deleted_at INTEGER,
+  city TEXT
 );
 CREATE INDEX customer_phone_ix ON customer(phone);
 
