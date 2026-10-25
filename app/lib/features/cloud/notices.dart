@@ -9,6 +9,7 @@ import '../../cloud/access_controller.dart';
 import '../../cloud/cloud_gateway.dart';
 import '../../data/queries.dart';
 import '../../data/receipt_loader.dart' show formatDateTime;
+import 'background_notices.dart';
 
 /// Notices from Digital Target for this restaurant. Empty without internet or sign-in; they arrive live while online.
 final noticesProvider = StreamProvider.autoDispose<List<AppNotice>>((ref) {
@@ -39,7 +40,7 @@ class NoticeClearedNotifier extends AsyncNotifier<int> {
 final noticeClearedProvider = AsyncNotifierProvider<NoticeClearedNotifier, int>(NoticeClearedNotifier.new);
 
 /// Shows each new notice in the phone's status bar (once), when the owner allowed it. Renders nothing.
-/// Notices arrive live while the app is running; this build has no push service for a fully closed app.
+/// While the app is closed, a short check about every 15 minutes (BackgroundNotices) shows new ones, so they can come a few minutes late.
 class NoticePusher extends ConsumerStatefulWidget {
   const NoticePusher({super.key});
   @override
@@ -67,6 +68,8 @@ class _NoticePusherState extends ConsumerState<NoticePusher> {
       }
       // the very first reading is only a baseline: notices that already exist are not announced again
       if (pushed == null || newest > pushed) await setSetting(db, _pushedKey, '$newest', ref.read(clockProvider)().millisecondsSinceEpoch);
+      // the closed-app check must not show again what the open app has already shown
+      await BackgroundNotices.markPushed(newest);
     } finally {
       _busy = false;
     }
@@ -78,6 +81,9 @@ class _NoticePusherState extends ConsumerState<NoticePusher> {
       final v = next.value;
       if (v != null) _push(v);
     });
+    // checking for notices while the app is closed follows the owner's "notices" switch
+    final on = ref.watch(feedbackPrefsProvider).value?.notices ?? true;
+    BackgroundNotices.sync(enabled: on && ref.watch(cloudGatewayProvider) != null);
     return const SizedBox.shrink();
   }
 }

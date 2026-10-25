@@ -171,6 +171,15 @@ class FirebaseGateway implements CloudGateway {
         return list;
       });
 
+  /// One read from the server (not the cache); used by the background check while the app is closed.
+  Future<List<AppNotice>> fetchNotices(String uid) async {
+    final q = await _db.collection('notifications').where('target', whereIn: ['all', uid]).get(const GetOptions(source: Source.server));
+    return [
+      for (final d in q.docs)
+        AppNotice(id: d.id, title: (d.data()['title'] as String?) ?? '', body: (d.data()['body'] as String?) ?? '', kind: (d.data()['kind'] as String?) ?? 'info', at: _date(d.data()['createdAt'])),
+    ]..sort((a, b) => (b.at ?? DateTime(0)).compareTo(a.at ?? DateTime(0)));
+  }
+
   @override
   Future<void> sendSupport(String uid, String businessName, String text) => _guard(() async {
         final b = _db.batch();
