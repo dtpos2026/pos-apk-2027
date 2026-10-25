@@ -112,19 +112,6 @@ class FirebaseGateway implements CloudGateway {
       });
 
   @override
-  Future<void> pushOps(String uid, List<CloudOp> ops) => _guard(() async {
-        for (var i = 0; i < ops.length; i += 400) {
-          final batch = _db.batch();
-          for (final o in ops.skip(i).take(400)) {
-            batch.set(_db.collection('backup').doc(uid).collection('ops').doc(o.key.replaceAll('/', '_')), {
-              'entity': o.entity, 'entityId': o.entityId, 'op': o.op, 'payload': o.payload, if (o.version != null) 'version': o.version, 'at': FieldValue.serverTimestamp(),
-            });
-          }
-          await batch.commit();
-        }
-      });
-
-  @override
   Future<void> reportPastDays(String uid, List<DayTotals> days) => _guard(() async {
         if (days.isEmpty) return;
         final batch = _db.batch();

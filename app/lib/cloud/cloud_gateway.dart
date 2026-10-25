@@ -69,17 +69,6 @@ class DeviceInfoReport {
   final DateTime? locationAt;
 }
 
-/// One change from the phone's outbox, as stored in the owner's private cloud copy.
-class CloudOp {
-  const CloudOp({required this.key, required this.entity, required this.entityId, required this.op, required this.payload, this.version});
-  final String key;
-  final String entity;
-  final String entityId;
-  final String op;
-  final String payload;
-  final int? version;
-}
-
 /// A problem with a human-readable message, already in plain words.
 class CloudException implements Exception {
   const CloudException(this.message);
@@ -109,9 +98,6 @@ abstract class CloudGateway {
   /// was offline and refunds made after the day ended.
   Future<void> reportPastDays(String uid, List<DayTotals> days);
 
-  /// Appends changes to the owner's private cloud copy (only when the owner switched it on). One document per key, so a
-  /// repeat never duplicates anything. Throws when offline.
-  Future<void> pushOps(String uid, List<CloudOp> ops);
 
   Stream<List<SupportMessage>> watchSupport(String uid);
   Future<void> sendSupport(String uid, String businessName, String text);

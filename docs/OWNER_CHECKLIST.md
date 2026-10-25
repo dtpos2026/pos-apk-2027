@@ -22,7 +22,7 @@ Every request from the owner in this project, in order, with its status. Updated
 - Backup, PDF, PNG, CSV saved to the phone (Downloads / gallery): Android code not yet tried on a phone
 - Themes: Restaurant Red default, Restaurant Red 2 (#C41414), 15 more; Theme Studio (colours, gradient, shadow, borders, buttons, fonts, text size, contrast guard); edit any label
 - Staff attendance and wages, purchase orders, online / phone orders, menu share, WhatsApp order QR
-- Optional private cloud copy (push-only)
+- (Removed on the owner's instruction) cloud copy of business data: the data never leaves the phone
 - Super Admin panel (Salon-style): restaurants, plans, licence states, modules, theme assign / lock, phones map, support, invoices, reminders, admins, audit
 
 ## Not done yet (in the order I will do them)

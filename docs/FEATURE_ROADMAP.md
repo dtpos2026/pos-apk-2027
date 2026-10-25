@@ -20,10 +20,10 @@ from the Super Admin "App features" card).
 ## Also done
 - Token department / item / piece stubs; staff attendance and wages; purchase orders
 - Online / phone / delivery-app orders (typed in), menu share, WhatsApp-order QR
-- Optional private cloud copy (push-only, off by default)
+- (Removed on the owner's instruction) cloud copy of business data
 
 ## Future (in order)
-1. Restore from the cloud copy on a new phone, then live multi-device sync (needs conflict rules and real-device tests)
+1. (Dropped: no cloud copy, the app stays offline)
 2. Customer self-ordering page (QR menu) served online and feeding the online-orders inbox
 3. Delivery rider assignment and tracking
 4. Multi-branch reports

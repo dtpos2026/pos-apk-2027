@@ -21,7 +21,7 @@ Status of each part of the master spec. **Done** = built and covered by automate
 | 15 | Support, tutorials | **Not started** | |
 | 16-22 | Super-admin: restaurants, themes, licence states, admin permissions, audit cleanup, invoices + verification, notifications | Partial | Salon-style panel, licence states (active / payment pending / suspended / blocked / expired), module + theme control, device map exist. Per-admin module permissions, audit cleanup, invoice PNG + verification page, notifications, push: **not started** |
 | 23 | Profile / login | Partial | Red branding done; circular logo frame and re-login behaviour not reviewed |
-| 24 | Offline-first + sync | Partial | Fully offline; optional private cloud copy (push-only). No pull / multi-device sync |
+| 24 | Offline-first + sync | Partial | Fully offline BY DESIGN: the restaurant's data (menu, customers, bills, stock) is never uploaded. Firebase only carries licence/account state, device info, daily sales totals, support chat and DT invoices for the Super Admin panel |
 | — | KOT / token / bill print switches | Done | Separate masters and automatic switches, per order type, manual Print KOT / Token / Bill |
 | — | Theme customisation | Done | Theme Studio (colours, gradient, shadow, borders, buttons, fonts, text size, contrast guard, live preview) and an editor for any label |
 | — | Day Close bug | Fixed | See docs/QA_REPORT.md row 47 |

@@ -17,7 +17,6 @@ import '../../cloud/access_controller.dart';
 import '../../cloud/location_consent.dart';
 import '../common/dialogs.dart';
 import '../../app/strings.dart';
-import '../../cloud/cloud_copy.dart';
 import '../../data/backup_service.dart';
 import '../../domain/modules.dart';
 import '../../data/restore.dart';
@@ -140,31 +139,6 @@ class SettingsScreen extends ConsumerWidget {
             onChanged: (v) async {
               final ok = await ref.read(locationConsentProvider.notifier).set(v);
               if (v && !ok && context.mounted) showMessage(context, t['location_denied']);
-            },
-          ),
-        ]),
-      if (ref.watch(cloudGatewayProvider) != null)
-        _Section(t['cloud_copy'], [
-          SwitchListTile(
-            key: const ValueKey('cloud-copy'),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 6),
-            secondary: const Icon(Icons.cloud_upload_outlined),
-            title: Text(t['cloud_copy']),
-            subtitle: Text(t['cloud_copy_hint']),
-            value: ref.watch(cloudCopyProvider).value ?? false,
-            onChanged: (v) async {
-              if (v) {
-                final ok = await showDialog<bool>(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: Text(t['cloud_copy']),
-                    content: Text(t['cloud_copy_confirm']),
-                    actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(t['cancel'])), FilledButton(key: const ValueKey('cloud-copy-yes'), onPressed: () => Navigator.pop(ctx, true), child: Text(t['turn_on']))],
-                  ),
-                );
-                if (ok != true) return;
-              }
-              await ref.read(cloudCopyProvider.notifier).set(v);
             },
           ),
         ]),
