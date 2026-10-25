@@ -29,6 +29,8 @@ class DtFoodPosApp extends ConsumerWidget {
     final preset = themeId == 'studio' ? (style ?? ThemeStyle.defaults).toPreset() : presetById(themeId);
     ref.watch(textOverridesProvider); // loads the owner's edited labels
     final revision = ref.watch(textRevisionProvider);
+    final access = ref.watch(accessProvider);
+    final blocked = access is AccessDecided && !access.decision.allowed;
     final fontScale = themeId == 'studio' ? (style ?? ThemeStyle.defaults).fontScale : 1.0;
     return MaterialApp(
       title: 'DT Food POS',
@@ -47,7 +49,25 @@ class DtFoodPosApp extends ConsumerWidget {
         revision: revision,
         child: ColoredBox(
           color: Theme.of(context).scaffoldBackgroundColor,
-          child: TapFeedback(child: SafeArea(top: false, left: false, right: false, child: child ?? const SizedBox.shrink())),
+          // the "blocked / suspended / payment pending" screen is laid over everything, so a change made in the panel shows at once,
+          // also when a page or dialog is open on top of the app
+          child: Stack(children: [
+            Positioned.fill(child: ExcludeFocus(excluding: blocked, child: TapFeedback(child: SafeArea(top: false, left: false, right: false, child: child ?? const SizedBox.shrink())))),
+            if (blocked)
+              Positioned.fill(
+                child: HeroControllerScope.none(
+                  child: Navigator(
+                    key: const ValueKey('access-overlay'),
+                    onGenerateRoute: (_) => MaterialPageRoute<void>(
+                      builder: (_) => Consumer(builder: (context, ref, _) {
+                        final a = ref.watch(accessProvider);
+                        return a is AccessDecided && !a.decision.allowed ? AccessBlockedScreen(state: a) : const SizedBox.shrink();
+                      }),
+                    ),
+                  ),
+                ),
+              ),
+          ]),
         ),
       ),
       ),
@@ -73,7 +93,7 @@ class Gate extends ConsumerWidget {
       case AccessNeedsRegistration(:final user):
         return RegisterBusinessScreen(user: user);
       case AccessDecided d when !d.decision.allowed:
-        return AccessBlockedScreen(state: d);
+        return const SizedBox.shrink(); // shown by the overlay in MaterialApp.builder, above every open page
       case AccessDecided():
         return const CloudReporterHost(child: _LocalGate());
       case AccessOff():

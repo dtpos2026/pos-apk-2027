@@ -135,7 +135,7 @@ void main() {
     test('older passphrase backups still need theirs, and say so', () async {
       final f = await svc.createBackup(passphrase: '000000', dir: tmp);
       expect(BackupService.needsPassphrase(f), isTrue);
-      await expectLater(BackupService.decryptAndVerify(backup: f, passphrase: '0000000', target: File('${tmp.path}/x.db')), throwsA(isA<BackupException>()));
+      await expectLater(BackupService.decryptAndVerify(backup: f, passphrase: '1111111', target: File('${tmp.path}/x.db')), throwsA(isA<BackupException>()));
       await BackupService.decryptAndVerify(backup: f, passphrase: '000000', target: File('${tmp.path}/y.db'));
     });
 
@@ -153,6 +153,16 @@ void main() {
     test('an empty passphrase is allowed, a short one is not', () async {
       await svc.createBackup(dir: tmp);
       await expectLater(svc.createBackup(passphrase: '123', dir: tmp), throwsA(isA<BackupException>()));
+    });
+
+    test('a keyboard that adds a space or a stray character, or types Arabic digits, still opens the backup', () async {
+      final f = await svc.createBackup(passphrase: '000000', dir: tmp);
+      for (final typed in ['0000000', '000000 ', ' 000000', '٠٠٠٠٠٠', '۰۰۰۰۰۰', '0000x00']) {
+        final out = File('${tmp.path}/t${typed.hashCode}.db');
+        await BackupService.decryptAndVerify(backup: f, passphrase: typed, target: out);
+        expect(out.existsSync(), isTrue, reason: 'typed "$typed"');
+      }
+      await expectLater(BackupService.decryptAndVerify(backup: f, passphrase: '111111', target: File('${tmp.path}/z.db')), throwsA(isA<BackupException>()));
     });
   });
 }

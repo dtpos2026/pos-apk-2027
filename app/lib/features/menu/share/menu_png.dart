@@ -253,6 +253,14 @@ Future<List<Uint8List>> renderMenuPng(MenuDoc d, {MenuLabels labels = const Menu
   return out;
 }
 
+/// Where the QR codes go on the 1080-wide poster: [size] of one code, [gap] between neighbouring codes, [top] of the codes.
+/// Each code sits on a card 24 px larger on every side, so the gap leaves clear space between the cards, and the cards start below the title.
+({double size, double gap, double top}) qrCardLayout(int count) => switch (count) {
+      <= 1 => (size: 560.0, gap: 0.0, top: 500.0),
+      2 => (size: 380.0, gap: 72.0, top: 520.0),
+      _ => (size: 260.0, gap: 72.0, top: 520.0),
+    };
+
 /// A poster for the counter or a flyer: the restaurant's name and logo, "Order on WhatsApp", the QR and the number. null when the
 /// restaurant has no WhatsApp number to link to.
 Future<Uint8List?> renderQrCard(MenuDoc d, {MenuLabels labels = const MenuLabels(), List<String> messages = const []}) async {
@@ -279,12 +287,11 @@ Future<Uint8List?> renderQrCard(MenuDoc d, {MenuLabels labels = const MenuLabels
   final name = _tp(d.name, _style(logo == null ? 70 : 58, onPrimary, w: FontWeight.w800), w - 120, maxLines: 2, align: TextAlign.center);
   name.paint(c, Offset(60, ty));
   final title = _tp(labels.orderOnWhatsApp, _style(54, primary, w: FontWeight.w800), w - 120, align: TextAlign.center);
-  title.paint(c, const Offset(60, 400));
+  title.paint(c, const Offset(60, 388));
   QrPainter qrFor(String link) => QrPainter(data: link, version: QrVersions.auto, gapless: true, eyeStyle: QrEyeStyle(eyeShape: QrEyeShape.square, color: primary), dataModuleStyle: const QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square, color: Color(0xFF1F1A1A)));
   final multi = links.length > 1;
-  final qs = multi ? (links.length == 2 ? 380.0 : 290.0) : 560.0;
-  final qy = multi ? 480.0 : 500.0;
-  final gap = multi ? 40.0 : 0.0;
+  final lay = qrCardLayout(links.length);
+  final qs = lay.size, qy = lay.top, gap = lay.gap;
   final totalW = links.length * qs + (links.length - 1) * gap;
   var qx = (w - totalW) / 2;
   for (var i = 0; i < links.length; i++) {

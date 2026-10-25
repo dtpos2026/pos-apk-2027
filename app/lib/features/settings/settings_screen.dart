@@ -402,7 +402,7 @@ class SettingsScreen extends ConsumerWidget {
         content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(t['backup_no_code']),
           const SizedBox(height: 10),
-          TextField(key: const ValueKey('backup-pass'), controller: pass, obscureText: true, decoration: InputDecoration(labelText: t['backup_passphrase_optional'])),
+          TextField(key: const ValueKey('backup-pass'), controller: pass, obscureText: true, autocorrect: false, enableSuggestions: false, keyboardType: TextInputType.visiblePassword, decoration: InputDecoration(labelText: t['backup_passphrase_optional'])),
         ]),
         actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(t['cancel'])), FilledButton(key: const ValueKey('backup-go'), onPressed: () => Navigator.pop(ctx, true), child: Text(t['backup_now']))],
       ),
@@ -412,7 +412,7 @@ class SettingsScreen extends ConsumerWidget {
     try {
       final dir = await ref.read(backupDirProvider.future);
       final f = await ref.read(backupServiceProvider).createBackup(
-        passphrase: pass.text,
+        passphrase: pass.text.trim(),
         dir: dir,
         media: {'menu_images': ref.read(menuImageDirProvider), 'logo': ref.read(logoDirProvider)},
       );
@@ -459,7 +459,7 @@ Future<void> _restore(BuildContext context, WidgetRef ref) async {
             const SizedBox(height: 10),
             Text(t['restore_pass_needed']),
             const SizedBox(height: 6),
-            TextField(key: const ValueKey('restore-pass'), controller: pass, obscureText: true, decoration: InputDecoration(labelText: t['backup_passphrase'])),
+            TextField(key: const ValueKey('restore-pass'), controller: pass, obscureText: true, autocorrect: false, enableSuggestions: false, keyboardType: TextInputType.visiblePassword, decoration: InputDecoration(labelText: t['backup_passphrase'])),
           ],
           if (error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(error!, style: TextStyle(color: Theme.of(ctx).colorScheme.error))),
         ]),

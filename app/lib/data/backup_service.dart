@@ -80,6 +80,24 @@ class BackupService {
     }
   }
 
+  /// What the owner typed, then forgiving variants of it: phone keyboards add a trailing space or a stray character, and some type
+  /// Arabic-Indic / Persian digits. Each is tried against the backup's own checksum, so a wrong guess can never restore wrong data.
+  static List<String> passphraseCandidates(String typed) {
+    const eastern = '٠١٢٣٤٥٦٧٨٩', persian = '۰۱۲۳۴۵۶۷۸۹';
+    final digits = typed.split('').map((c) {
+      final i = eastern.indexOf(c), j = persian.indexOf(c);
+      return i >= 0 ? '$i' : (j >= 0 ? '$j' : c);
+    }).join();
+    final out = <String>{typed, typed.trim(), typed.replaceAll(RegExp(r'\s'), ''), digits, digits.trim(), digits.replaceAll(RegExp(r'\s'), '')};
+    final base = digits.replaceAll(RegExp(r'\s'), '');
+    if (base.length >= 7 && base.length <= 16) {
+      for (var i = 0; i < base.length; i++) {
+        out.add(base.substring(0, i) + base.substring(i + 1)); // one stray character typed by the keyboard
+      }
+    }
+    return [for (final c in out) if (c.length >= 6) c];
+  }
+
   /// True when [backup] was made with a passphrase (DTBAK1/DTBAK2); newer backups, plain zips and database files need none.
   static bool needsPassphrase(File backup) {
     final head = backup.openSync()..setPositionSync(0);
@@ -119,11 +137,17 @@ class BackupService {
       final nonce = bytes.sublist(26, 38);
       final cipher = bytes.sublist(38, bytes.length - 16);
       final mac = bytes.sublist(bytes.length - 16);
-      try {
-        plain = await _aes.decrypt(SecretBox(cipher, nonce: nonce, mac: Mac(mac)), secretKey: await _key(passphrase, salt, iterations));
-      } on SecretBoxAuthenticationError {
-        throw BackupException('Wrong passphrase. Type exactly the one used when this backup was made (check every character), or the file is damaged.');
+      List<int>? opened;
+      for (final candidate in passphraseCandidates(passphrase)) {
+        try {
+          opened = await _aes.decrypt(SecretBox(cipher, nonce: nonce, mac: Mac(mac)), secretKey: await _key(candidate, salt, iterations));
+          break;
+        } on SecretBoxAuthenticationError {
+          continue;
+        }
       }
+      if (opened == null) throw BackupException('Wrong passphrase. Type exactly the one used when this backup was made (check every character), or the file is damaged.');
+      plain = opened;
     } else {
       plain = bytes;
     }

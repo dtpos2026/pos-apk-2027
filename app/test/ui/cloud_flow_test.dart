@@ -99,6 +99,36 @@ void main() {
     h.container.dispose();
   });
 
+  testWidgets('payment pending, suspend and block from the panel cover the app at once, even with a page or dialog open on top', (t) async {
+    final cloud = FakeCloud()..signedIn = true;
+    final db = newDb();
+    await seedBusiness(db);
+    final h = await pumpApp(t, db: db, cloud: cloud);
+    await cloud.signInDirect('owner@cafe.pk');
+    final phoneId = await h.container.read(accessProvider.notifier).phoneId();
+    cloud.serverAccount(account(ok: [phoneId]));
+    await settle(t);
+    // a page and a dialog are open above the app
+    final nav = t.state<NavigatorState>(find.byType(Navigator).first);
+    nav.push(MaterialPageRoute<void>(builder: (_) => const Scaffold(body: Center(child: Text('Open page')))));
+    await t.pumpAndSettle();
+    showDialog<void>(context: nav.context, builder: (_) => const AlertDialog(content: Text('Open dialog')));
+    await t.pumpAndSettle();
+    expect(find.text('Open dialog'), findsOneWidget);
+
+    for (final (status, title) in [('payment_pending', 'Payment pending'), ('suspended', 'Account suspended'), ('blocked', 'Account blocked')]) {
+      cloud.serverAccount(account(status: status, ok: [phoneId], msg: 'Note for $status'));
+      await settle(t);
+      expect(find.text('Note for $status'), findsOneWidget, reason: '$status shows at once');
+      expect(find.text(title), findsOneWidget, reason: status);
+    }
+    cloud.serverAccount(account(ok: [phoneId]));
+    await settle(t);
+    expect(find.text('Note for blocked'), findsNothing);
+    await t.pumpWidget(const SizedBox());
+    h.container.dispose();
+  });
+
   testWidgets('a PIN reset from the panel shows on the sign-in screen at once, the new PIN works, data stays, and it is applied only once', (t) async {
     final cloud = FakeCloud()..signedIn = true;
     final db = newDb();
