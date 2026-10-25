@@ -92,6 +92,9 @@ class FakeCloud implements CloudGateway {
   @override
   Future<void> reportLogo(String uid, String dataUrl) async => logos.add(dataUrl);
   @override
+  Future<void> reportProfile(String uid, String name, String address) async => profiles.add((name, address));
+  final profiles = <(String, String)>[];
+  @override
   Future<void> reportSales(String uid, DayTotals today, String appVersion) async => sales.add(today);
 
   final pastDays = <DayTotals>[];

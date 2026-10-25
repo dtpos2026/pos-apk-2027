@@ -62,6 +62,7 @@ class CloudReporter {
         phoneId: phoneId, model: dev.model, android: dev.android, appVersion: version,
         locationAllowed: share, lat: loc?.lat, lng: loc?.lng, accuracyM: loc?.accuracyM, locationAt: loc?.at, ip: await _localIp(),
       ));
+      await _reportProfile(gw, uid);
       await _reportLogo(gw, uid);
       final today = await totalsFor(now);
       if (today != null) await gw.reportSales(uid, today, version);
@@ -87,6 +88,23 @@ class CloudReporter {
       }
     } catch (_) {}
     return null;
+  }
+
+  /// The restaurant's name and address from the business profile. Sent again only when they changed.
+  Future<void> _reportProfile(CloudGateway gw, String uid) async {
+    try {
+      final db = ref.read(databaseProvider);
+      final biz = await loadBusiness(db);
+      final name = (biz?.name ?? '').trim();
+      if (name.isEmpty) return;
+      final address = (biz?.address ?? '').trim();
+      final stamp = '$name|$address';
+      if (await getSetting(db, 'cloud.profile_key') == stamp) return;
+      await gw.reportProfile(uid, name, address);
+      await setSetting(db, 'cloud.profile_key', stamp, ref.read(clockProvider)().millisecondsSinceEpoch);
+    } catch (_) {
+      // the panel keeps the old name until the next report; never let this stop the rest
+    }
   }
 
   /// The restaurant's logo as a tiny round-pin picture (96 px JPEG, a few KB). Sent again only when the logo file changed.

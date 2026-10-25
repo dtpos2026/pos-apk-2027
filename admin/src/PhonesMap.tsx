@@ -4,7 +4,7 @@ import 'leaflet/dist/leaflet.css';
 import type { Device } from './api';
 import { ago } from './ui';
 
-export interface MapPoint { device: Device; restaurant: string; online: boolean; logo?: string }
+export interface MapPoint { device: Device; restaurant: string; address?: string; online: boolean; logo?: string }
 
 /** A map pin: a round badge with the restaurant's logo (or its first letter), a pointer below, and the name under it. Built with DOM calls only, so names can never inject HTML. */
 export function pinElement(p: MapPoint): HTMLElement {
@@ -48,6 +48,7 @@ export function PhonesMap({ points }: { points: MapPoint[] }) {
       const marker = L.marker([lat, lng], { icon: L.divIcon({ html: pinElement(p), className: 'pin-icon', iconSize: [120, 78], iconAnchor: [60, 50], popupAnchor: [0, -46] }) }).addTo(g);
       const div = document.createElement('div');
       const b = document.createElement('b'); b.textContent = p.restaurant; div.appendChild(b);
+      if (p.address) { div.appendChild(document.createElement('br')); div.appendChild(document.createTextNode(p.address)); }
       div.appendChild(document.createElement('br'));
       div.appendChild(document.createTextNode(`${p.device.model} · ${p.online ? 'online' : 'offline'} · seen ${ago(p.device.lastSeenAt)}`));
       div.appendChild(document.createElement('br'));

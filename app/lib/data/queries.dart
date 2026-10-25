@@ -124,6 +124,22 @@ Future<Session?> loadSession(AppDatabase db, String staffId) async {
 Future<List<MenuCategory>> loadCategories(AppDatabase db) async =>
     [for (final r in await _rows(db, 'SELECT id, name, image_path, station FROM category WHERE deleted_at IS NULL ORDER BY sort, name')) MenuCategory(r['id'] as String, r['name'] as String, imagePath: r['image_path'] as String?, station: r['station'] as String?)];
 
+/// The shop's tax choice (Settings > Tax & service charge). Off unless the owner switches it on: then NO bill carries any tax.
+/// On: one rate for every item, either added on top or already inside the prices.
+class TaxPolicy {
+  const TaxPolicy({this.enabled = false, this.rateBp = 0, this.inclusive = false});
+  final bool enabled;
+  final int rateBp;
+  final bool inclusive;
+  static const keyOn = 'tax.enabled', keyRate = 'tax.rate_bp', keyInclusive = 'tax.inclusive';
+}
+
+Future<TaxPolicy> loadTaxPolicy(AppDatabase db) async => TaxPolicy(
+      enabled: (await getSetting(db, TaxPolicy.keyOn)) == '1',
+      rateBp: int.tryParse(await getSetting(db, TaxPolicy.keyRate) ?? '') ?? 0,
+      inclusive: (await getSetting(db, TaxPolicy.keyInclusive)) == '1',
+    );
+
 Future<List<MenuProduct>> loadProducts(AppDatabase db, {String? categoryId, String search = '', bool includeUnavailable = true}) async {
   final where = <String>['p.deleted_at IS NULL'];
   final args = <Object?>[];
@@ -136,6 +152,7 @@ Future<List<MenuProduct>> loadProducts(AppDatabase db, {String? categoryId, Stri
     args..add('%${search.trim()}%')..add('%${search.trim()}%')..add(search.trim());
   }
   if (!includeUnavailable) where.add('p.available = 1');
+  final tax = await loadTaxPolicy(db);
   final rows = await _rows(
       db,
       'SELECT p.*, c.name AS category_name, COALESCE(p.station, c.station) AS station, p.station AS own_station, EXISTS(SELECT 1 FROM product_variant v WHERE v.product_id = p.id AND v.deleted_at IS NULL) AS has_variants, c.image_path AS category_image, t.rate_bp AS tax_bp, t.inclusive AS tax_inclusive '
@@ -150,8 +167,8 @@ Future<List<MenuProduct>> loadProducts(AppDatabase db, {String? categoryId, Stri
         priceMinor: r['base_price_minor'] as int,
         categoryId: r['category_id'] as String?,
         categoryName: r['category_name'] as String?,
-        taxBp: (r['tax_bp'] as int?) ?? 0,
-        taxInclusive: ((r['tax_inclusive'] as int?) ?? 0) == 1,
+        taxBp: tax.enabled ? tax.rateBp : 0,
+        taxInclusive: tax.enabled && tax.inclusive,
         station: r['station'] as String?,
         ownStation: r['own_station'] as String?,
         available: (r['available'] as int) == 1,

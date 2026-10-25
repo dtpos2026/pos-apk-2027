@@ -274,6 +274,7 @@ class CartPanel extends ConsumerWidget {
               Wrap(spacing: 8, runSpacing: 6, alignment: WrapAlignment.center, children: [
                 OutlinedButton(key: const ValueKey('clear-cart'), onPressed: cart.isEmpty ? null : notifier.clear, child: Text(t['clear'])),
                 if (session.can('discount.apply')) OutlinedButton(key: const ValueKey('discount'), onPressed: cart.isEmpty ? null : () => _discountDialog(context, ref), child: Text(t['discount'])),
+                if (session.can('discount.apply')) OutlinedButton(key: const ValueKey('service'), onPressed: cart.isEmpty ? null : () => _serviceDialog(context, ref), child: Text(t['service_charge'])),
                 OutlinedButton(
                   key: const ValueKey('hold'),
                   onPressed: cart.isEmpty ? null : () async {
@@ -317,6 +318,42 @@ class CartPanel extends ConsumerWidget {
   }
 
 
+  /// A service charge for this bill only: a percentage or an amount of money, typed by the cashier. Clear removes it.
+  Future<void> _serviceDialog(BuildContext context, WidgetRef ref) async {
+    final t = Strings.of(context);
+    final cfg0 = ref.read(cartProvider).config;
+    var percent = cfg0.serviceChargeFixedMinor == 0;
+    final c = TextEditingController(text: percent ? (cfg0.serviceChargeBp == 0 ? '' : formatMinor(cfg0.serviceChargeBp, currency: Currency.pkr, symbol: false).replaceAll(',', '').replaceFirst(RegExp(r'\.0+$'), '')) : formatMinor(cfg0.serviceChargeFixedMinor, currency: ref.currency, symbol: false).replaceAll(',', '').replaceFirst(RegExp(r'\.0+$'), ''));
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          scrollable: true,
+          title: Text(t['service_charge']),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            SegmentedButton<bool>(key: const ValueKey('service-kind'), showSelectedIcon: false, segments: [const ButtonSegment(value: true, label: Text('%')), ButtonSegment(value: false, label: Text(ref.currency.code))], selected: {percent}, onSelectionChanged: (s) => setState(() => percent = s.first)),
+            const SizedBox(height: 12),
+            TextField(key: const ValueKey('service-field'), controller: c, autofocus: true, keyboardType: const TextInputType.numberWithOptions(decimal: true), inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))]),
+          ]),
+          actions: [
+            TextButton(key: const ValueKey('service-clear'), onPressed: () {
+              final n = ref.read(cartProvider.notifier);
+              n.setConfig(ref.read(cartProvider).config.copyWith(serviceChargeBp: 0, serviceChargeFixedMinor: 0));
+              Navigator.pop(ctx);
+            }, child: Text(t['clear'])),
+            FilledButton(key: const ValueKey('service-ok'), onPressed: () {
+              final v = parseMinor(c.text, currency: percent ? Currency.pkr : ref.currency);
+              if (v == null || v <= 0) return;
+              final cfg = ref.read(cartProvider).config;
+              ref.read(cartProvider.notifier).setConfig(percent ? cfg.copyWith(serviceChargeBp: v, serviceChargeFixedMinor: 0) : cfg.copyWith(serviceChargeBp: 0, serviceChargeFixedMinor: v));
+              Navigator.pop(ctx);
+            }, child: Text(t['save'])),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _discountDialog(BuildContext context, WidgetRef ref) async {
     final t = Strings.of(context);
     final c = TextEditingController();
@@ -337,7 +374,7 @@ class CartPanel extends ConsumerWidget {
                 onPressed: () {
                   final n = ref.read(cartProvider.notifier);
                   final cfg = ref.read(cartProvider).config;
-                  n.setConfig(BillConfig(serviceChargeBp: cfg.serviceChargeBp, serviceChargeTaxBp: cfg.serviceChargeTaxBp, deliveryChargeMinor: cfg.deliveryChargeMinor, tipMinor: cfg.tipMinor, rounding: cfg.rounding));
+                  n.setConfig(cfg.copyWith(clearDiscount: true));
                   Navigator.pop(ctx);
                 },
                 child: Text(t['clear'])),
@@ -350,7 +387,7 @@ class CartPanel extends ConsumerWidget {
                   return;
                 }
                 final cfg = ref.read(cartProvider).config;
-                final next = BillConfig(billDiscount: percent ? Discount.percent(v) : Discount.fixed(v), serviceChargeBp: cfg.serviceChargeBp, serviceChargeTaxBp: cfg.serviceChargeTaxBp, deliveryChargeMinor: cfg.deliveryChargeMinor, tipMinor: cfg.tipMinor, rounding: cfg.rounding);
+                final next = cfg.copyWith(billDiscount: percent ? Discount.percent(v) : Discount.fixed(v));
                 try {
                   calculateBill([for (final i in ref.read(cartProvider).items) BillLineInput(id: i.productId, unitPriceMinor: i.unitPriceMinor, qtyMilli: i.qtyMilli, modifiersMinor: i.modifiersMinor, lineDiscountMinor: i.lineDiscountMinor, taxRateBp: i.taxRateBp, taxInclusive: i.taxInclusive)], next);
                 } on ArgumentError catch (e) {

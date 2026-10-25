@@ -1,7 +1,7 @@
 import type { PlanId, Status } from './domain';
 
 export interface Account {
-  uid: string; businessName: string; ownerName: string; phone: string; city: string; country: string; email: string;
+  uid: string; address?: string; businessName: string; ownerName: string; phone: string; city: string; country: string; email: string;
   status: Status; plan: PlanId | null; feeMinor: number; currency: string; expiresAt: Date | null;
   customerId: string | null; businessId: string | null; licenseId: string | null;
   approvedPhones: string[]; phoneRequests: string[]; blockedPhones: string[]; maxPhones: number;

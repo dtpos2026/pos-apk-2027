@@ -193,6 +193,7 @@ class SettingsScreen extends ConsumerWidget {
         const ListTile(dense: true, leading: Icon(Icons.email_outlined), title: Text('digitaltarget.digital@gmail.com')),
         const ListTile(dense: true, leading: Icon(Icons.location_on_outlined), title: Text('Burewala, Pakistan')),
       ]),
+      _Section(t['tax_section'], [const _TaxServiceCard()]),
       _Section(t['sound_section'], [
         SwitchListTile(
           key: const ValueKey('opt-sound'),
@@ -648,4 +649,91 @@ class _Section extends StatelessWidget {
           Card(child: Padding(padding: const EdgeInsets.all(10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children))),
         ]),
       );
+}
+
+
+/// Tax and service charge: both are OFF until the owner switches them on and saves a percentage. Nothing is added to any bill otherwise.
+class _TaxServiceCard extends ConsumerStatefulWidget {
+  const _TaxServiceCard();
+  @override
+  ConsumerState<_TaxServiceCard> createState() => _TaxServiceCardState();
+}
+
+class _TaxServiceCardState extends ConsumerState<_TaxServiceCard> {
+  final _taxRate = TextEditingController();
+  final _serviceRate = TextEditingController();
+  bool _taxOn = false, _inclusive = false, _serviceOn = false, _loaded = false;
+
+  static String _pct(int bp) => bp == 0 ? '' : (bp / 100).toStringAsFixed(2).replaceFirst(RegExp(r'\.?0+$'), '');
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _taxRate.dispose();
+    _serviceRate.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    final db = ref.read(databaseProvider);
+    final tax = await loadTaxPolicy(db);
+    final serviceOn = (await getSetting(db, 'service.auto')) == '1';
+    final sbp = int.tryParse(await getSetting(db, 'service.bp') ?? '') ?? 0;
+    if (!mounted) return;
+    setState(() {
+      _taxOn = tax.enabled;
+      _inclusive = tax.inclusive;
+      _taxRate.text = _pct(tax.rateBp);
+      _serviceOn = serviceOn;
+      _serviceRate.text = _pct(sbp);
+      _loaded = true;
+    });
+  }
+
+  int _bp(String s) => ((double.tryParse(s.trim().replaceAll(',', '.')) ?? 0) * 100).round().clamp(0, 10000);
+
+  Future<void> _save() async {
+    final db = ref.read(databaseProvider);
+    final now = ref.read(clockProvider)().millisecondsSinceEpoch;
+    final t = Strings.of(context);
+    final taxBp = _bp(_taxRate.text), serviceBp = _bp(_serviceRate.text);
+    final taxOn = _taxOn && taxBp > 0, serviceOn = _serviceOn && serviceBp > 0;
+    await setSetting(db, TaxPolicy.keyOn, taxOn ? '1' : '0', now);
+    await setSetting(db, TaxPolicy.keyRate, '$taxBp', now);
+    await setSetting(db, TaxPolicy.keyInclusive, _inclusive ? '1' : '0', now);
+    await setSetting(db, 'service.auto', serviceOn ? '1' : '0', now);
+    await setSetting(db, 'service.bp', '$serviceBp', now);
+    ref.invalidate(productsProvider);
+    ref.invalidate(serviceDefaultProvider);
+    if (!mounted) return;
+    setState(() {
+      _taxOn = taxOn;
+      _serviceOn = serviceOn;
+    });
+    showMessage(context, t['saved']);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Strings.of(context);
+    if (!_loaded) return const SizedBox(height: 60, child: Center(child: CircularProgressIndicator()));
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(t['tax_hint'], style: TextStyle(fontSize: 12.5, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+      SwitchListTile(key: const ValueKey('tax-on'), contentPadding: EdgeInsets.zero, title: Text(t['tax_on']), value: _taxOn, onChanged: (v) => setState(() => _taxOn = v)),
+      if (_taxOn) ...[
+        TextField(key: const ValueKey('tax-rate'), controller: _taxRate, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: InputDecoration(labelText: t['tax_rate'], suffixText: '%', isDense: true)),
+        SwitchListTile(key: const ValueKey('tax-inclusive'), contentPadding: EdgeInsets.zero, dense: true, title: Text(t['tax_inclusive']), subtitle: Text(t['tax_inclusive_hint']), value: _inclusive, onChanged: (v) => setState(() => _inclusive = v)),
+      ],
+      const Divider(),
+      SwitchListTile(key: const ValueKey('service-on'), contentPadding: EdgeInsets.zero, title: Text(t['service_auto']), subtitle: Text(t['service_auto_hint']), value: _serviceOn, onChanged: (v) => setState(() => _serviceOn = v)),
+      if (_serviceOn) TextField(key: const ValueKey('service-rate'), controller: _serviceRate, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: InputDecoration(labelText: t['service_rate'], suffixText: '%', isDense: true)),
+      const SizedBox(height: 8),
+      Align(alignment: AlignmentDirectional.centerEnd, child: FilledButton(key: const ValueKey('tax-save'), onPressed: _save, child: Text(t['save']))),
+    ]);
+  }
 }

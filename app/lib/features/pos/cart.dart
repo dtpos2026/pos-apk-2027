@@ -156,11 +156,19 @@ class CartNotifier extends Notifier<CartState> {
       s.bill;
       return s;
     } on ArgumentError {
-      return s.copyWith(config: BillConfig(serviceChargeBp: s.config.serviceChargeBp, serviceChargeTaxBp: s.config.serviceChargeTaxBp, deliveryChargeMinor: s.config.deliveryChargeMinor, tipMinor: s.config.tipMinor, rounding: s.config.rounding));
+      return s.copyWith(config: s.config.copyWith(clearDiscount: true));
     }
   }
 
+  /// A new bill (first item) starts with the automatic service charge from Settings, if the owner switched it on.
+  CartState _begin() {
+    if (state.items.isNotEmpty || state.config.serviceChargeBp != 0 || state.config.serviceChargeFixedMinor != 0) return state;
+    final bp = ref.read(serviceDefaultProvider).value ?? 0;
+    return bp == 0 ? state : state.copyWith(config: state.config.copyWith(serviceChargeBp: bp));
+  }
+
   void add(MenuProduct p) {
+    state = _begin();
     final i = state.items.indexWhere((x) => x.productId == p.id && x.modifiers.isEmpty && x.note == null && x.lineDiscountMinor == 0);
     final items = [...state.items];
     final step = p.unit == 'kg' || p.unit == 'l' ? 500 : 1000;
@@ -176,6 +184,7 @@ class CartNotifier extends Notifier<CartState> {
 
   /// Adds a product sold by weight or volume with the exact quantity (thousandths of its unit). The same product adds up on one line.
   void addWeighed(MenuProduct p, int qtyMilli) {
+    state = _begin();
     final i = state.items.indexWhere((x) => x.productId == p.id && x.modifiers.isEmpty && x.note == null && x.lineDiscountMinor == 0);
     final items = [...state.items];
     if (i >= 0) {
@@ -200,6 +209,7 @@ class CartNotifier extends Notifier<CartState> {
 
   /// Adds an item that was configured (variant, add-ons, note). The same configuration merges into one line.
   void addConfigured(CartItem item) {
+    state = _begin();
     String key(CartItem i) => '${i.productId}|${i.variantId}|${(i.modifiers.map((m) => m.optionId ?? m.name).toList()..sort()).join(',')}|${i.note ?? ''}';
     final items = [...state.items];
     final i = items.indexWhere((x) => key(x) == key(item) && x.lineDiscountMinor == 0);

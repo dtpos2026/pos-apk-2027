@@ -255,3 +255,14 @@ describe('notifications (the bell in the app)', () => {
     await assertSucceeds(deleteDoc(doc(as('adm'), 'notifications/n1')));
   });
 });
+
+describe('restaurant name and address', () => {
+  it('the restaurant may update its own name and address (not empty, not too long), nothing else about itself', async () => {
+    await seed((db) => setDoc(doc(db, 'accounts/u1'), newAccount()));
+    await assertSucceeds(updateDoc(doc(as('u1'), 'accounts/u1'), { businessName: 'Takeaway Pizza', address: 'Sadar Bazar, Narang' }));
+    await assertFails(updateDoc(doc(as('u1'), 'accounts/u1'), { businessName: '' }));
+    await assertFails(updateDoc(doc(as('u1'), 'accounts/u1'), { businessName: 'x'.repeat(121) }));
+    await assertFails(updateDoc(doc(as('u1'), 'accounts/u1'), { status: 'active' }));
+    await assertFails(updateDoc(doc(as('u2'), 'accounts/u1'), { businessName: 'Hijack' }));
+  });
+});

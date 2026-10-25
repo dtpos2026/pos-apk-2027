@@ -52,6 +52,7 @@ class BillConfig {
   const BillConfig({
     this.billDiscount,
     this.serviceChargeBp = 0,
+    this.serviceChargeFixedMinor = 0,
     this.serviceChargeTaxBp = 0,
     this.deliveryChargeMinor = 0,
     this.tipMinor = 0,
@@ -60,11 +61,25 @@ class BillConfig {
   final Discount? billDiscount;
   final int serviceChargeBp;
 
+  /// A service charge in money (added to the percentage one): set by hand on a bill.
+  final int serviceChargeFixedMinor;
+
   /// Tax added on top of the service charge (0 = service charge is not taxed).
   final int serviceChargeTaxBp;
   final int deliveryChargeMinor;
   final int tipMinor;
   final RoundingMode rounding;
+
+  /// A copy with some fields changed; [clearDiscount] removes the bill discount.
+  BillConfig copyWith({Discount? billDiscount, bool clearDiscount = false, int? serviceChargeBp, int? serviceChargeFixedMinor, int? serviceChargeTaxBp, int? deliveryChargeMinor, int? tipMinor, RoundingMode? rounding}) => BillConfig(
+        billDiscount: clearDiscount ? null : (billDiscount ?? this.billDiscount),
+        serviceChargeBp: serviceChargeBp ?? this.serviceChargeBp,
+        serviceChargeFixedMinor: serviceChargeFixedMinor ?? this.serviceChargeFixedMinor,
+        serviceChargeTaxBp: serviceChargeTaxBp ?? this.serviceChargeTaxBp,
+        deliveryChargeMinor: deliveryChargeMinor ?? this.deliveryChargeMinor,
+        tipMinor: tipMinor ?? this.tipMinor,
+        rounding: rounding ?? this.rounding,
+      );
 }
 
 class BillLineResult {
@@ -183,7 +198,7 @@ BillResult calculateBill(List<BillLineInput> inputs, [BillConfig config = const 
     ));
   }
 
-  final service = roundDiv(afterDiscountSum * config.serviceChargeBp, 10000);
+  final service = roundDiv(afterDiscountSum * config.serviceChargeBp, 10000) + config.serviceChargeFixedMinor;
   final serviceTax = roundDiv(service * config.serviceChargeTaxBp, 10000);
   taxTotal += serviceTax;
 

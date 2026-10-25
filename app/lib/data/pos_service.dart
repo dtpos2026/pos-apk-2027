@@ -133,6 +133,7 @@ Map<String, dynamic> _configToJson(BillConfig c) => {
       'discountKind': c.billDiscount?.kind.name,
       'discountValue': c.billDiscount?.value,
       'serviceBp': c.serviceChargeBp,
+      'serviceFixed': c.serviceChargeFixedMinor,
       'serviceTaxBp': c.serviceChargeTaxBp,
       'delivery': c.deliveryChargeMinor,
       'tip': c.tipMinor,
@@ -148,6 +149,7 @@ BillConfig _configFromJson(String? raw) {
         ? null
         : (kind == 'percent' ? Discount.percent(j['discountValue'] as int) : Discount.fixed(j['discountValue'] as int)),
     serviceChargeBp: j['serviceBp'] as int,
+    serviceChargeFixedMinor: (j['serviceFixed'] as int?) ?? 0,
     serviceChargeTaxBp: j['serviceTaxBp'] as int,
     deliveryChargeMinor: j['delivery'] as int,
     tipMinor: j['tip'] as int,

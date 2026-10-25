@@ -139,6 +139,13 @@ class ProductFilter {
   int get hashCode => Object.hash(categoryId, search);
 }
 
+/// The service charge added to every new bill by itself (basis points; 0 = none). Set in Settings > Tax & service charge.
+final serviceDefaultProvider = FutureProvider<int>((ref) async {
+  final db = ref.watch(databaseProvider);
+  if ((await getSetting(db, 'service.auto')) != '1') return 0;
+  return int.tryParse(await getSetting(db, 'service.bp') ?? '') ?? 0;
+});
+
 final productsProvider = FutureProvider.family<List<MenuProduct>, ProductFilter>(
     (ref, f) => loadProducts(ref.watch(databaseProvider), categoryId: f.categoryId, search: f.search));
 

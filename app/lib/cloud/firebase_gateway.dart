@@ -119,6 +119,9 @@ class FirebaseGateway implements CloudGateway {
   Future<void> reportLogo(String uid, String dataUrl) => _guard(() => _db.collection('accounts').doc(uid).update({'logo': dataUrl}));
 
   @override
+  Future<void> reportProfile(String uid, String name, String address) => _guard(() => _db.collection('accounts').doc(uid).update({'businessName': name, 'address': address}));
+
+  @override
   Future<void> reportSales(String uid, DayTotals t, String appVersion) => _guard(() async {
         final batch = _db.batch();
         batch.set(_db.collection('stats').doc(uid), {'updatedAt': FieldValue.serverTimestamp(), 'todayNetMinor': t.netMinor, 'todayBills': t.bills, 'currency': t.currency, 'appVersion': appVersion});

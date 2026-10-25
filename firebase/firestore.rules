@@ -49,7 +49,9 @@ service cloud.firestore {
       // The owner may only report the app version and ask for another phone to be approved. After the app has applied a PIN reset sent
       // from the panel it may delete `pinReset` (never set it) and stamp `pinResetDone`.
       allow update: if signedIn() && uid == me()
-        && changedOnly(['appVersion', 'lastSeenAt', 'phoneRequests', 'logo', 'pinReset', 'pinResetDone'])
+        && changedOnly(['appVersion', 'lastSeenAt', 'phoneRequests', 'logo', 'pinReset', 'pinResetDone', 'businessName', 'address'])
+        && (!('businessName' in request.resource.data.diff(resource.data).affectedKeys()) || (request.resource.data.businessName is string && request.resource.data.businessName.size() > 0 && request.resource.data.businessName.size() <= 120))
+        && (!('address' in request.resource.data.diff(resource.data).affectedKeys()) || (request.resource.data.address is string && request.resource.data.address.size() <= 240))
         && !('pinReset' in request.resource.data)
         && request.resource.data.phoneRequests.size() <= 20
         && (!('logo' in request.resource.data) || (request.resource.data.logo is string && request.resource.data.logo.size() <= 40000));

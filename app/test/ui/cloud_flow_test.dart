@@ -239,6 +239,7 @@ void main() {
     cloud.serverAccount(account(ok: [phoneId]));
     await settle(t);
     await t.runAsync(() => h.container.read(cloudReporterProvider).reportNow());
+    expect(cloud.profiles, isNotEmpty, reason: 'the restaurant name and address go to the panel');
     expect(cloud.logos, hasLength(1));
     expect(cloud.logos.single, startsWith('data:image/jpeg;base64,'));
     expect(cloud.logos.single.length, lessThan(20000), reason: 'a pin picture, not the full logo');

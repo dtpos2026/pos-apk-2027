@@ -118,6 +118,9 @@ abstract class CloudGateway {
   Future<void> reportDevice(String uid, DeviceInfoReport device);
   /// A small picture of the restaurant's logo (a data URL) for the map pin in the panel.
   Future<void> reportLogo(String uid, String dataUrl);
+
+  /// The restaurant's own name and address (from its business profile), so the panel shows them instead of what was typed when registering.
+  Future<void> reportProfile(String uid, String name, String address);
   /// The app has applied a PIN reset: remove the PIN from the account document and record that it was done.
   Future<void> finishPinReset(String uid, String id);
 
