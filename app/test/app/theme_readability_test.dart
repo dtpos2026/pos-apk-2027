@@ -1,5 +1,6 @@
 import 'package:dt_food_pos/app/theme.dart';
 import 'package:dt_food_pos/app/theme_style.dart';
+import 'package:dt_food_pos/app/themes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -46,5 +47,33 @@ void main() {
     expect(back.total, s.total);
     expect(back.icon, s.icon);
     expect(ThemeStyle.decode('{"heading":"zz"}').heading, isNull);
+  });
+
+  test('no purple anywhere: presets and colour palettes are red / white / gold / black and friends', () {
+    bool purple(Color col) {
+      final h = HSLColor.fromColor(col);
+      return h.saturation > 0.25 && h.lightness > 0.08 && h.lightness < 0.92 && h.hue >= 255 && h.hue <= 305;
+    }
+
+    for (final p in themePresets) {
+      for (final col in [p.seed, p.accent, p.header, p.nav, p.background, p.surface]) {
+        if (col != null) expect(purple(col), isFalse, reason: '${p.id} has a purple colour');
+      }
+    }
+    for (final col in [...customPalette, ...backgroundPalette]) {
+      expect(purple(col), isFalse, reason: 'palette has purple #${col.toARGB32().toRadixString(16)}');
+    }
+    expect(themePresets.first.id, 'red', reason: 'Restaurant Red is the default');
+  });
+
+  test('bottom bar: no pill behind the selected item, selected icon and label are brand red', () {
+    final th = buildTheme(spec: themePresets.first);
+    final nav = th.navigationBarTheme;
+    expect(nav.indicatorColor, Colors.transparent);
+    final sel = nav.iconTheme!.resolve({WidgetState.selected})!.color!;
+    final off = nav.iconTheme!.resolve({})!.color!;
+    expect(sel, isNot(off));
+    expect(HSLColor.fromColor(sel).hue < 15 || HSLColor.fromColor(sel).hue > 345, isTrue, reason: 'selected is red');
+    expect(nav.labelTextStyle!.resolve({WidgetState.selected})!.fontWeight, FontWeight.w800);
   });
 }

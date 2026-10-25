@@ -57,12 +57,11 @@ class ThemePreset {
   Color get headerColor => header ?? seed;
 }
 
-/// The default is Restaurant Red. Royal Purple (the Digital Target logo colour) stays available as a choice.
+/// The default is Restaurant Red. No purple: the app follows the red / white restaurant identity with gold and black accents.
 const themePresets = <ThemePreset>[
   // The DT Food POS identity: red and white. Restaurant Red is the default; Restaurant Red 2 uses #C41414.
   ThemePreset('red', Color(0xFFC92A2A), 'theme_red', accent: Color(0xFFF59F00), background: Color(0xFFFBF5F5)),
   ThemePreset('red2', Color(0xFFC41414), 'theme_red2', accent: Color(0xFFC41414), background: Color(0xFFFAF7F7), surface: Color(0xFFFFFFFF), nav: Color(0xFFFFFFFF)),
-  ThemePreset('dt', brandPurple, 'theme_dt', accent: brandOrange),
   ThemePreset('green', Color(0xFF2B8A3E), 'theme_green', accent: Color(0xFFF08C00), background: Color(0xFFF3F8F4)),
   ThemePreset('golden', Color(0xFFB7791F), 'theme_golden', accent: Color(0xFF1F2937), background: Color(0xFFFBF8F1)),
   ThemePreset('yellow', Color(0xFFFFC107), 'theme_yellow', accent: Color(0xFFD9480F), background: Color(0xFFFFFBEB), cardStyle: 'shadow'),
@@ -73,22 +72,21 @@ const themePresets = <ThemePreset>[
   ThemePreset('navy', Color(0xFF1E2A78), 'theme_navy', accent: Color(0xFFFF5A1F)),
   ThemePreset('teal', Color(0xFF0F766E), 'theme_teal', accent: Color(0xFFFF5A1F)),
   ThemePreset('rose', Color(0xFFBE185D), 'theme_rose', accent: Color(0xFF0F766E)),
-  // Luxury looks, from the DT Salon palette: plum and champagne, rose gold.
-  ThemePreset('royalgold', Color(0xFF4B1590), 'theme_royalgold', accent: Color(0xFFC9A24B), background: Color(0xFFF7F4FC), header: Color(0xFF2A0757), nav: Color(0xFFFFFFFF), cardStyle: 'shadow', radius: 18),
+  // Luxury look: rose gold.
   ThemePreset('rosegold', Color(0xFF9A4B5E), 'theme_rosegold', accent: Color(0xFFA56E43), background: Color(0xFFFDF5F6), header: Color(0xFF7A2F42), cardStyle: 'shadow', radius: 18),
   ThemePreset('slate', Color(0xFF334155), 'theme_slate', accent: Color(0xFFFF5A1F)),
 ];
 
 /// Colours offered for a custom theme.
 const customPalette = <Color>[
-  Color(0xFF3C096C), Color(0xFF5F3DC4), Color(0xFF1E2A78), Color(0xFF0B5FA5), Color(0xFF0F766E), Color(0xFF1B6B3A),
+  Color(0xFFC92A2A), Color(0xFFC41414), Color(0xFF1E2A78), Color(0xFF0B5FA5), Color(0xFF0F766E), Color(0xFF1B6B3A),
   Color(0xFF2B8A3E), Color(0xFFB7791F), Color(0xFFD4AF37), Color(0xFFFFC107), Color(0xFFF59F00), Color(0xFFFF5A1F),
-  Color(0xFFE8590C), Color(0xFFC92A2A), Color(0xFFBE185D), Color(0xFF6F4E37), Color(0xFF334155), Color(0xFF111111),
+  Color(0xFFE8590C), Color(0xFF8E1B1B), Color(0xFFBE185D), Color(0xFF6F4E37), Color(0xFF334155), Color(0xFF111111),
 ];
 
 /// Background colours offered for a custom theme (light and dark).
 const backgroundPalette = <Color>[
-  Color(0xFFF6F3FA), Color(0xFFFFFFFF), Color(0xFFF3F8F4), Color(0xFFFFFBEB), Color(0xFFF7F1EA), Color(0xFFF2F6FB), Color(0xFFFBF5F5), Color(0xFF121212),
+  Color(0xFFFFF8F0), Color(0xFFFFFFFF), Color(0xFFF3F8F4), Color(0xFFFFFBEB), Color(0xFFF7F1EA), Color(0xFFF2F6FB), Color(0xFFFBF5F5), Color(0xFF121212),
 ];
 
 // Old saved ids keep working.

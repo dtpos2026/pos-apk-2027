@@ -222,7 +222,7 @@ class _CustomerDialogState extends ConsumerState<_CustomerDialog> {
                 ),
               ]),
       ),
-      actions: [
+      actions: [DialogActions([
         TextButton(onPressed: () => Navigator.pop(context), child: Text(s['close'])),
         TextButton(onPressed: c == null ? null : () async {
           if (await addCustomerDialog(context, ref, existing: c) != null) _load();
@@ -248,7 +248,7 @@ class _CustomerDialogState extends ConsumerState<_CustomerDialog> {
             },
           ),
         if (c != null && c.balanceMinor > 0) FilledButton(key: const ValueKey('receive-payment'), onPressed: _receive, child: Text(s['receive_payment'])),
-      ],
+      ])],
     );
   }
 }

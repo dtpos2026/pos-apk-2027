@@ -21,7 +21,7 @@ const studioPresets = <(String, ThemeStyle)>[
 
 const _palette = <Color>[
   Color(0xFFC41414), Color(0xFFC92A2A), Color(0xFFE5484D), Color(0xFF7A0E0E), Color(0xFFFF5A1F), Color(0xFFF59F00), Color(0xFFFFC107), Color(0xFFB7791F),
-  Color(0xFF2E9E5B), Color(0xFF2B8A3E), Color(0xFF0F766E), Color(0xFF0B5FA5), Color(0xFF1E2A78), Color(0xFF5F3DC4), Color(0xFF3C096C), Color(0xFFBE185D),
+  Color(0xFF2E9E5B), Color(0xFF2B8A3E), Color(0xFF0F766E), Color(0xFF0B5FA5), Color(0xFF1E2A78), Color(0xFFF08C00), Color(0xFF8E1B1B), Color(0xFFBE185D),
   Color(0xFF111111), Color(0xFF1F2937), Color(0xFF334155), Color(0xFF6B7280), Color(0xFFD1D5DB), Color(0xFFF3F4F6), Color(0xFFFAF7F7), Color(0xFFFFFFFF),
 ];
 

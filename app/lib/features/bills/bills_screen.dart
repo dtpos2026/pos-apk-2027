@@ -150,14 +150,14 @@ class _RunningBillDialogState extends ConsumerState<_RunningBillDialog> {
           Text('${s['total']}: ${ref.money(b.totalMinor)}', style: const TextStyle(fontWeight: FontWeight.w800)),
         ]),
       ),
-      actions: [
+      actions: [DialogActions([
         TextButton(onPressed: () => Navigator.pop(context), child: Text(s['close'])),
         if (b.kitchenSent && (ref.watch(printSettingsProvider).value?.kotEnabled ?? true))
           TextButton.icon(key: const ValueKey('running-print-kot'), onPressed: () => _printKot(context, ref, b.id), icon: const Icon(Icons.soup_kitchen_outlined, size: 18), label: Text(s['print_kot'])),
         if (b.running && session.can('bill.void')) TextButton(key: const ValueKey('running-cancel'), onPressed: _cancel, child: Text(s['cancel_order'])),
         if (b.running) FilledButton.tonal(key: const ValueKey('running-resume'), onPressed: () => _resume(pay: false), child: Text(s['resume_bill'])),
         if (b.running) FilledButton(key: const ValueKey('running-pay'), onPressed: () => _resume(pay: true), child: Text(s['take_payment'])),
-      ],
+      ])],
     );
   }
 }
@@ -269,7 +269,7 @@ class _BillDialogState extends ConsumerState<_BillDialog> {
       ),
       actionsOverflowButtonSpacing: 6,
       actionsOverflowAlignment: OverflowBarAlignment.end,
-      actions: [
+      actions: [DialogActions([
         TextButton(onPressed: () => Navigator.pop(context), child: Text(s['close'])),
         if (_preview != null)
           TextButton.icon(key: const ValueKey('bill-share'), onPressed: () => ref.read(shareServiceProvider).shareText(_preview!, subject: b.invoiceNo), icon: const Icon(Icons.share_outlined, size: 18), label: Text(s['share'])),
@@ -313,7 +313,7 @@ class _BillDialogState extends ConsumerState<_BillDialog> {
         ),
         if (b.canRefund && session.can('bill.refund')) TextButton(key: const ValueKey('bill-refund'), onPressed: () => _refund(full: false), child: Text(s['refund'])),
         if (b.canRefund && b.refundedMinor == 0 && session.can('bill.void')) FilledButton(key: const ValueKey('bill-void'), style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error), onPressed: () => _refund(full: true), child: Text(s['void_bill'])),
-      ],
+      ])],
     );
   }
 }

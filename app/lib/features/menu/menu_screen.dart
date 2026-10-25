@@ -160,7 +160,7 @@ Future<bool> _editDialog(BuildContext context, WidgetRef ref, MenuProduct? p) as
             if (error != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(error!, style: TextStyle(color: Theme.of(ctx).colorScheme.error))),
           ]),
         ),
-        actions: [
+        actions: [DialogActions([
           if (p != null)
             TextButton(
               onPressed: () async {
@@ -193,7 +193,7 @@ Future<bool> _editDialog(BuildContext context, WidgetRef ref, MenuProduct? p) as
             },
             child: Text(t['save']),
           ),
-        ],
+        ])],
       ),
     ),
   );
@@ -256,11 +256,11 @@ class _ImportDialogState extends ConsumerState<_ImportDialog> {
           ]),
         ),
       ),
-      actions: [
+      actions: [DialogActions([
         TextButton(onPressed: () => Navigator.pop(context), child: Text(t['cancel'])),
         OutlinedButton(key: const ValueKey('csv-check'), onPressed: () => _run(true), child: Text(t['check'])),
         FilledButton(key: const ValueKey('csv-import'), onPressed: () => _run(false), child: Text(t['import_now'])),
-      ],
+      ])],
     );
   }
 }

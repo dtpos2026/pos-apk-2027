@@ -300,11 +300,11 @@ class _RuleDialogState extends ConsumerState<_RuleDialog> {
           ]),
         ),
       ),
-      actions: [
+      actions: [DialogActions([
         TextButton(key: const ValueKey('rule-delete'), onPressed: () => _confirmDelete(), child: Text(t['delete'], style: TextStyle(color: Theme.of(context).colorScheme.error))),
         TextButton(onPressed: () => Navigator.pop(context), child: Text(t['cancel'])),
         FilledButton(key: const ValueKey('rule-save'), onPressed: _save, child: Text(t['save'])),
-      ],
+      ])],
     );
   }
 

@@ -91,3 +91,27 @@ Future<bool> confirmDialog(BuildContext context, String message, {String? okLabe
 }
 
 void showMessage(BuildContext context, String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+
+/// Buttons at the bottom of a dialog: one tidy, wrapping, right-aligned group where every button has the same height and the
+/// same gap, however many there are or however long the (translated) labels are. Use as `actions: [DialogActions([...])]`.
+class DialogActions extends StatelessWidget {
+  const DialogActions(this.children, {super.key});
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    const size = WidgetStatePropertyAll(Size(64, 46));
+    return Theme(
+      data: t.copyWith(
+        filledButtonTheme: FilledButtonThemeData(style: (t.filledButtonTheme.style ?? const ButtonStyle()).copyWith(minimumSize: size)),
+        outlinedButtonTheme: OutlinedButtonThemeData(style: (t.outlinedButtonTheme.style ?? const ButtonStyle()).copyWith(minimumSize: size)),
+        textButtonTheme: TextButtonThemeData(style: (t.textButtonTheme.style ?? const ButtonStyle()).copyWith(minimumSize: size)),
+      ),
+      child: SizedBox(
+        width: double.infinity,
+        child: Wrap(alignment: WrapAlignment.end, crossAxisAlignment: WrapCrossAlignment.center, spacing: 8, runSpacing: 8, children: children),
+      ),
+    );
+  }
+}

@@ -29,7 +29,7 @@ class RecordingTransport implements PrinterTransport {
 }
 
 void main() {
-  test('brand colour is exactly #3C096C', () => expect(brandPurple.toARGB32(), 0xFF3C096C));
+  test('brand colour is Restaurant Red #C92A2A (no purple)', () => expect(brandRed.toARGB32(), 0xFFC92A2A));
 
   testWidgets('a paired Bluetooth printer can be added and bills are sent to it by its address', (t) async {
     final db = newDb();

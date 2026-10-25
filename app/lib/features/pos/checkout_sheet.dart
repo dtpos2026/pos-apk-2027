@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/format.dart';
 import '../../app/providers.dart';
 import '../../app/strings.dart';
+import '../common/dialogs.dart';
 import '../../app/theme.dart';
 import '../../cloud/access_controller.dart';
 import '../../data/pos_service.dart';
@@ -104,11 +105,11 @@ class _CheckoutSheetState extends ConsumerState<CheckoutSheet> {
       builder: (ctx) => AlertDialog(
         title: Text(t['walkin_credit_title']),
         content: Text(t['walkin_credit_body']),
-        actions: [
+        actions: [DialogActions([
           TextButton(onPressed: () => Navigator.pop(ctx), child: Text(t['cancel'])),
           OutlinedButton(key: const ValueKey('credit-choose'), onPressed: () => Navigator.pop(ctx, 'choose'), child: Text(t['walkin_credit_choose'])),
           FilledButton(key: const ValueKey('credit-walkin'), onPressed: () => Navigator.pop(ctx, 'walkin'), child: Text(t['walkin_credit_use'])),
-        ],
+        ])],
       ),
     );
     if (choice == null || !mounted) return false;

@@ -31,7 +31,7 @@ class _TablesScreenState extends ConsumerState<TablesScreen> {
 
   Color _color(BuildContext c, String status) => switch (status) {
         'occupied' => const Color(0xFFE5484D),
-        'reserved' => const Color(0xFF6A2BD9),
+        'reserved' => const Color(0xFF2563EB),
         'cleaning' => const Color(0xFFF2A100),
         _ => const Color(0xFF2E9E57),
       };

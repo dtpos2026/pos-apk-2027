@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'theme_style.dart';
 import 'themes.dart';
 
-/// Digital Target brand purple, measured from the supplied logo.
-const brandPurple = Color(0xFF3C096C);
+/// The DT Food POS identity colour: Restaurant Red.
+const brandRed = Color(0xFFC92A2A);
 const brandAmber = Color(0xFFFFB547);
 
 /// Accent for "Add" actions on the selling screen (from the approved POS design references).
@@ -81,7 +81,7 @@ Color readableShade(Color c, Color bg) {
 }
 
 /// Builds the whole Material theme from a theme spec ([spec]) or just a main and accent colour.
-ThemeData buildTheme({Brightness brightness = Brightness.light, Color seed = brandPurple, Color accent = brandOrange, ThemePreset? spec}) {
+ThemeData buildTheme({Brightness brightness = Brightness.light, Color seed = brandRed, Color accent = brandOrange, ThemePreset? spec}) {
   final p = spec ?? ThemePreset('_', seed, '', accent: accent);
   final st = p.style is ThemeStyle ? p.style as ThemeStyle : null;
   final b = p.dark ? Brightness.dark : brightness;
@@ -109,6 +109,7 @@ ThemeData buildTheme({Brightness brightness = Brightness.light, Color seed = bra
   final navAuto = _readableOn(nav) == Colors.white ? Colors.white : const Color(0xFF2A2A2E);
   final navFg = ThemeStyle.guard(st?.navText, nav, navAuto, min: 3);
   final navFgSoft = st?.navText != null ? navFg.withValues(alpha: 0.7) : (navAuto == Colors.white ? Colors.white70 : const Color(0xFF55555C));
+  final navSel = ThemeStyle.guard(textPrimary, nav, navFg, min: 3);
   final r = p.radius;
   final cardRadius = st?.cardRadius ?? (r + 2);
   final showBorder = st != null ? st.cardBorder : p.cardStyle == 'outline';
@@ -138,18 +139,20 @@ ThemeData buildTheme({Brightness brightness = Brightness.light, Color seed = bra
       elevation: 0,
       titleTextStyle: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w600, fontSize: 18, color: onHeader),
     ),
+    // Bottom bar / side rail: no big pill behind the selected item. The selected icon and label turn brand red (bold), the rest stay quiet.
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: nav,
-      indicatorColor: fill.withValues(alpha: light ? 0.22 : 0.35),
-      iconTheme: WidgetStatePropertyAll(IconThemeData(color: navFg)),
-      labelTextStyle: WidgetStatePropertyAll(TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: navFg)),
+      indicatorColor: Colors.transparent,
+      height: 68,
+      iconTheme: WidgetStateProperty.resolveWith((st) => IconThemeData(size: st.contains(WidgetState.selected) ? 26 : 24, color: st.contains(WidgetState.selected) ? navSel : navFgSoft)),
+      labelTextStyle: WidgetStateProperty.resolveWith((st) => TextStyle(fontSize: 12, fontWeight: st.contains(WidgetState.selected) ? FontWeight.w800 : FontWeight.w600, color: st.contains(WidgetState.selected) ? navSel : navFgSoft)),
     ),
     navigationRailTheme: NavigationRailThemeData(
       backgroundColor: nav,
-      indicatorColor: fill.withValues(alpha: light ? 0.22 : 0.35),
-      selectedIconTheme: IconThemeData(color: navFg),
+      indicatorColor: Colors.transparent,
+      selectedIconTheme: IconThemeData(color: navSel, size: 26),
       unselectedIconTheme: IconThemeData(color: navFgSoft),
-      selectedLabelTextStyle: TextStyle(fontWeight: FontWeight.w700, color: navFg),
+      selectedLabelTextStyle: TextStyle(fontWeight: FontWeight.w800, color: navSel),
       unselectedLabelTextStyle: TextStyle(color: navFgSoft),
     ),
     floatingActionButtonTheme: FloatingActionButtonThemeData(backgroundColor: fill, foregroundColor: _readableOn(fill), shape: buttonShape),

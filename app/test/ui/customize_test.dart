@@ -21,7 +21,7 @@ void main() {
     expect(p.seed.toARGB32(), 0xFF1E2A78);
     expect(p.accent.toARGB32(), 0xFFFF5A1F);
     expect(presetById('nope').id, 'red');
-    expect(presetById('dt').accent.toARGB32(), 0xFFFF5A1F);
+    expect(presetById('dt').accent.toARGB32(), 0xFFF59F00);
   });
 
   testWidgets('owner builds a custom theme (main + button colour); it is saved and applied', (t) async {

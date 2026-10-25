@@ -212,7 +212,7 @@ Override menuImageDirOverride(Directory dir) => menuImageDirProvider.overrideWit
 /// Scrolls the horizontal theme row in Settings until [key] is visible.
 Future<void> showThemeCard(WidgetTester t, String key) async {
   final vertical = find.byWidgetPredicate((w) => w is Scrollable && (w.axisDirection == AxisDirection.down || w.axisDirection == AxisDirection.up));
-  await t.scrollUntilVisible(find.byKey(const ValueKey('theme-dt')), 200, scrollable: vertical.last);
+  await t.scrollUntilVisible(find.byKey(const ValueKey('theme-red')), 200, scrollable: vertical.last);
   await t.pumpAndSettle();
   final row = find.byWidgetPredicate((w) => w is Scrollable && (w.axisDirection == AxisDirection.right || w.axisDirection == AxisDirection.left));
   await t.scrollUntilVisible(find.byKey(ValueKey(key)), 200, scrollable: row.first);
