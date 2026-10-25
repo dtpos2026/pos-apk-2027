@@ -45,6 +45,7 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        loadSounds() // ready before the first tap
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "digital.target/device").setMethodCallHandler { call, result ->
             try {
                 when (call.method) {
@@ -136,12 +137,25 @@ class MainActivity : FlutterActivity() {
 
     private var sounds: android.media.SoundPool? = null
     private val soundIds = HashMap<String, Int>()
+    private val soundReady = HashSet<Int>()
+    private var pendingKind: String? = null
 
-    /** The app's own tones (soft tap, rising "done" chime, low "no"), loaded once; they follow the phone's touch-sound volume. */
+    /**
+     * The app's own tones (soft pop for a tap, rising chime when a bill is paid, low two-note for an error). They are loaded once at start and play
+     * on the media volume, but stay silent when the phone is on silent or vibrate (the vibration still happens from the app).
+     */
     private fun loadSounds() {
         if (sounds != null) return
-        val attrs = android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_ASSISTANCE_SONIFICATION).setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION).build()
+        val attrs = android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_MEDIA).setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION).build()
         val sp = android.media.SoundPool.Builder().setMaxStreams(4).setAudioAttributes(attrs).build()
+        sp.setOnLoadCompleteListener { pool, id, status ->
+            if (status == 0) soundReady.add(id)
+            val k = pendingKind
+            if (k != null && soundIds[k] == id && status == 0) {
+                pendingKind = null
+                pool.play(id, 1f, 1f, 1, 0, 1f)
+            }
+        }
         for ((kind, res) in listOf("tap" to "dt_tap", "success" to "dt_success", "error" to "dt_error")) {
             val id = resources.getIdentifier(res, "raw", packageName)
             if (id != 0) soundIds[kind] = sp.load(this, id, 1)
@@ -150,9 +164,16 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun tone(kind: String) {
+        val am = getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+        if (am.ringerMode != android.media.AudioManager.RINGER_MODE_NORMAL) return
         loadSounds()
         val id = soundIds[kind] ?: soundIds["success"] ?: return
-        sounds?.play(id, if (kind == "tap") 0.6f else 1f, if (kind == "tap") 0.6f else 1f, 1, 0, 1f)
+        if (id in soundReady) {
+            val v = if (kind == "tap") 0.7f else 1f
+            sounds?.play(id, v, v, 1, 0, 1f)
+        } else {
+            pendingKind = kind // still loading (first tap after start): play it the moment it is ready
+        }
     }
 
     /** Shows a notice in the phone's status bar. false = Android permission or the phone's notification switch is off. */

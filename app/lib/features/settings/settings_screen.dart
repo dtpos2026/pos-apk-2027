@@ -217,6 +217,15 @@ class SettingsScreen extends ConsumerWidget {
             if (v) ref.read(appFeedbackProvider).tap();
           },
         ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          child: Wrap(spacing: 8, runSpacing: 6, children: [
+            OutlinedButton.icon(key: const ValueKey('test-tap'), onPressed: () => ref.read(appFeedbackProvider).tap(), icon: const Icon(Icons.touch_app_outlined, size: 18), label: Text(t['sound_test_tap'])),
+            OutlinedButton.icon(key: const ValueKey('test-success'), onPressed: () => ref.read(appFeedbackProvider).success(), icon: const Icon(Icons.check_circle_outline, size: 18), label: Text(t['sound_test_paid'])),
+            OutlinedButton.icon(key: const ValueKey('test-error'), onPressed: () => ref.read(appFeedbackProvider).failure(), icon: const Icon(Icons.error_outline, size: 18), label: Text(t['sound_test_error'])),
+          ]),
+        ),
+        Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: Text(t['sound_silent_hint'], style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant))),
         if (ref.watch(cloudGatewayProvider) != null) ...[
           SwitchListTile(
             key: const ValueKey('opt-notices'),

@@ -21,7 +21,7 @@ void main() {
     expect(p.seed.toARGB32(), 0xFF1E2A78);
     expect(p.accent.toARGB32(), 0xFFFF5A1F);
     expect(presetById('nope').id, 'red');
-    expect(presetById('dt').id, 'red', reason: 'the old purple theme id falls back to Restaurant Red');
+    expect(presetById('dt').seed.toARGB32(), 0xFF3C096C, reason: 'the Digital Target purple theme is a choice');
   });
 
   testWidgets('owner builds a custom theme (main + button colour); it is saved and applied', (t) async {

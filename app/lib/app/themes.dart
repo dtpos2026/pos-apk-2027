@@ -57,11 +57,14 @@ class ThemePreset {
   Color get headerColor => header ?? seed;
 }
 
-/// The default is Restaurant Red. No purple: the app follows the red / white restaurant identity with gold and black accents.
+/// The default is Restaurant Red (red / white with gold and black accents). Purple looks are extra choices, and every colour can be changed in Theme Studio.
 const themePresets = <ThemePreset>[
   // The DT Food POS identity: red and white. Restaurant Red is the default; Restaurant Red 2 uses #C41414.
   ThemePreset('red', Color(0xFFC92A2A), 'theme_red', accent: Color(0xFFF59F00), background: Color(0xFFFBF5F5)),
   ThemePreset('red2', Color(0xFFC41414), 'theme_red2', accent: Color(0xFFC41414), background: Color(0xFFFAF7F7), surface: Color(0xFFFFFFFF), nav: Color(0xFFFFFFFF)),
+  // Purple choices: Digital Target's own purple, and a plum & gold luxury look. Extra choices only; the app starts in Restaurant Red.
+  ThemePreset('dt', Color(0xFF3C096C), 'theme_dt', accent: brandAmber, background: Color(0xFFF8F5FC)),
+  ThemePreset('plum', Color(0xFF6A1B9A), 'theme_royalgold', accent: Color(0xFFD4AF37), background: Color(0xFFFAF6FD), header: Color(0xFF4A1470), cardStyle: 'shadow', radius: 18),
   ThemePreset('green', Color(0xFF2B8A3E), 'theme_green', accent: Color(0xFFF08C00), background: Color(0xFFF3F8F4)),
   ThemePreset('golden', Color(0xFFB7791F), 'theme_golden', accent: Color(0xFF1F2937), background: Color(0xFFFBF8F1)),
   ThemePreset('yellow', Color(0xFFFFC107), 'theme_yellow', accent: Color(0xFFD9480F), background: Color(0xFFFFFBEB), cardStyle: 'shadow'),
@@ -82,11 +85,12 @@ const customPalette = <Color>[
   Color(0xFFC92A2A), Color(0xFFC41414), Color(0xFF1E2A78), Color(0xFF0B5FA5), Color(0xFF0F766E), Color(0xFF1B6B3A),
   Color(0xFF2B8A3E), Color(0xFFB7791F), Color(0xFFD4AF37), Color(0xFFFFC107), Color(0xFFF59F00), Color(0xFFFF5A1F),
   Color(0xFFE8590C), Color(0xFF8E1B1B), Color(0xFFBE185D), Color(0xFF6F4E37), Color(0xFF334155), Color(0xFF111111),
+  Color(0xFF3C096C), Color(0xFF6A1B9A), Color(0xFF7B2CBF), Color(0xFF9D4EDD),
 ];
 
 /// Background colours offered for a custom theme (light and dark).
 const backgroundPalette = <Color>[
-  Color(0xFFFFF8F0), Color(0xFFFFFFFF), Color(0xFFF3F8F4), Color(0xFFFFFBEB), Color(0xFFF7F1EA), Color(0xFFF2F6FB), Color(0xFFFBF5F5), Color(0xFF121212),
+  Color(0xFFFFF8F0), Color(0xFFFFFFFF), Color(0xFFF3F8F4), Color(0xFFFFFBEB), Color(0xFFF7F1EA), Color(0xFFF2F6FB), Color(0xFFFBF5F5), Color(0xFFF8F5FC), Color(0xFF121212),
 ];
 
 // Old saved ids keep working.

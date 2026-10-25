@@ -49,21 +49,30 @@ void main() {
     expect(ThemeStyle.decode('{"heading":"zz"}').heading, isNull);
   });
 
-  test('no purple anywhere: presets and the colour palettes are red / white / gold / black and friends', () {
+  test('Restaurant Red is the default; purple looks exist only as extra choices', () {
     bool purple(Color col) {
       final h = HSLColor.fromColor(col);
       return h.saturation > 0.25 && h.lightness > 0.08 && h.lightness < 0.92 && h.hue >= 255 && h.hue <= 305;
     }
 
-    for (final p in themePresets) {
+    expect(themePresets.first.id, 'red', reason: 'Restaurant Red is the default');
+    for (final p in themePresets.where((p) => !const ['dt', 'plum'].contains(p.id))) {
       for (final col in [p.seed, p.accent, p.header, p.nav, p.background, p.surface]) {
         if (col != null) expect(purple(col), isFalse, reason: '${p.id} has a purple colour');
       }
     }
-    for (final col in [...customPalette, ...backgroundPalette]) {
-      expect(purple(col), isFalse, reason: 'palette has purple #${col.toARGB32().toRadixString(16)}');
+    expect(themePresets.where((p) => purple(p.seed)).map((p) => p.id), containsAll(['dt', 'plum']));
+    expect(customPalette.any(purple), isTrue, reason: 'purple can be picked in the colour studio');
+  });
+
+  testWidgets('every ready-made theme, purple ones included, is readable', (t) async {
+    for (final p in themePresets) {
+      final th = buildTheme(spec: p);
+      final cs = th.colorScheme;
+      expect(contrastRatio(cs.onSurface, cs.surface), greaterThanOrEqualTo(4.5), reason: '${p.id} body text');
+      expect(contrastRatio(cs.onPrimary, cs.primary), greaterThanOrEqualTo(4.5), reason: '${p.id} button text');
+      expect(contrastRatio(th.appBarTheme.foregroundColor!, th.appBarTheme.backgroundColor!), greaterThanOrEqualTo(3), reason: '${p.id} top bar');
     }
-    expect(themePresets.first.id, 'red', reason: 'Restaurant Red is the default');
   });
 
   test('bottom bar: no pill behind the selected item, selected icon and label are brand red', () {
