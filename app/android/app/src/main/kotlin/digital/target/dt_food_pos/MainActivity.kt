@@ -56,7 +56,7 @@ class MainActivity : FlutterActivity() {
                     "bluetoothPrint" -> bluetoothPrint(call, result)
                     "location" -> location(result)
                     "saveFile" -> saveFile(call, result)
-                    "tone" -> { tone(call.argument<String>("kind") ?: "success"); result.success(true) }
+                    "tone" -> result.success(tone(call.argument<String>("kind") ?: "success", call.argument<Boolean>("force") == true))
                     "notify" -> result.success(notify(call.argument<String>("title") ?: "", call.argument<String>("body") ?: "", call.argument<Int>("id") ?: 1))
                     "clearNotifications" -> { (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancelAll(); result.success(true) }
                     "openWhatsApp" -> result.success(openWhatsApp(call.argument<String>("phone") ?: "", call.argument<String>("text") ?: ""))
@@ -140,14 +140,18 @@ class MainActivity : FlutterActivity() {
     private val soundReady = HashSet<Int>()
     private var pendingKind: String? = null
 
+    // Direct R.raw references (not a lookup by name) so the release build's resource shrinker keeps the sound files.
+    private val rawIds = mapOf("tap" to R.raw.dt_tap, "success" to R.raw.dt_success, "error" to R.raw.dt_error)
+
+    private fun soundAttrs() = android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_MEDIA).setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION).build()
+
     /**
      * The app's own tones (soft pop for a tap, rising chime when a bill is paid, low two-note for an error). They are loaded once at start and play
      * on the media volume, but stay silent when the phone is on silent or vibrate (the vibration still happens from the app).
      */
     private fun loadSounds() {
         if (sounds != null) return
-        val attrs = android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_MEDIA).setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION).build()
-        val sp = android.media.SoundPool.Builder().setMaxStreams(4).setAudioAttributes(attrs).build()
+        val sp = android.media.SoundPool.Builder().setMaxStreams(4).setAudioAttributes(soundAttrs()).build()
         sp.setOnLoadCompleteListener { pool, id, status ->
             if (status == 0) soundReady.add(id)
             val k = pendingKind
@@ -156,24 +160,39 @@ class MainActivity : FlutterActivity() {
                 pool.play(id, 1f, 1f, 1, 0, 1f)
             }
         }
-        for ((kind, res) in listOf("tap" to "dt_tap", "success" to "dt_success", "error" to "dt_error")) {
-            val id = resources.getIdentifier(res, "raw", packageName)
-            if (id != 0) soundIds[kind] = sp.load(this, id, 1)
+        for ((kind, res) in rawIds) {
+            try { soundIds[kind] = sp.load(this, res, 1) } catch (e: Exception) { /* the MediaPlayer fallback below still plays it */ }
         }
         sounds = sp
     }
 
-    private fun tone(kind: String) {
+    /** Plays one tone and says what happened: "ok", "fallback" (second player used), "silent" (phone on silent/vibrate), "volume0" (media volume is 0), "failed". */
+    private fun tone(kind: String, force: Boolean): String {
         val am = getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-        if (am.ringerMode != android.media.AudioManager.RINGER_MODE_NORMAL) return
+        if (!force && am.ringerMode != android.media.AudioManager.RINGER_MODE_NORMAL) return "silent"
         loadSounds()
-        val id = soundIds[kind] ?: soundIds["success"] ?: return
-        if (id in soundReady) {
+        val id = soundIds[kind] ?: soundIds["success"]
+        var played = false
+        if (id != null && id in soundReady) {
             val v = if (kind == "tap") 0.7f else 1f
-            sounds?.play(id, v, v, 1, 0, 1f)
-        } else {
-            pendingKind = kind // still loading (first tap after start): play it the moment it is ready
+            played = (sounds?.play(id, v, v, 1, 0, 1f) ?: 0) != 0
         }
+        if (!played) played = playWithMediaPlayer(kind)
+        if (!played) return "failed"
+        if (am.getStreamVolume(android.media.AudioManager.STREAM_MUSIC) == 0) return "volume0"
+        return if (id != null && id in soundReady) "ok" else "fallback"
+    }
+
+    private fun playWithMediaPlayer(kind: String): Boolean = try {
+        val res = rawIds[kind] ?: rawIds["success"]!!
+        val mp = android.media.MediaPlayer.create(this, res, soundAttrs(), (getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager).generateAudioSessionId())
+        if (mp == null) false else {
+            mp.setOnCompletionListener { it.release() }
+            mp.start()
+            true
+        }
+    } catch (e: Exception) {
+        false
     }
 
     /** Shows a notice in the phone's status bar. false = Android permission or the phone's notification switch is off. */

@@ -14,6 +14,13 @@ abstract class FeedbackPlayer {
   bool get supportsNotices => true;
   Future<void> click();
   Future<void> tone(String kind);
+
+  /// Plays [kind] for the Settings test buttons and says what happened: ok, silent, volume0, failed.
+  Future<String> test(String kind) async {
+    kind == 'tap' ? await click() : await tone(kind);
+    return 'ok';
+  }
+
   Future<void> vibrate({bool strong = false});
   Future<bool> askNotificationPermission();
   Future<bool> notificationsAllowed();
@@ -145,6 +152,8 @@ class AndroidFeedback extends FeedbackPlayer {
   Future<void> click() => channel.tone('tap');
   @override
   Future<void> tone(String kind) => channel.tone(kind);
+  @override
+  Future<String> test(String kind) => channel.tone(kind, force: true);
   @override
   Future<void> vibrate({bool strong = false}) => strong ? HapticFeedback.heavyImpact() : HapticFeedback.selectionClick();
   @override

@@ -94,11 +94,15 @@ class DeviceChannel {
 
   static const notificationPermissions = ['android.permission.POST_NOTIFICATIONS'];
 
-  /// A confirmation tone ('success') or warning tone ('error'). Never throws.
-  Future<void> tone(String kind) async {
+  /// A tone ('tap', 'success' or 'error'). Returns what happened: ok, fallback, silent, volume0 or failed. Never throws.
+  /// [force] plays it even when the phone is on silent (the Settings test buttons).
+  Future<String> tone(String kind, {bool force = false}) async {
     try {
-      await _c.invokeMethod<bool>('tone', {'kind': kind});
-    } catch (_) {}
+      final r = await _c.invokeMethod<Object>('tone', {'kind': kind, 'force': force});
+      return r is String ? r : 'ok';
+    } catch (_) {
+      return 'failed';
+    }
   }
 
   /// A notice in the phone's status bar; false when Android permission is missing or notifications are off for the app.

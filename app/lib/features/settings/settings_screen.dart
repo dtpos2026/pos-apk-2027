@@ -221,9 +221,9 @@ class SettingsScreen extends ConsumerWidget {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
           child: Wrap(spacing: 8, runSpacing: 6, children: [
-            OutlinedButton.icon(key: const ValueKey('test-tap'), onPressed: () => ref.read(appFeedbackProvider).tap(), icon: const Icon(Icons.touch_app_outlined, size: 18), label: Text(t['sound_test_tap'])),
-            OutlinedButton.icon(key: const ValueKey('test-success'), onPressed: () => ref.read(appFeedbackProvider).success(), icon: const Icon(Icons.check_circle_outline, size: 18), label: Text(t['sound_test_paid'])),
-            OutlinedButton.icon(key: const ValueKey('test-error'), onPressed: () => ref.read(appFeedbackProvider).failure(), icon: const Icon(Icons.error_outline, size: 18), label: Text(t['sound_test_error'])),
+            OutlinedButton.icon(key: const ValueKey('test-tap'), onPressed: () => _testSound(context, ref, 'tap'), icon: const Icon(Icons.touch_app_outlined, size: 18), label: Text(t['sound_test_tap'])),
+            OutlinedButton.icon(key: const ValueKey('test-success'), onPressed: () => _testSound(context, ref, 'success'), icon: const Icon(Icons.check_circle_outline, size: 18), label: Text(t['sound_test_paid'])),
+            OutlinedButton.icon(key: const ValueKey('test-error'), onPressed: () => _testSound(context, ref, 'error'), icon: const Icon(Icons.error_outline, size: 18), label: Text(t['sound_test_error'])),
           ]),
         ),
         Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: Text(t['sound_silent_hint'], style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant))),
@@ -736,4 +736,13 @@ class _TaxServiceCardState extends ConsumerState<_TaxServiceCard> {
       Align(alignment: AlignmentDirectional.centerEnd, child: FilledButton(key: const ValueKey('tax-save'), onPressed: _save, child: Text(t['save']))),
     ]);
   }
+}
+
+/// Plays a sound for the Settings test buttons and, when nothing can be heard, says why.
+Future<void> _testSound(BuildContext context, WidgetRef ref, String kind) async {
+  final t = Strings.of(context);
+  final messenger = ScaffoldMessenger.of(context);
+  final r = await ref.read(feedbackPlayerProvider).test(kind);
+  final msg = switch (r) { 'volume0' => t['sound_volume0'], 'failed' => t['sound_failed'], _ => null };
+  if (msg != null) messenger.showSnackBar(SnackBar(content: Text(msg)));
 }
