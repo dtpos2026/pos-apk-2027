@@ -19,6 +19,7 @@ class FakeCloud implements CloudGateway {
   final _supportCtl = StreamController<List<SupportMessage>>.broadcast();
   AppControl? control;
   Branding? brand;
+  final supportNames = <String>[];
   Object? failNext;
 
   @override
@@ -93,6 +94,7 @@ class FakeCloud implements CloudGateway {
 
   @override
   Future<void> sendSupport(String uid, String businessName, String text) async {
+    supportNames.add(businessName);
     support.add(SupportMessage(id: '${support.length}', fromAdmin: false, text: text));
     _supportCtl.add(List.of(support));
   }

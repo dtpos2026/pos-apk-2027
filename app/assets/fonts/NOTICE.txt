@@ -3,3 +3,4 @@ Noto Naskh Arabic (NotoNaskhArabic.ttf): Copyright 2022 The Noto Project Authors
 Both are used for UI text; Noto Naskh Arabic covers Arabic and Urdu script.
 JetBrains Mono (JetBrainsMono-Regular.ttf): Copyright The JetBrains Mono Project Authors, SIL Open Font License 1.1. Used for the receipt preview so columns line up like the printed receipt.
 Fonts are subset (Latin / Arabic-Urdu ranges, no hinting) to keep the APK small; originals: Inter 4.x and JetBrains Mono (OFL), Noto Naskh Arabic (OFL).
+Noto Nastaliq Urdu (NotoNastaliqUrdu.ttf): Copyright 2022 The Noto Project Authors, SIL Open Font License 1.1 (see OFL-NotoNastaliqUrdu.txt). Used for the Urdu help pages (Nastaliq style).

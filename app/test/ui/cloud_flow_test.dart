@@ -1,4 +1,5 @@
 import 'package:dt_food_pos/cloud/access_controller.dart';
+import 'package:dt_food_pos/cloud/cloud_gateway.dart' show Branding;
 import 'package:dt_food_pos/app/device_channel.dart';
 import 'package:dt_food_pos/cloud/location_consent.dart';
 import 'package:dt_food_pos/data/pos_service.dart';
@@ -159,7 +160,7 @@ void main() {
   });
 
   testWidgets('support chat sends and shows replies', (t) async {
-    final cloud = FakeCloud();
+    final cloud = FakeCloud()..brand = const Branding(whatsapp: '0300-1234567');
     final db = newDb();
     await seedBusiness(db);
     final h = await pumpApp(t, db: db, cloud: cloud);
@@ -173,6 +174,8 @@ void main() {
     await t.tap(find.byKey(const Key('support_send')));
     await settle(t);
     expect(find.text('My printer is offline'), findsOneWidget);
+    expect(cloud.supportNames.single, 'Burger Point', reason: 'support sees the restaurant name, not the owner\'s');
+    expect(find.byKey(const ValueKey('support-whatsapp')), findsOneWidget, reason: 'the WhatsApp number comes from the panel');
     cloud.adminReplies('Check the Wi-Fi');
     await settle(t);
     expect(find.text('Check the Wi-Fi'), findsOneWidget);

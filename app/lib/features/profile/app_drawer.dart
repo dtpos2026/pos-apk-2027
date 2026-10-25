@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import '../../app/theme.dart';
+import '../help/help_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
@@ -78,6 +79,7 @@ class AppDrawer extends ConsumerWidget {
                 Navigator.of(context).pop();
                 onGo('settings');
               }),
+            ListTile(key: const ValueKey('drawer-help'), leading: const Icon(Icons.menu_book_outlined), title: Text(t['help_title']), onTap: () => open(const HelpScreen())),
             if (ref.watch(cloudGatewayProvider) != null) ListTile(key: const ValueKey('drawer-support'), leading: const Icon(Icons.support_agent), title: Text(t['support']), onTap: () => open(const SupportScreen())),
           ]),
         ),
