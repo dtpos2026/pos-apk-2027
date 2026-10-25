@@ -27,12 +27,19 @@ Future<ReceiptData> loadReceipt(AppDatabase db, String orderId, {bool duplicate 
   final lines = <ReceiptLine>[];
   for (final i in await q("SELECT * FROM order_item WHERE order_id = ? AND status = 'active' ORDER BY rowid", [orderId])) {
     final mods = await q('SELECT name FROM order_item_modifier WHERE order_item_id = ?', [i['id'] as String]);
+    // a deal lists what is inside it, under its name on the bill
+    final inside = await q(
+        'SELECT d.qty_milli, p.name AS pname, v.name AS vname FROM deal_item d JOIN product p ON p.id = d.product_id LEFT JOIN product_variant v ON v.id = d.variant_id WHERE d.deal_id = ? ORDER BY d.rowid',
+        [i['product_id'] as String]);
     lines.add(ReceiptLine(
       name: i['name'] as String,
       qtyMilli: i['qty_milli'] as int,
       unitPriceMinor: i['unit_price_minor'] as int,
       totalMinor: i['line_total_minor'] as int,
-      modifiers: [for (final m in mods) m['name'] as String],
+      modifiers: [
+        for (final c in inside) '${formatQty((c['qty_milli'] as int) * (i['qty_milli'] as int) ~/ 1000)} x ${c['pname']}${c['vname'] == null ? '' : ' (${c['vname']})'}',
+        for (final m in mods) m['name'] as String,
+      ],
       note: i['note'] as String?,
     ));
   }

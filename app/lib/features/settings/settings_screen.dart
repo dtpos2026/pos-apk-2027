@@ -11,6 +11,7 @@ import 'receipt_design_screen.dart';
 import '../tokens/token_ui.dart';
 import '../tokens/tokens_settings_screen.dart';
 
+import '../../app/business_mode.dart';
 import '../../app/device_channel.dart' show PairedPrinter;
 import '../../app/feedback.dart';
 import '../cloud/notices.dart' show noticeClearedProvider;
@@ -88,6 +89,38 @@ class SettingsScreen extends ConsumerWidget {
         ),
       ]),
       if (ref.watch(sessionProvider)?.can('settings.manage') ?? false)
+        _Section(t['business_type'], [
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            for (final b in businessTypes)
+              ChoiceChip(
+                key: ValueKey('set-btype-${b.id}'),
+                avatar: Icon(b.icon, size: 18),
+                label: Text(t['btype_${b.id}']),
+                selected: false,
+                onSelected: (_) async {
+                  final ok = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: Text(t['business_type_apply']),
+                      content: Text('${t['btype_${b.id}']}\n\n${t['business_type_apply_body']}'),
+                      actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(t['cancel'])), FilledButton(key: const ValueKey('btype-apply'), onPressed: () => Navigator.pop(ctx, true), child: Text(t['ok']))],
+                    ),
+                  );
+                  if (ok == true) await applyBusinessType(ref, b.id);
+                },
+              ),
+          ]),
+          SwitchListTile(
+            key: const ValueKey('opt-quick-counter'),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 6),
+            secondary: const Icon(Icons.bolt_outlined),
+            title: Text(t['quick_counter']),
+            subtitle: Text(t['quick_counter_hint']),
+            value: ref.watch(quickCounterProvider).value ?? false,
+            onChanged: (v) => ref.read(quickCounterProvider.notifier).set(v),
+          ),
+        ]),
+      if (ref.watch(sessionProvider)?.can('settings.manage') ?? false)
         _Section(t['modules'], [
           Text(t['modules_hint'], style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 6),
@@ -148,8 +181,8 @@ class SettingsScreen extends ConsumerWidget {
         Text(t['backup_hint'], style: Theme.of(context).textTheme.bodySmall),
         const SizedBox(height: 8),
         Wrap(spacing: 8, runSpacing: 8, children: [
-          FilledButton.tonalIcon(key: const ValueKey('backup-now'), onPressed: () => _backup(context, ref), icon: const Icon(Icons.backup_outlined), label: Text(t['backup_now'])),
-          OutlinedButton.icon(key: const ValueKey('restore'), onPressed: () => _restore(context, ref), icon: const Icon(Icons.settings_backup_restore), label: Text(t['restore'])),
+          FilledButton.tonalIcon(key: const ValueKey('backup-now'), onPressed: () => _backup(context, ref), icon: const Icon(Icons.backup_outlined), label: Text(t['backup_export'])),
+          OutlinedButton.icon(key: const ValueKey('restore'), onPressed: () => _restore(context, ref), icon: const Icon(Icons.file_open_outlined), label: Text(t['backup_import'])),
         ]),
       ]),
       _Section(t['about'], [

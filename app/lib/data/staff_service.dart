@@ -6,11 +6,11 @@ import 'pos_service.dart' show PosException;
 
 /// The screens an owner can switch on for one staff member, and the things they may do. Staff and Settings are never offered:
 /// they stay with the Owner and Manager roles, so nobody can give themselves more power.
-const accessScreens = ['pos', 'dashboard', 'tables', 'kitchen', 'online', 'tokens', 'bills', 'reports', 'customers', 'expenses', 'inventory', 'menu'];
+const accessScreens = ['pos', 'dashboard', 'tables', 'kitchen', 'online', 'tokens', 'bills', 'reports', 'customers', 'expenses', 'inventory', 'recipes', 'menu'];
 const accessActions = ['discount.apply', 'bill.void', 'bill.refund', 'shift.manage', 'day.close'];
 
 /// What a screen needs besides being listed: the old-style permission the rest of the app checks.
-const _screenImplies = {'pos': 'pos.sell', 'dashboard': 'reports.view', 'reports': 'reports.view', 'inventory': 'inventory.manage', 'menu': 'menu.manage'};
+const _screenImplies = {'pos': 'pos.sell', 'dashboard': 'reports.view', 'reports': 'reports.view', 'inventory': 'inventory.manage', 'recipes': 'inventory.manage', 'menu': 'menu.manage'};
 
 /// A staff member's access as the owner sees it: screens and actions.
 class StaffAccess {
@@ -70,7 +70,7 @@ class StaffService {
     final legacy = <String>{
       if (perms.contains('pos.sell')) ...['pos', 'tables', 'kitchen', 'online', 'tokens', 'bills', 'customers', 'expenses'],
       if (perms.contains('reports.view')) ...['dashboard', 'reports'],
-      if (perms.contains('inventory.manage')) 'inventory',
+      if (perms.contains('inventory.manage')) ...['inventory', 'recipes'],
       if (perms.contains('menu.manage')) 'menu',
     };
     return StaffAccess(screens: legacy, actions: perms.where(accessActions.contains).toSet(), custom: false);

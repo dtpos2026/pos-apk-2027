@@ -7,7 +7,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -18,6 +18,7 @@ class AppDatabase extends _$AppDatabase {
           if (from < 5) await migrateToV5(this);
           if (from < 6) await migrateToV6(this);
           if (from < 7) await migrateToV7(this);
+          if (from < 8) await migrateToV8(this);
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
@@ -50,6 +51,14 @@ Future<void> migrateToV2(AppDatabase db) async {
 )""",
   ]) {
     await db.customStatement(sql);
+  }
+}
+
+/// Version 8: which account (cash, bank, wallet) a purchase or a supplier payment was paid from. Mirrors docs/schema/local.sql.
+Future<void> migrateToV8(AppDatabase db) async {
+  for (final t in const ['purchase', 'supplier_ledger']) {
+    final cols = await db.customSelect('PRAGMA table_info($t)').get();
+    if (!cols.any((c) => c.data['name'] == 'method_id')) await db.customStatement('ALTER TABLE $t ADD COLUMN method_id TEXT REFERENCES payment_method(id)');
   }
 }
 

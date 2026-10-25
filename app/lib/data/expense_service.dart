@@ -62,4 +62,21 @@ class ExpenseService {
       ];
 
   Future<int> totalFor(String date) => h.intValue('SELECT COALESCE(SUM(amount_minor),0) FROM expense WHERE business_date = ?', [date]);
+
+  /// Removes an expense that was entered by mistake. The row goes (the audit trail keeps what it was). If it was paid in cash and the
+  /// cashier has a shift open, the money is put back in the drawer, so the shift's cash agrees. Returns false when it does not exist.
+  Future<bool> delete(String id, {required String staffId}) => h.db.transaction(() async {
+        final e = await h.one('SELECT e.amount_minor, e.note, e.business_date, e.method_id, c.name AS cat, m.kind AS kind FROM expense e LEFT JOIN expense_category c ON c.id = e.category_id LEFT JOIN payment_method m ON m.id = e.method_id WHERE e.id = ?', [id]);
+        if (e == null) return false;
+        await h.exec('DELETE FROM expense WHERE id = ?', [id]);
+        if (e['kind'] == 'cash') {
+          final shift = await h.openShiftOf(staffId);
+          if (shift != null) {
+            final cat = (e['cat'] as String?) ?? '';
+            await h.exec('INSERT INTO cash_movement(id, shift_id, direction, amount_minor, reason, staff_id, created_at) VALUES (?,?,?,?,?,?,?)', [h.id, shift, 'in', e['amount_minor'], cat.isEmpty ? 'Expense deleted' : 'Expense deleted: $cat', staffId, h.ts]);
+          }
+        }
+        await h.audit('expense.delete', staffId: staffId, entity: 'expense', entityId: id, before: {'amount': e['amount_minor'], 'category': e['cat'], 'note': e['note'], 'date': e['business_date'], 'method': e['method_id']}, critical: true);
+        return true;
+      });
 }

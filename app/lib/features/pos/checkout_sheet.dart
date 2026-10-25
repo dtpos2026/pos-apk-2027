@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/business_mode.dart';
 import '../../app/format.dart';
 import '../../app/providers.dart';
 import '../../app/feedback.dart';
@@ -62,6 +63,32 @@ class CheckoutSheet extends ConsumerStatefulWidget {
 
 class _CheckoutSheetState extends ConsumerState<CheckoutSheet> {
   final _lines = <_Line>[];
+  bool _printBill = true;
+  bool _printToken = false;
+  bool _canToken = false;
+  bool _canBill = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPrintDefaults();
+  }
+
+  /// What would print by itself for this order type: the cashier can switch the bill and the token off or on for this one sale.
+  Future<void> _loadPrintDefaults() async {
+    final cfg = await ref.read(printServiceProvider).printSettings();
+    final tokens = ref.read(activeModulesProvider).contains('tokens') && (await ref.read(tokenServiceProvider).config()).active.isNotEmpty;
+    final type = ref.read(cartProvider).orderType;
+    if (!mounted) return;
+    setState(() {
+      _canBill = cfg.billEnabled;
+      _canToken = tokens && cfg.tokenEnabled;
+      _printBill = cfg.autoBillFor(type);
+      _printToken = _canToken && cfg.autoTokenFor(type);
+    });
+    ref.read(printChoiceProvider.notifier).set(bill: _printBill, token: _printToken);
+  }
+
   String? _error;
   bool _busy = false;
 
@@ -211,6 +238,11 @@ class _CheckoutSheetState extends ConsumerState<CheckoutSheet> {
           _row(t['paid'], ref.money(result?.paidMinor ?? 0)),
           _row(t['remaining'], ref.money(result?.dueMinor ?? (widget.totalMinor - _enteredTotal).clamp(0, widget.totalMinor)), key: const ValueKey('remaining')),
           _row(t['change'], ref.money(result?.changeMinor ?? 0), key: const ValueKey('change'), strong: (result?.changeMinor ?? 0) > 0),
+          if (_canBill || _canToken)
+            Wrap(spacing: 8, children: [
+              if (_canBill) FilterChip(key: const ValueKey('pay-print-bill'), avatar: const Icon(Icons.receipt_long_outlined, size: 18), label: Text(t['print_bill_now']), selected: _printBill, onSelected: (v) { setState(() => _printBill = v); ref.read(printChoiceProvider.notifier).set(bill: v); }),
+              if (_canToken) FilterChip(key: const ValueKey('pay-print-token'), avatar: const Icon(Icons.confirmation_number_outlined, size: 18), label: Text(t['print_token_now']), selected: _printToken, onSelected: (v) { setState(() => _printToken = v); ref.read(printChoiceProvider.notifier).set(token: v); }),
+            ]),
           if (_error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_error!, key: const ValueKey('checkout-error'), style: TextStyle(color: scheme.error, fontWeight: FontWeight.w600))),
           const SizedBox(height: 14),
           FilledButton(key: const ValueKey('confirm-payment'), style: FilledButton.styleFrom(backgroundColor: context.accent, foregroundColor: context.onAccent, minimumSize: const Size.fromHeight(52), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))), onPressed: (result != null && result.isSettled && !_busy) ? _confirm : null, child: _busy ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2)) : Text(t['complete_order'], style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16))),
@@ -236,8 +268,12 @@ Future<void> showReceipt(BuildContext context, WidgetRef ref, SettledOrder order
   final cfg = await printSvc.printSettings();
   final orderType = (await db.customSelect('SELECT order_type FROM "order" WHERE id = ?', variables: [Variable.withString(order.orderId)]).getSingle()).data['order_type'] as String;
   // what prints by itself follows the print settings: bill, token and KOT are separate switches (and per order type)
-  final billJobs = tokenCfg.printBill && cfg.autoBillFor(orderType) ? await printSvc.queueBill(order.orderId) : <String>[];
-  final tokenJobs = cfg.autoTokenFor(orderType) ? await printSvc.queueTokens(order.orderId, autoOnly: true) : <String>[];
+  final choice = ref.read(printChoiceProvider);
+  ref.read(printChoiceProvider.notifier).reset();
+  final wantBill = choice.bill ?? cfg.autoBillFor(orderType);
+  final wantToken = choice.token ?? cfg.autoTokenFor(orderType);
+  final billJobs = tokenCfg.printBill && cfg.billEnabled && wantBill ? await printSvc.queueBill(order.orderId) : <String>[];
+  final tokenJobs = cfg.tokenEnabled && wantToken ? await printSvc.queueTokens(order.orderId, autoOnly: true) : <String>[];
   final jobs = [...billJobs, ...tokenJobs];
   final issued = (await ref.read(tokenServiceProvider).forOrder(order.orderId)).where((x) => x.status != 'void').toList();
   // the kitchen board gets the order when it is paid (if it was not sent before); the ticket prints only when KOT is automatic
@@ -246,6 +282,12 @@ Future<void> showReceipt(BuildContext context, WidgetRef ref, SettledOrder order
   }
   if (jobs.isNotEmpty) printSvc.processQueue(); // fire and forget: a missing/offline printer never blocks the sale
   if (!context.mounted) return;
+  // quick counter: no receipt window, the bill and token are already on their way and the next customer can be served
+  if (ref.read(quickCounterProvider).value ?? false) {
+    final t = Strings.of(context);
+    showMessage(context, '${order.invoiceNo}  ·  ${jobs.isEmpty ? t['no_printer'] : t['printed_ok']}');
+    return;
+  }
   final design = await ref.read(receiptTemplateStoreProvider).load();
   if (!context.mounted) return;
   await showDialog<void>(

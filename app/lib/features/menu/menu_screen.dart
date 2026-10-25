@@ -16,6 +16,8 @@ import '../../data/queries.dart';
 import '../../domain/money.dart';
 import '../../domain/xlsx.dart';
 import '../common/dialogs.dart';
+import '../inventory/recipes_screen.dart';
+import '../../data/recipe_service.dart';
 import 'deals_screen.dart';
 
 class MenuScreen extends ConsumerStatefulWidget {
@@ -180,6 +182,7 @@ Future<bool> _editDialog(BuildContext context, WidgetRef ref, MenuProduct? p) as
                 padding: const EdgeInsets.only(top: 12),
                 child: Wrap(spacing: 8, runSpacing: 8, children: [
                   OutlinedButton.icon(key: const ValueKey('edit-variants'), onPressed: () => _variantsDialog(ctx, ref, p), icon: const Icon(Icons.straighten, size: 18), label: Text(t['variants_title'])),
+                  OutlinedButton.icon(key: const ValueKey('edit-recipe'), onPressed: () => _recipeFor(ctx, ref, p), icon: const Icon(Icons.menu_book_outlined, size: 18), label: Text(t['recipe'])),
                   OutlinedButton.icon(key: const ValueKey('edit-addons'), onPressed: () => _addonsDialog(ctx, ref, p), icon: const Icon(Icons.add_circle_outline, size: 18), label: Text(t['addons'])),
                 ]),
               ),
@@ -306,28 +309,114 @@ List<({String name, int priceMinor})>? parseOptionLines(String text, Currency cu
   return out;
 }
 
-String _optionLines(Iterable<(String, int)> items, Currency c) => items.map((e) => '${e.$1}, ${formatMinor(e.$2, currency: c, symbol: false).replaceAll(',', '')}').join('\n');
-
 Future<void> _variantsDialog(BuildContext context, WidgetRef ref, MenuProduct p) async {
-  final t = Strings.of(context);
   final svc = ref.read(menuServiceProvider);
   final current = (await svc.optionsFor(p.id)).variants;
   if (!context.mounted) return;
-  await showFormDialog(
-    context,
-    title: '${t['variants_title']}: ${p.name}',
-    fields: [FieldSpec('lines', t['variants_hint'], lines: 5, required: false, initial: _optionLines(current.map((v) => (v.name, v.priceMinor)), ref.currency))],
-    validate: (v) async {
-      final parsed = parseOptionLines(v['lines']!, ref.currency);
-      if (parsed == null) return t['invalid_lines'];
-      try {
-        await svc.saveVariants(p.id, parsed);
-        return null;
-      } on MenuException catch (e) {
-        return e.message;
-      }
-    },
+  await showDialog<void>(
+    context: context,
+    builder: (_) => _VariantsEditor(product: p, current: [for (final v in current) (v.name, v.priceMinor)]),
   );
+  ref.invalidate(recipeRowsProvider);
+}
+
+/// Sizes of one item (Small / Large, Half / Full...) as simple rows: a name and a price each, one tap to add another.
+class _VariantsEditor extends ConsumerStatefulWidget {
+  const _VariantsEditor({required this.product, required this.current});
+  final MenuProduct product;
+  final List<(String, int)> current;
+  @override
+  ConsumerState<_VariantsEditor> createState() => _VariantsEditorState();
+}
+
+class _VariantsEditorState extends ConsumerState<_VariantsEditor> {
+  late final List<({TextEditingController name, TextEditingController price})> _rows = [
+    for (final v in widget.current) (name: TextEditingController(text: v.$1), price: TextEditingController(text: formatMinor(v.$2, currency: ref.currency, symbol: false).replaceAll(',', ''))),
+  ];
+  String? _error;
+
+  @override
+  void dispose() {
+    for (final r in _rows) {
+      r.name.dispose();
+      r.price.dispose();
+    }
+    super.dispose();
+  }
+
+  void _add([String name = '']) => setState(() => _rows.add((name: TextEditingController(text: name), price: TextEditingController())));
+
+  Future<void> _save() async {
+    final t = Strings.of(context);
+    final list = <({String name, int priceMinor})>[];
+    for (final r in _rows) {
+      final n = r.name.text.trim();
+      if (n.isEmpty && r.price.text.trim().isEmpty) continue;
+      final price = parseMinor(r.price.text.trim().isEmpty ? '0' : r.price.text.trim(), currency: ref.currency);
+      if (n.isEmpty || price == null) return setState(() => _error = t['invalid_lines']);
+      list.add((name: n, priceMinor: price));
+    }
+    try {
+      await ref.read(menuServiceProvider).saveVariants(widget.product.id, list);
+      if (mounted) Navigator.pop(context);
+    } on MenuException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Strings.of(context);
+    final cs = Theme.of(context).colorScheme;
+    return AlertDialog(
+      title: Text('${t['variants_title']}: ${widget.product.name}'),
+      content: SizedBox(
+        width: 420,
+        child: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(t['variants_help'], style: TextStyle(fontSize: 12.5, color: cs.onSurfaceVariant)),
+            const SizedBox(height: 10),
+            Wrap(spacing: 6, runSpacing: 0, children: [
+              for (final n in const ['Small', 'Medium', 'Large', 'Half', 'Full'])
+                ActionChip(key: ValueKey('var-quick-$n'), label: Text(n), visualDensity: VisualDensity.compact, onPressed: () => _add(n)),
+            ]),
+            const SizedBox(height: 8),
+            for (var i = 0; i < _rows.length; i++)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(children: [
+                  Expanded(flex: 5, child: TextField(key: ValueKey('var-name-$i'), controller: _rows[i].name, textCapitalization: TextCapitalization.words, decoration: InputDecoration(isDense: true, labelText: t['variant_name']))),
+                  const SizedBox(width: 8),
+                  Expanded(flex: 3, child: TextField(key: ValueKey('var-price-$i'), controller: _rows[i].price, keyboardType: const TextInputType.numberWithOptions(decimal: true), inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))], decoration: InputDecoration(isDense: true, labelText: t['price']))),
+                  IconButton(key: ValueKey('var-del-$i'), visualDensity: VisualDensity.compact, icon: Icon(Icons.delete_outline, color: cs.error), onPressed: () => setState(() {
+                        final r = _rows.removeAt(i);
+                        r.name.dispose();
+                        r.price.dispose();
+                      })),
+                ]),
+              ),
+            TextButton.icon(key: const ValueKey('var-add'), onPressed: _add, icon: const Icon(Icons.add), label: Text(t['variant_add'])),
+            if (_error != null) Padding(padding: const EdgeInsets.only(top: 6), child: Text(_error!, key: const ValueKey('var-error'), style: TextStyle(color: cs.error))),
+          ]),
+        ),
+      ),
+      actions: [DialogActions([TextButton(onPressed: () => Navigator.pop(context), child: Text(t['cancel'])), FilledButton(key: const ValueKey('var-save'), onPressed: _save, child: Text(t['save']))])],
+    );
+  }
+}
+
+/// Opens the recipe of this item, asking which size first when it has sizes.
+Future<void> _recipeFor(BuildContext context, WidgetRef ref, MenuProduct p) async {
+  final rows = (await ref.read(recipeServiceProvider).rows(search: p.name)).where((r) => r.productId == p.id).toList();
+  if (rows.isEmpty || !context.mounted) return;
+  var row = rows.first;
+  if (rows.length > 1) {
+    final picked = await showDialog<RecipeRow>(context: context, builder: (ctx) => SimpleDialog(title: Text(p.name), children: [for (final r in rows) SimpleDialogOption(key: ValueKey('recipe-size-${r.variantName}'), onPressed: () => Navigator.pop(ctx, r), child: Text(r.variantName ?? p.name))]));
+    if (picked == null || !context.mounted) return;
+    row = picked;
+  }
+  final ok = await showRecipeEditor(context, ref, row);
+  if (ok == true) ref.invalidate(recipeRowsProvider);
 }
 
 Future<void> _addonsDialog(BuildContext context, WidgetRef ref, MenuProduct p) async {
@@ -406,9 +495,11 @@ class _CategoriesDialog extends ConsumerWidget {
     final t = Strings.of(context);
     final cats = ref.watch(categoriesProvider).value ?? const <MenuCategory>[];
     return AlertDialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 24),
+      contentPadding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
       title: Text(t['categories']),
       content: SizedBox(
-        width: 380,
+        width: 420,
         child: cats.isEmpty
             ? Text(t['no_categories'])
             : ListView(shrinkWrap: true, children: [
@@ -418,11 +509,14 @@ class _CategoriesDialog extends ConsumerWidget {
                   ListTile(
                     key: ValueKey('category-${c.name}'),
                     contentPadding: EdgeInsets.zero,
+                    minLeadingWidth: 0,
+                    horizontalTitleGap: 12,
                     leading: SizedBox(width: 48, height: 48, child: MenuImage(path: c.imagePath, name: c.name, radius: 10, iconSize: 24)),
-                    title: Text(c.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: c.station == null ? null : Text('${t['counter_station']}: ${c.station}'),
+                    title: Text(c.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600)),
+                    subtitle: c.station == null ? null : Text('${t['counter_station']}: ${c.station}', maxLines: 1, overflow: TextOverflow.ellipsis),
                     trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                       IconButton(
+                        visualDensity: VisualDensity.compact,
                         key: ValueKey('category-counter-${c.name}'),
                         tooltip: t['counter_station'],
                         icon: const Icon(Icons.storefront_outlined),
@@ -443,6 +537,7 @@ class _CategoriesDialog extends ConsumerWidget {
                         },
                       ),
                       IconButton(
+                        visualDensity: VisualDensity.compact,
                         key: ValueKey('category-photo-${c.name}'),
                         tooltip: t['choose_photo'],
                         icon: const Icon(Icons.photo_camera_outlined),
@@ -460,6 +555,7 @@ class _CategoriesDialog extends ConsumerWidget {
                       ),
                       if (c.imagePath != null)
                         IconButton(
+                          visualDensity: VisualDensity.compact,
                           tooltip: t['remove_photo'],
                           icon: const Icon(Icons.delete_outline),
                           onPressed: () async {

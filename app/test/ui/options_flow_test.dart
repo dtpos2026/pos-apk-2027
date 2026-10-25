@@ -27,8 +27,12 @@ void main() {
     await t.tap(find.byKey(const ValueKey('menu-Pizza')));
     await t.pumpAndSettle();
     await tapKey(t, 'edit-variants');
-    await typeInto(t, find.byKey(const ValueKey('f-lines')), 'Small, 600\nLarge, 1100');
-    await tapKey(t, 'form-ok');
+    await tapKey(t, 'var-quick-Small');
+    await tapKey(t, 'var-add');
+    await typeInto(t, find.byKey(const ValueKey('var-price-0')), '600');
+    await typeInto(t, find.byKey(const ValueKey('var-name-1')), 'Large');
+    await typeInto(t, find.byKey(const ValueKey('var-price-1')), '1100');
+    await tapKey(t, 'var-save');
     await tapKey(t, 'edit-addons');
     await tapKey(t, 'new-group');
     await typeInto(t, find.byKey(const ValueKey('f-name')), 'Toppings');

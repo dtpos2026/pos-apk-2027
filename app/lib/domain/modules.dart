@@ -14,6 +14,8 @@ class BusinessType {
 }
 
 const businessTypes = <BusinessType>[
+  // sell at the counter, pay, print the bill (and a token): no tables, kitchen board or delivery
+  BusinessType('foodpoint', Icons.point_of_sale, ['tokens', 'inventory', 'customers', 'expenses']),
   BusinessType('stall', Icons.storefront_outlined, ['customers', 'expenses', 'tokens']),
   BusinessType('cafe', Icons.local_cafe_outlined, ['kitchen', 'inventory', 'customers', 'expenses']),
   BusinessType('fastfood', Icons.lunch_dining_outlined, ['kitchen', 'inventory', 'customers', 'expenses', 'staff', 'tokens', 'online']),

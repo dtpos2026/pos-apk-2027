@@ -5,6 +5,7 @@ import 'package:dt_food_pos/data/deal_service.dart';
 import 'package:dt_food_pos/data/menu_service.dart';
 import 'package:dt_food_pos/data/pos_service.dart';
 import 'package:dt_food_pos/data/print_service.dart';
+import 'package:dt_food_pos/data/receipt_loader.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -81,6 +82,15 @@ void main() {
     // 2 deals x 2 burgers = 4 buns; 2 deals x 1 large pizza x 2 dough = 4 dough
     expect(await n("SELECT -COALESCE(SUM(delta_milli),0) AS n FROM stock_movement WHERE stock_item_id = 'bun'"), 4000);
     expect(await n("SELECT -COALESCE(SUM(delta_milli),0) AS n FROM stock_movement WHERE stock_item_id = 'dough'"), 4000);
+  });
+
+  test('the customer bill of a deal lists what is inside it under the deal name', () async {
+    final id = await deals.save(name: 'Family Deal', priceMinor: 200000, items: family, staffId: 's1');
+    final order = await pos.saveDraft(DraftOrder(orderType: 'counter', items: [CartItem(productId: id, name: 'Family Deal', qtyMilli: 2000, unitPriceMinor: 200000)]), staffId: 's1');
+    await pos.settleOrder(orderId: order, payments: [const SettlePayment(methodId: 'cash', amountMinor: 400000)], staffId: 's1');
+    final r = await loadReceipt(db, order);
+    expect(r.lines.single.name, 'Family Deal');
+    expect(r.lines.single.modifiers, ['4 x Zinger Burger', '2 x Chicken Pizza (Large)', '2 x Cola']);
   });
 
   test('the kitchen ticket of a deal lists what is inside it (totals for the quantity sold)', () async {

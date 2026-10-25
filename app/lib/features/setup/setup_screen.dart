@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/business_mode.dart';
 import '../../app/providers.dart';
 import '../../app/strings.dart';
-import '../../data/queries.dart' show setSetting;
 import '../../data/setup_service.dart';
 import '../../domain/modules.dart';
 import '../login/brand_footer.dart';
@@ -38,8 +38,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     try {
       final ownerId = await SetupService(ref.read(databaseProvider), ref.read(authServiceProvider))
           .completeSetup(businessName: _business.text, ownerName: _owner.text, pin: _pin.text, country: _country);
-      await ref.read(modulesProvider.notifier).setAll(businessTypeById(_type).modules);
-      await setSetting(ref.read(databaseProvider), 'business_type', _type, DateTime.now().millisecondsSinceEpoch);
+      await applyBusinessType(ref, _type);
       ref.invalidate(businessProvider);
       ref.invalidate(staffListProvider);
       ref.invalidate(paymentMethodsProvider);

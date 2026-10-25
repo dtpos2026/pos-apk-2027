@@ -3,6 +3,7 @@ import '../../app/theme.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/business_mode.dart';
 import '../../app/format.dart';
 import '../../app/providers.dart';
 import '../../app/strings.dart';
@@ -23,6 +24,13 @@ final productUnitProvider = FutureProvider.family<String, String>((ref, id) asyn
 
 final _waitersProvider = FutureProvider.autoDispose((ref) => ref.watch(teamServiceProvider).waiters(activeOnly: true));
 final _waiterNameProvider = FutureProvider.autoDispose.family<String?, String?>((ref, id) async => id == null ? null : (await ref.watch(dbHelperProvider).one('SELECT name FROM team_member WHERE id = ?', [id]))?['name'] as String?);
+
+/// What one unit of a deal contains: (quantity, name) per item. Empty for ordinary items.
+final dealInsideProvider = FutureProvider.family<List<({int qtyMilli, String name})>, String>((ref, productId) async => [
+      for (final r in await ref.watch(dbHelperProvider).q(
+          'SELECT d.qty_milli, p.name AS pname, v.name AS vname FROM deal_item d JOIN product p ON p.id = d.product_id LEFT JOIN product_variant v ON v.id = d.variant_id WHERE d.deal_id = ? ORDER BY d.rowid', [productId]))
+        (qtyMilli: r['qty_milli'] as int, name: '${r['pname']}${r['vname'] == null ? '' : ' (${r['vname']})'}'),
+    ]);
 
 final _customerNameProvider = FutureProvider.autoDispose.family<String?, String?>((ref, id) async {
   if (id == null) return null;
@@ -115,6 +123,9 @@ class CartPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final t = Strings.of(context);
     final cart = ref.watch(cartProvider);
+    if ((ref.watch(quickCounterProvider).value ?? false) && cart.orderType != 'counter' && cart.orderType != 'takeaway') {
+      WidgetsBinding.instance.addPostFrameCallback((_) => ref.read(cartProvider.notifier).setOrderType('counter'));
+    }
     final notifier = ref.read(cartProvider.notifier);
     final session = ref.watch(sessionProvider)!;
     final bill = cart.bill;
@@ -150,7 +161,7 @@ class CartPanel extends ConsumerWidget {
             child: SegmentedButton<String>(
               showSelectedIcon: false,
               style: const ButtonStyle(visualDensity: VisualDensity.compact, padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 4))),
-              segments: [for (final k in ['dine_in', 'takeaway', 'delivery', 'counter']) ButtonSegment(value: k, label: Text(t[k], maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)))],
+              segments: [for (final k in (ref.watch(quickCounterProvider).value ?? false) ? ['counter', 'takeaway'] : ['dine_in', 'takeaway', 'delivery', 'counter']) ButtonSegment(value: k, label: Text(t[k], maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)))],
               selected: {cart.orderType},
               onSelectionChanged: (s) => notifier.setOrderType(s.first),
             ),
@@ -217,6 +228,8 @@ class CartPanel extends ConsumerWidget {
                         child: Row(children: [
                           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             Text(it.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                            for (final c in ref.watch(dealInsideProvider(it.productId)).value ?? const [])
+                              Text('• ${formatQty(c.qtyMilli * it.qtyMilli ~/ 1000)} x ${c.name}', key: ValueKey('deal-in-$i-${c.name}'), style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
                             Text([ref.money(it.unitPriceMinor + it.modifiersMinor, symbol: false), if (it.modifiers.isNotEmpty) '+ ${it.modifiers.map((m) => m.name).join(', ')}', if (it.note != null) '* ${it.note}'].join('  '), style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
                           ])),
                           IconButton(key: ValueKey('dec-$i'), visualDensity: VisualDensity.compact, icon: const Icon(Icons.remove_circle_outline), onPressed: () => notifier.changeQty(i, -step)),

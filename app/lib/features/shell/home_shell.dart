@@ -18,6 +18,7 @@ import '../cloud/support_screen.dart';
 import '../customers/customers_screen.dart';
 import '../expenses/expenses_screen.dart';
 import '../inventory/inventory_screen.dart';
+import '../inventory/recipes_screen.dart';
 import '../menu/menu_screen.dart';
 import '../pos/pos_screen.dart';
 import '../reports/reports_screen.dart';
@@ -50,6 +51,7 @@ final _destinations = <_Dest>[
   _Dest('customers', 'customers', Icons.people_alt_outlined, 'pos.sell', () => const CustomersScreen(), module: 'customers'),
   _Dest('expenses', 'expenses', Icons.payments_outlined, 'pos.sell', () => const ExpensesScreen(), module: 'expenses'),
   _Dest('inventory', 'inventory', Icons.inventory_2_outlined, 'inventory.manage', () => const InventoryScreen(), module: 'inventory'),
+  _Dest('recipes', 'recipes_title', Icons.menu_book_outlined, 'inventory.manage', () => const RecipesScreen(), module: 'inventory'),
   _Dest('menu', 'menu', Icons.restaurant_menu, 'menu.manage', () => const MenuScreen()),
   _Dest('staff', 'staff', Icons.badge_outlined, 'staff.manage', () => const StaffScreen(), module: 'staff'),
   _Dest('settings', 'settings', Icons.settings_outlined, 'settings.manage', () => const SettingsScreen()),

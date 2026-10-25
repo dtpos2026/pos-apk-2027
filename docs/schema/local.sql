@@ -281,7 +281,8 @@ CREATE TABLE supplier (
 CREATE TABLE purchase (
   id TEXT PRIMARY KEY, supplier_id TEXT REFERENCES supplier(id), invoice_ref TEXT,
   total_minor INTEGER NOT NULL, paid_minor INTEGER NOT NULL DEFAULT 0,
-  business_date TEXT NOT NULL, created_at INTEGER NOT NULL, staff_id TEXT REFERENCES staff(id)
+  business_date TEXT NOT NULL, created_at INTEGER NOT NULL, staff_id TEXT REFERENCES staff(id),
+  method_id TEXT REFERENCES payment_method(id)    -- the account (cash / bank / wallet) the paid part was paid from
 );
 CREATE TABLE purchase_line (
   id TEXT PRIMARY KEY, purchase_id TEXT NOT NULL REFERENCES purchase(id),
@@ -291,7 +292,8 @@ CREATE TABLE purchase_line (
 CREATE TABLE supplier_ledger (              -- append-only; +ve = we owe the supplier
   id TEXT PRIMARY KEY, supplier_id TEXT NOT NULL REFERENCES supplier(id),
   kind TEXT NOT NULL CHECK (kind IN ('purchase','payment','adjustment')),
-  amount_minor INTEGER NOT NULL, purchase_id TEXT, note TEXT, created_at INTEGER NOT NULL
+  amount_minor INTEGER NOT NULL, purchase_id TEXT, note TEXT, created_at INTEGER NOT NULL,
+  method_id TEXT REFERENCES payment_method(id)   -- for a payment: the account it was paid from
 );
 
 -- ---------- finance ----------

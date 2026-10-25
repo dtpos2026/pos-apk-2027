@@ -40,6 +40,21 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
     }
   }
 
+  Future<void> _confirmDelete(ExpenseRow e) async {
+    final s = Strings.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(s['expense_delete_title']),
+        content: Text('${e.category ?? s['no_category']}  ·  ${ref.money(e.amountMinor)}\n\n${s['expense_delete_body']}'),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(s['cancel'])), FilledButton(key: const ValueKey('exp-delete-ok'), onPressed: () => Navigator.pop(ctx, true), child: Text(s['delete']))],
+      ),
+    );
+    if (ok != true) return;
+    await ref.read(expenseServiceProvider).delete(e.id, staffId: ref.read(sessionProvider)!.staffId);
+    ref.invalidate(_expensesProvider);
+  }
+
   Future<void> _manageCategories() async {
     await showModalBottomSheet<void>(context: context, showDragHandle: true, builder: (_) => const _CategorySheet());
     ref.invalidate(_categoriesProvider);
@@ -104,6 +119,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                                   ]),
                                 ),
                                 Text(ref.money(e.amountMinor), style: TextStyle(fontWeight: FontWeight.w800, color: cs.error)),
+                                IconButton(key: ValueKey('exp-delete-$i'), tooltip: s['delete'], visualDensity: VisualDensity.compact, icon: Icon(Icons.delete_outline, color: cs.onSurfaceVariant), onPressed: () => _confirmDelete(e)),
                               ]),
                             );
                           },

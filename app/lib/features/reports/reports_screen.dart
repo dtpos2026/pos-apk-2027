@@ -23,11 +23,13 @@ String _key(DateTime d) => '${d.year}-${two(d.month)}-${two(d.day)}';
 final reportProvider = FutureProvider.family<SalesReport, String>((ref, date) => ref.watch(posServiceProvider).salesReport(date));
 final _rangeProvider = FutureProvider.autoDispose.family<_RangeData, (String, String)>((ref, r) async {
   final s = ref.watch(reportServiceProvider);
-  return _RangeData(await s.itemWise(r.$1, r.$2), await s.categoryWise(r.$1, r.$2), await s.cashierWise(r.$1, r.$2), await s.totals(r.$1, r.$2), await s.profitWise(r.$1, r.$2));
+  return _RangeData(await s.itemWise(r.$1, r.$2), await s.categoryWise(r.$1, r.$2), await s.cashierWise(r.$1, r.$2), await s.totals(r.$1, r.$2), await s.profitWise(r.$1, r.$2), await s.accounts(r.$1, r.$2), await s.moneyOut(r.$1, r.$2));
 });
 
 class _RangeData {
-  const _RangeData(this.items, this.categories, this.cashiers, this.totals, this.profit);
+  const _RangeData(this.items, this.categories, this.cashiers, this.totals, this.profit, this.accounts, this.moneyOut);
+  final List<AccountLine> accounts;
+  final List<MoneyOut> moneyOut;
   final List<ProfitLine> profit;
   final List<ReportLine> items;
   final List<ReportLine> categories;
@@ -42,7 +44,7 @@ class ReportsScreen extends ConsumerStatefulWidget {
 }
 
 class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTickerProviderStateMixin {
-  late final TabController _tabs = TabController(length: 5, vsync: this);
+  late final TabController _tabs = TabController(length: 6, vsync: this);
   late DateTime _from = ref.read(clockProvider)();
   late DateTime _to = _from;
 
@@ -126,7 +128,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
           IconButton(key: const ValueKey('export-pdf'), tooltip: t['export_pdf'], onPressed: range.value == null ? null : () => _exportPdf(range.value!), icon: const Icon(Icons.picture_as_pdf_outlined)),
         ]),
       ),
-      TabBar(controller: _tabs, isScrollable: true, tabAlignment: TabAlignment.start, tabs: [Tab(text: t['summary']), Tab(text: t['items_report']), Tab(text: t['categories_report']), Tab(text: t['cashiers_report']), Tab(key: const ValueKey('tab-profit'), text: t['profit_report'])]),
+      TabBar(controller: _tabs, isScrollable: true, tabAlignment: TabAlignment.start, tabs: [Tab(text: t['summary']), Tab(text: t['items_report']), Tab(text: t['categories_report']), Tab(text: t['cashiers_report']), Tab(key: const ValueKey('tab-profit'), text: t['profit_report']), Tab(key: const ValueKey('tab-accounts'), text: t['accounts_report'])]),
       Expanded(
         child: range.when(
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -137,6 +139,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
             _Breakdown(lines: d.categories, header: t['categories_report'], withQty: true, onExport: () => _export(d.categories, 'Category', 'categories')),
             _Breakdown(lines: d.cashiers, header: t['cashiers_report'], withQty: false, onExport: () => _export(d.cashiers, 'Cashier', 'cashiers', withQty: false)),
             _ProfitTab(lines: d.profit),
+            _AccountsTab(accounts: d.accounts, out: d.moneyOut),
           ]),
         ),
       ),
@@ -279,6 +282,56 @@ class _ProfitTab extends ConsumerWidget {
               Text(ref.money(l.profitMinor ?? l.revenueMinor), key: ValueKey('profit-${l.label}'), style: TextStyle(fontWeight: FontWeight.w800, color: l.profitMinor == null ? null : (l.profitMinor! >= 0 ? Colors.green.shade700 : cs.error))),
               if (l.marginPct != null) Text('${l.marginPct}%', style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant)),
             ]),
+          ),
+        ),
+    ]);
+  }
+}
+
+/// Where the money went and which account it came from: per account (cash, bank, wallet) what came in, what was paid back and what
+/// was paid out, then every payment out (expenses, purchases, supplier payments) with its account.
+class _AccountsTab extends ConsumerWidget {
+  const _AccountsTab({required this.accounts, required this.out});
+  final List<AccountLine> accounts;
+  final List<MoneyOut> out;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = Strings.of(context);
+    final cs = Theme.of(context).colorScheme;
+    if (accounts.isEmpty && out.isEmpty) return Center(child: Text(t['accounts_none'], key: const ValueKey('accounts-empty')));
+    IconData icon(String k) => switch (k) { 'expense' => Icons.receipt_outlined, 'purchase' => Icons.shopping_basket_outlined, _ => Icons.local_shipping_outlined };
+    String kind(String k) => switch (k) { 'expense' => t['expenses'], 'purchase' => t['purchase'], _ => t['supplier'] };
+    return ListView(padding: const EdgeInsets.fromLTRB(12, 8, 12, 24), children: [
+      for (final a in accounts)
+        Card(
+          key: ValueKey('account-${a.name}'),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Expanded(child: Text(a.name, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16))),
+                Text(ref.money(a.netMinor), key: ValueKey('account-net-${a.name}'), style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: a.netMinor >= 0 ? Colors.green.shade700 : cs.error)),
+              ]),
+              const SizedBox(height: 6),
+              Wrap(spacing: 14, children: [
+                Text('${t['money_in']}: ${ref.money(a.inMinor)}', style: const TextStyle(fontSize: 12.5)),
+                Text('${t['refunds']}: ${ref.money(a.refundsMinor)}', style: const TextStyle(fontSize: 12.5)),
+                Text('${t['money_out']}: ${ref.money(a.outMinor)}', style: const TextStyle(fontSize: 12.5)),
+              ]),
+            ]),
+          ),
+        ),
+      if (out.isNotEmpty) Padding(padding: const EdgeInsets.fromLTRB(4, 10, 4, 6), child: Text(t['money_out'], style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800))),
+      for (var i = 0; i < out.length; i++)
+        Card(
+          child: ListTile(
+            key: ValueKey('out-$i'),
+            dense: true,
+            leading: Icon(icon(out[i].kind), color: cs.primary),
+            title: Text('${kind(out[i].kind)} · ${out[i].title}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: Text([out[i].date, out[i].method, if ((out[i].detail ?? '').isNotEmpty) out[i].detail!].join('  ·  '), maxLines: 1, overflow: TextOverflow.ellipsis),
+            trailing: Text(ref.money(out[i].amountMinor), style: TextStyle(fontWeight: FontWeight.w800, color: cs.error)),
           ),
         ),
     ]);

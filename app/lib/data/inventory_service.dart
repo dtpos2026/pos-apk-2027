@@ -92,7 +92,21 @@ class InventoryService {
 
   /// Books a purchase: stock goes up, the average cost is re-weighted, and what was not paid now becomes payable
   /// to the supplier.
-  Future<String> purchase({String? supplierId, String? invoiceRef, required List<PurchaseInput> lines, int paidMinor = 0, required String staffId}) => h.db.transaction(() async {
+  /// The account a payment leaves from: the one chosen, else the first cash account. Cash paid while the cashier's shift is open
+  /// also leaves the drawer, so the shift's expected cash agrees.
+  Future<String> _payFrom(String? methodId, int amountMinor, String reason, String staffId) async {
+    final m = methodId == null
+        ? await h.one("SELECT id, kind FROM payment_method WHERE kind = 'cash' AND enabled = 1 AND deleted_at IS NULL ORDER BY sort, rowid LIMIT 1")
+        : await h.one('SELECT id, kind FROM payment_method WHERE id = ? AND enabled = 1 AND deleted_at IS NULL', [methodId]);
+    if (m == null || m['kind'] == 'credit') throw PosException('bad_method', 'Choose the account the money was paid from');
+    if (m['kind'] == 'cash') {
+      final shift = await h.openShiftOf(staffId);
+      if (shift != null) await h.exec('INSERT INTO cash_movement(id, shift_id, direction, amount_minor, reason, staff_id, created_at) VALUES (?,?,?,?,?,?,?)', [h.id, shift, 'out', amountMinor, reason, staffId, h.ts]);
+    }
+    return m['id'] as String;
+  }
+
+  Future<String> purchase({String? supplierId, String? invoiceRef, required List<PurchaseInput> lines, int paidMinor = 0, String? methodId, required String staffId}) => h.db.transaction(() async {
         if (lines.isEmpty) throw PosException('empty', 'Add at least one item');
         if (paidMinor < 0) throw PosException('bad_amount', 'Paid cannot be negative');
         var total = 0;
@@ -103,7 +117,8 @@ class InventoryService {
         if (paidMinor > total) throw PosException('overpaid', 'Paid more than the purchase total');
         if (paidMinor < total && supplierId == null) throw PosException('supplier_required', 'Choose a supplier for a credit purchase');
         final pid = h.id;
-        await h.exec('INSERT INTO purchase(id, supplier_id, invoice_ref, total_minor, paid_minor, business_date, created_at, staff_id) VALUES (?,?,?,?,?,?,?,?)', [pid, supplierId, invoiceRef?.trim(), total, paidMinor, await h.openBusinessDate(), h.ts, staffId]);
+        final from = paidMinor > 0 ? await _payFrom(methodId, paidMinor, 'Purchase${invoiceRef == null || invoiceRef.trim().isEmpty ? '' : ' ${invoiceRef.trim()}'}', staffId) : null;
+        await h.exec('INSERT INTO purchase(id, supplier_id, invoice_ref, total_minor, paid_minor, business_date, created_at, staff_id, method_id) VALUES (?,?,?,?,?,?,?,?,?)', [pid, supplierId, invoiceRef?.trim(), total, paidMinor, await h.openBusinessDate(), h.ts, staffId, from]);
         for (final l in lines) {
           final item = await h.one('SELECT avg_cost_minor_per_unit FROM stock_item WHERE id = ? AND deleted_at IS NULL', [l.stockItemId]);
           if (item == null) throw PosException('not_found', 'Stock item not found');
@@ -118,19 +133,21 @@ class InventoryService {
         }
         if (supplierId != null) {
           await h.exec('INSERT INTO supplier_ledger(id, supplier_id, kind, amount_minor, purchase_id, created_at) VALUES (?,?,?,?,?,?)', [h.id, supplierId, 'purchase', total, pid, h.ts]);
-          if (paidMinor > 0) await h.exec('INSERT INTO supplier_ledger(id, supplier_id, kind, amount_minor, purchase_id, note, created_at) VALUES (?,?,?,?,?,?,?)', [h.id, supplierId, 'payment', -paidMinor, pid, 'Paid at purchase', h.ts]);
+          if (paidMinor > 0) await h.exec('INSERT INTO supplier_ledger(id, supplier_id, kind, amount_minor, purchase_id, note, created_at, method_id) VALUES (?,?,?,?,?,?,?,?)', [h.id, supplierId, 'payment', -paidMinor, pid, 'Paid at purchase', h.ts, from]);
         }
-        await h.audit('purchase.add', staffId: staffId, entity: 'purchase', entityId: pid, after: {'total': total, 'paid': paidMinor});
+        await h.audit('purchase.add', staffId: staffId, entity: 'purchase', entityId: pid, after: {'total': total, 'paid': paidMinor, 'method': from});
         await h.outbox('purchase', pid, 'append', {'id': pid, 'total_minor': total, 'paid_minor': paidMinor, 'supplier_id': supplierId}, 'purchase:$pid');
         return pid;
       });
 
-  Future<void> paySupplier({required String supplierId, required int amountMinor, required String staffId, String? note}) => h.db.transaction(() async {
+  Future<void> paySupplier({required String supplierId, required int amountMinor, String? methodId, required String staffId, String? note}) => h.db.transaction(() async {
         if (amountMinor <= 0) throw PosException('bad_amount', 'Amount must be positive');
         final owed = await supplierBalance(supplierId);
         if (amountMinor > owed) throw PosException('overpay', 'You only owe $owed');
-        await h.exec('INSERT INTO supplier_ledger(id, supplier_id, kind, amount_minor, note, created_at) VALUES (?,?,?,?,?,?)', [h.id, supplierId, 'payment', -amountMinor, note, h.ts]);
-        await h.audit('supplier.payment', staffId: staffId, entity: 'supplier', entityId: supplierId, after: {'amount': amountMinor});
+        final sup = await h.one('SELECT name FROM supplier WHERE id = ?', [supplierId]);
+        final from = await _payFrom(methodId, amountMinor, 'Supplier payment: ${sup?['name'] ?? ''}'.trim(), staffId);
+        await h.exec('INSERT INTO supplier_ledger(id, supplier_id, kind, amount_minor, note, created_at, method_id) VALUES (?,?,?,?,?,?,?)', [h.id, supplierId, 'payment', -amountMinor, note, h.ts, from]);
+        await h.audit('supplier.payment', staffId: staffId, entity: 'supplier', entityId: supplierId, after: {'amount': amountMinor, 'method': from});
       });
 
   /// Writes off spoiled or wasted stock. A reason is mandatory and the entry is audited.
@@ -210,7 +227,7 @@ class InventoryService {
 
   /// The goods arrived: books a normal purchase (stock up, average cost, supplier payable) and closes the order.
   /// [actualCostMinor] can correct the unit cost per stock item when the supplier charged differently.
-  Future<String> receivePurchaseOrder(String poId, {int paidMinor = 0, Map<String, int> actualCostMinor = const {}, required String staffId}) => h.db.transaction(() async {
+  Future<String> receivePurchaseOrder(String poId, {int paidMinor = 0, String? methodId, Map<String, int> actualCostMinor = const {}, required String staffId}) => h.db.transaction(() async {
         final o = await h.one('SELECT status, supplier_id, po_no FROM purchase_order WHERE id = ?', [poId]);
         if (o == null) throw PosException('not_found', 'Order not found');
         if (o['status'] == 'received') throw PosException('already_received', 'Already received');
@@ -221,6 +238,7 @@ class InventoryService {
           invoiceRef: o['po_no'] as String,
           lines: [for (final l in lines) PurchaseInput(stockItemId: l['stock_item_id'] as String, qtyMilli: l['qty_milli'] as int, unitCostMinor: actualCostMinor[l['stock_item_id']] ?? (l['unit_cost_minor'] as int))],
           paidMinor: paidMinor,
+          methodId: methodId,
           staffId: staffId,
         );
         await h.exec("UPDATE purchase_order SET status = 'received', received_at = ?, purchase_id = ?, updated_at = ? WHERE id = ?", [h.ts, pid, h.ts, poId]);

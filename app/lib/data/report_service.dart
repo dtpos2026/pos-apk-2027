@@ -22,6 +22,29 @@ class ProfitLine {
   int? get marginPct => costMinor == null || revenueMinor <= 0 ? null : ((revenueMinor - costMinor!) * 100 / revenueMinor).round();
 }
 
+/// One payment that left the business: an expense, a cash purchase, or a payment to a supplier, with the account it came from.
+class MoneyOut {
+  const MoneyOut({required this.date, required this.kind, required this.title, this.detail, required this.method, required this.amountMinor});
+  final String date;
+
+  /// expense | purchase | supplier
+  final String kind;
+  final String title;
+  final String? detail;
+  final String method;
+  final int amountMinor;
+}
+
+/// What came into and went out of one account (cash, a bank, a wallet) in a date range.
+class AccountLine {
+  const AccountLine({required this.name, this.inMinor = 0, this.refundsMinor = 0, this.outMinor = 0});
+  final String name;
+  final int inMinor;
+  final int refundsMinor;
+  final int outMinor;
+  int get netMinor => inMinor - refundsMinor - outMinor;
+}
+
 /// Sales breakdowns for a date range (inclusive, business dates 'YYYY-MM-DD'). Only paid bills count here;
 /// voided bills are excluded, and refunds are reported separately in the daily summary.
 class ReportService {
@@ -80,6 +103,49 @@ class ReportService {
             [from, to]))
           ReportLine(label: r['label'] as String, qtyMilli: 0, amountMinor: r['amount'] as int, bills: r['bills'] as int)
       ];
+
+  /// Every payment made out of the business in the range, newest first: expenses, purchases bought without a supplier account, and payments to suppliers
+  /// (including the part paid when the goods were bought). Each names the account it was paid from.
+  Future<List<MoneyOut>> moneyOut(String from, String to) async {
+    final out = <MoneyOut>[];
+    for (final r in await h.q(
+        "SELECT e.business_date AS d, e.amount_minor AS amt, e.note AS note, COALESCE(c.name, '') AS cat, COALESCE(m.name, 'Not recorded') AS method FROM expense e LEFT JOIN expense_category c ON c.id = e.category_id LEFT JOIN payment_method m ON m.id = e.method_id WHERE e.business_date BETWEEN ? AND ? ORDER BY e.created_at",
+        [from, to])) {
+      out.add(MoneyOut(date: r['d'] as String, kind: 'expense', title: (r['cat'] as String).isEmpty ? 'Expense' : r['cat'] as String, detail: r['note'] as String?, method: r['method'] as String, amountMinor: r['amt'] as int));
+    }
+    for (final r in await h.q(
+        "SELECT p.business_date AS d, p.paid_minor AS amt, p.invoice_ref AS ref, COALESCE(m.name, 'Not recorded') AS method FROM purchase p LEFT JOIN payment_method m ON m.id = p.method_id WHERE p.supplier_id IS NULL AND p.paid_minor > 0 AND p.business_date BETWEEN ? AND ? ORDER BY p.created_at",
+        [from, to])) {
+      out.add(MoneyOut(date: r['d'] as String, kind: 'purchase', title: 'Purchase', detail: r['ref'] as String?, method: r['method'] as String, amountMinor: r['amt'] as int));
+    }
+    for (final r in await h.q(
+        "SELECT strftime('%Y-%m-%d', l.created_at / 1000, 'unixepoch', 'localtime') AS d, -l.amount_minor AS amt, l.note AS note, s.name AS sup, COALESCE(m.name, 'Not recorded') AS method FROM supplier_ledger l JOIN supplier s ON s.id = l.supplier_id LEFT JOIN payment_method m ON m.id = l.method_id WHERE l.kind = 'payment' AND strftime('%Y-%m-%d', l.created_at / 1000, 'unixepoch', 'localtime') BETWEEN ? AND ? ORDER BY l.created_at",
+        [from, to])) {
+      out.add(MoneyOut(date: r['d'] as String, kind: 'supplier', title: r['sup'] as String, detail: r['note'] as String?, method: r['method'] as String, amountMinor: r['amt'] as int));
+    }
+    out.sort((a, b) => b.date.compareTo(a.date));
+    return out;
+  }
+
+  /// Per account: money received from sales (credit/udhaar is not money), refunds paid back, and everything paid out (see [moneyOut]).
+  Future<List<AccountLine>> accounts(String from, String to) async {
+    final inn = <String, int>{}, ref = <String, int>{}, outm = <String, int>{};
+    for (final r in await h.q(
+        "SELECT m.name AS n, SUM(p.amount_minor) AS a FROM payment p JOIN payment_method m ON m.id = p.method_id JOIN \"order\" o ON o.id = p.order_id WHERE p.method_kind <> 'credit' AND o.business_date BETWEEN ? AND ? GROUP BY m.name",
+        [from, to])) {
+      inn[r['n'] as String] = r['a'] as int;
+    }
+    for (final r in await h.q(
+        "SELECT COALESCE(m.name, 'Not recorded') AS n, SUM(r.amount_minor) AS a FROM refund r JOIN \"order\" o ON o.id = r.order_id LEFT JOIN payment_method m ON m.id = r.method_id WHERE o.business_date BETWEEN ? AND ? GROUP BY 1",
+        [from, to])) {
+      ref[r['n'] as String] = r['a'] as int;
+    }
+    for (final o in await moneyOut(from, to)) {
+      outm[o.method] = (outm[o.method] ?? 0) + o.amountMinor;
+    }
+    final names = {...inn.keys, ...ref.keys, ...outm.keys}.toList()..sort();
+    return [for (final n in names) AccountLine(name: n, inMinor: inn[n] ?? 0, refundsMinor: ref[n] ?? 0, outMinor: outm[n] ?? 0)];
+  }
 
   /// Expenses and profit for the range: sales minus refunds minus expenses (cost of stock sold is not deducted).
   Future<({int sales, int refunds, int expenses, int tax})> totals(String from, String to) async {

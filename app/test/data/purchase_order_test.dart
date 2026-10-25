@@ -16,6 +16,7 @@ void main() {
     inv = InventoryService(h);
     await db.customStatement("INSERT INTO role(id,name,permissions,updated_at) VALUES ('r','Owner','[\"*\"]',1)");
     await db.customStatement("INSERT INTO staff(id,name,role_id,pin_hash,pin_salt,updated_at) VALUES ('s1','Ali','r','h','s',1)");
+    await db.customStatement("INSERT INTO payment_method(id,name,kind,updated_at) VALUES ('cash','Cash','cash',1)");
     chicken = await inv.saveItem(name: 'Chicken', unit: 'kg', staffId: 's1');
     oil = await inv.saveItem(name: 'Oil', unit: 'l', staffId: 's1');
     supplier = await inv.saveSupplier(name: 'Ahmed Traders', phone: '03001234567');

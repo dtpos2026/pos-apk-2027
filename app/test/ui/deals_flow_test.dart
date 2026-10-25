@@ -48,5 +48,18 @@ void main() {
     expect(find.byKey(const ValueKey('deal-csv-summary')), findsOneWidget);
     await tapKey(t, 'deal-csv-import');
     expect(find.textContaining('✓'), findsOneWidget);
+
+    // selling it: the cart names what is inside the deal (for the quantity in the cart)
+    while (find.byType(NavigationBar).evaluate().isEmpty) {
+      await t.pageBack();
+      await t.pumpAndSettle();
+    }
+    await openTab(t, 'pos', 'POS');
+    await tapProduct(t, 'Family Deal');
+    await tapKey(t, 'open-cart');
+    expect(find.text('• 2 x Zinger Burger'), findsOneWidget);
+    expect(find.text('• 1 x Fries'), findsOneWidget);
+    await tapKey(t, 'inc-0');
+    expect(find.text('• 4 x Zinger Burger'), findsOneWidget);
   });
 }

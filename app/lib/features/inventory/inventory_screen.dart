@@ -4,10 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/format.dart';
 import '../../app/providers.dart';
 import '../../app/strings.dart';
+import '../../data/queries.dart';
 import '../../app/whatsapp.dart';
 import '../../data/inventory_service.dart';
 import '../../data/pos_service.dart';
-import '../../data/queries.dart';
 import '../../domain/money.dart';
 import '../common/dialogs.dart';
 
@@ -95,50 +95,48 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> with SingleTi
     if (v != null) _refresh();
   }
 
+  /// The account the money is paid from (cash, bank, wallet...). Never "credit": that is not money leaving.
+  Future<List<PaymentMethodInfo>> _accounts() async => (await ref.read(paymentMethodsProvider.future)).where((m) => m.kind != 'credit').toList();
+
+  Widget _accountPicker(List<PaymentMethodInfo> accounts, String? current, void Function(String?) onChanged, {Key? key}) => DropdownButtonFormField<String>(
+        key: key ?? const ValueKey('pay-account'),
+        initialValue: current,
+        isExpanded: true,
+        decoration: InputDecoration(labelText: Strings.of(context)['paid_from']),
+        items: [for (final m in accounts) DropdownMenuItem(value: m.id, child: Text(m.name))],
+        onChanged: onChanged,
+      );
+
   Future<void> _purchase(StockRow r) async {
     final s = Strings.of(context);
     final sup = await ref.read(_suppliersProvider.future);
     if (!mounted) return;
     String? supplier;
+    final accounts = await _accounts();
+    String? account = accounts.where((m) => m.kind == 'cash').firstOrNull?.id ?? accounts.firstOrNull?.id;
+    if (!mounted) return;
     final v = await showFormDialog(
       context,
       title: '${s['purchase']}: ${r.name}',
       fields: [FieldSpec('qty', '${s['qty']} (${r.unit})', number: true), FieldSpec('cost', s['cost_per_unit'], number: true), FieldSpec('paid', s['paid_now'], number: true, required: false)],
-      extra: (set) => DropdownButtonFormField<String?>(key: const ValueKey('supplier'), initialValue: supplier, decoration: InputDecoration(labelText: s['supplier']), items: [const DropdownMenuItem<String?>(value: null, child: Text('-')), for (final x in sup) DropdownMenuItem<String?>(value: x['id'] as String, child: Text('${x['name']}'))], onChanged: (x) => set(() => supplier = x)),
+      extra: (set) => Column(children: [
+        DropdownButtonFormField<String?>(key: const ValueKey('supplier'), initialValue: supplier, decoration: InputDecoration(labelText: s['supplier']), items: [const DropdownMenuItem<String?>(value: null, child: Text('-')), for (final x in sup) DropdownMenuItem<String?>(value: x['id'] as String, child: Text('${x['name']}'))], onChanged: (x) => set(() => supplier = x)),
+        const SizedBox(height: 10),
+        _accountPicker(accounts, account, (x) => set(() => account = x)),
+      ]),
       validate: (v) async {
         try {
           final qty = _parseQty(v['qty']!) ?? 0;
           final cost = parseMinor(v['cost']!, currency: ref.currency) ?? 0;
           final total = (qty * cost / 1000).round();
           final paid = v['paid']!.isEmpty ? (supplier == null ? total : 0) : (parseMinor(v['paid']!, currency: ref.currency) ?? 0);
-          await _svc.purchase(supplierId: supplier, lines: [PurchaseInput(stockItemId: r.id, qtyMilli: qty, unitCostMinor: cost)], paidMinor: paid, staffId: _staff);
+          await _svc.purchase(supplierId: supplier, lines: [PurchaseInput(stockItemId: r.id, qtyMilli: qty, unitCostMinor: cost)], paidMinor: paid, methodId: account, staffId: _staff);
           return null;
         } on PosException catch (e) {
           return e.message;
         }
       },
     );
-    if (v != null) _refresh();
-  }
-
-  Future<void> _recipe() async {
-    final s = Strings.of(context);
-    final products = await loadProducts(ref.read(databaseProvider));
-    final stock = await _svc.list();
-    if (!mounted || products.isEmpty || stock.isEmpty) return;
-    final product = await showDialog<MenuProduct>(context: context, builder: (ctx) => SimpleDialog(title: Text(s['recipe']), children: [for (final p in products) SimpleDialogOption(key: ValueKey('rp-${p.name}'), onPressed: () => Navigator.pop(ctx, p), child: Text(p.name))]));
-    if (product == null || !mounted) return;
-    final current = await _svc.recipe(product.id);
-    final fields = [for (final x in stock) FieldSpec(x.id, '${x.name} (${x.unit})', number: true, required: false, initial: current[x.id] == null ? '' : _qty(current[x.id]!))];
-    if (!mounted) return;
-    final v = await showFormDialog(context, title: '${s['recipe']}: ${product.name}', fields: fields, validate: (v) async {
-      try {
-        await _svc.saveRecipe(productId: product.id, ingredientsMilli: {for (final e in v.entries) if (e.value.isNotEmpty && (_parseQty(e.value) ?? 0) > 0) e.key: _parseQty(e.value)!});
-        return null;
-      } on PosException catch (e) {
-        return e.message;
-      }
-    });
     if (v != null) _refresh();
   }
 
@@ -178,9 +176,12 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> with SingleTi
           await sendViaWhatsApp(ref, o.supplierPhone, text);
           await _svc.markPurchaseOrderSent(o.id);
         case 'receive':
-          final v = await showFormDialog(context, title: '${s['receive_goods']}: ${o.poNo}', fields: [FieldSpec('paid', s['paid_now'], number: true, required: false)]);
+          final accounts = await _accounts();
+          String? account = accounts.where((m) => m.kind == 'cash').firstOrNull?.id ?? accounts.firstOrNull?.id;
+          if (!mounted) return;
+          final v = await showFormDialog(context, title: '${s['receive_goods']}: ${o.poNo}', fields: [FieldSpec('paid', s['paid_now'], number: true, required: false)], extra: (set) => _accountPicker(accounts, account, (x) => set(() => account = x)));
           if (v == null) return;
-          await _svc.receivePurchaseOrder(o.id, paidMinor: v['paid']!.isEmpty ? 0 : (parseMinor(v['paid']!, currency: ref.currency) ?? 0), staffId: _staff);
+          await _svc.receivePurchaseOrder(o.id, paidMinor: v['paid']!.isEmpty ? 0 : (parseMinor(v['paid']!, currency: ref.currency) ?? 0), methodId: account, staffId: _staff);
         case 'cancel':
           await _svc.cancelPurchaseOrder(o.id, staffId: _staff);
       }
@@ -205,9 +206,12 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> with SingleTi
 
   Future<void> _paySupplier(String id, int owed) async {
     final s = Strings.of(context);
-    final v = await showFormDialog(context, title: s['pay_supplier'], fields: [FieldSpec('amount', s['amount'], number: true, initial: formatMinor(owed, currency: ref.currency, symbol: false).replaceAll(',', ''))], validate: (v) async {
+    final accounts = await _accounts();
+    String? account = accounts.where((m) => m.kind == 'cash').firstOrNull?.id ?? accounts.firstOrNull?.id;
+    if (!mounted) return;
+    final v = await showFormDialog(context, title: s['pay_supplier'], fields: [FieldSpec('amount', s['amount'], number: true, initial: formatMinor(owed, currency: ref.currency, symbol: false).replaceAll(',', ''))], extra: (set) => _accountPicker(accounts, account, (x) => set(() => account = x)), validate: (v) async {
       try {
-        await _svc.paySupplier(supplierId: id, amountMinor: parseMinor(v['amount']!, currency: ref.currency) ?? 0, staffId: _staff);
+        await _svc.paySupplier(supplierId: id, amountMinor: parseMinor(v['amount']!, currency: ref.currency) ?? 0, methodId: account, staffId: _staff);
         return null;
       } on PosException catch (e) {
         return e.message;
@@ -235,7 +239,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> with SingleTi
                 padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
                 child: Row(children: [
                   Expanded(child: Text('${s['valuation']}: ${ref.money(value)}', key: const ValueKey('stock-value'), style: const TextStyle(fontWeight: FontWeight.w800))),
-                  IconButton(key: const ValueKey('recipe-btn'), tooltip: s['recipe'], onPressed: _recipe, icon: const Icon(Icons.menu_book_outlined)),
+                  IconButton(key: const ValueKey('recipe-btn'), tooltip: s['recipe'], onPressed: () => ref.read(shellTabProvider.notifier).go('recipes'), icon: const Icon(Icons.menu_book_outlined)),
                 ]),
               ),
               Padding(

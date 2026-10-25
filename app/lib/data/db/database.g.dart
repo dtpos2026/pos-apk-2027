@@ -19273,6 +19273,17 @@ class Purchase extends Table with TableInfo<Purchase, PurchaseData> {
     requiredDuringInsert: false,
     $customConstraints: 'REFERENCES staff(id)',
   );
+  static const VerificationMeta _methodIdMeta = const VerificationMeta(
+    'methodId',
+  );
+  late final GeneratedColumn<String> methodId = GeneratedColumn<String>(
+    'method_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'REFERENCES payment_method(id)',
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -19283,6 +19294,7 @@ class Purchase extends Table with TableInfo<Purchase, PurchaseData> {
     businessDate,
     createdAt,
     staffId,
+    methodId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -19350,6 +19362,12 @@ class Purchase extends Table with TableInfo<Purchase, PurchaseData> {
         staffId.isAcceptableOrUnknown(data['staff_id']!, _staffIdMeta),
       );
     }
+    if (data.containsKey('method_id')) {
+      context.handle(
+        _methodIdMeta,
+        methodId.isAcceptableOrUnknown(data['method_id']!, _methodIdMeta),
+      );
+    }
     return context;
   }
 
@@ -19391,6 +19409,10 @@ class Purchase extends Table with TableInfo<Purchase, PurchaseData> {
         DriftSqlType.string,
         data['${effectivePrefix}staff_id'],
       ),
+      methodId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}method_id'],
+      ),
     );
   }
 
@@ -19412,6 +19434,7 @@ class PurchaseData extends DataClass implements Insertable<PurchaseData> {
   final String businessDate;
   final int createdAt;
   final String? staffId;
+  final String? methodId;
   const PurchaseData({
     this.id,
     this.supplierId,
@@ -19421,6 +19444,7 @@ class PurchaseData extends DataClass implements Insertable<PurchaseData> {
     required this.businessDate,
     required this.createdAt,
     this.staffId,
+    this.methodId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -19441,6 +19465,9 @@ class PurchaseData extends DataClass implements Insertable<PurchaseData> {
     if (!nullToAbsent || staffId != null) {
       map['staff_id'] = Variable<String>(staffId);
     }
+    if (!nullToAbsent || methodId != null) {
+      map['method_id'] = Variable<String>(methodId);
+    }
     return map;
   }
 
@@ -19460,6 +19487,9 @@ class PurchaseData extends DataClass implements Insertable<PurchaseData> {
       staffId: staffId == null && nullToAbsent
           ? const Value.absent()
           : Value(staffId),
+      methodId: methodId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(methodId),
     );
   }
 
@@ -19477,6 +19507,7 @@ class PurchaseData extends DataClass implements Insertable<PurchaseData> {
       businessDate: serializer.fromJson<String>(json['business_date']),
       createdAt: serializer.fromJson<int>(json['created_at']),
       staffId: serializer.fromJson<String?>(json['staff_id']),
+      methodId: serializer.fromJson<String?>(json['method_id']),
     );
   }
   @override
@@ -19491,6 +19522,7 @@ class PurchaseData extends DataClass implements Insertable<PurchaseData> {
       'business_date': serializer.toJson<String>(businessDate),
       'created_at': serializer.toJson<int>(createdAt),
       'staff_id': serializer.toJson<String?>(staffId),
+      'method_id': serializer.toJson<String?>(methodId),
     };
   }
 
@@ -19503,6 +19535,7 @@ class PurchaseData extends DataClass implements Insertable<PurchaseData> {
     String? businessDate,
     int? createdAt,
     Value<String?> staffId = const Value.absent(),
+    Value<String?> methodId = const Value.absent(),
   }) => PurchaseData(
     id: id.present ? id.value : this.id,
     supplierId: supplierId.present ? supplierId.value : this.supplierId,
@@ -19512,6 +19545,7 @@ class PurchaseData extends DataClass implements Insertable<PurchaseData> {
     businessDate: businessDate ?? this.businessDate,
     createdAt: createdAt ?? this.createdAt,
     staffId: staffId.present ? staffId.value : this.staffId,
+    methodId: methodId.present ? methodId.value : this.methodId,
   );
   PurchaseData copyWithCompanion(PurchaseCompanion data) {
     return PurchaseData(
@@ -19531,6 +19565,7 @@ class PurchaseData extends DataClass implements Insertable<PurchaseData> {
           : this.businessDate,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       staffId: data.staffId.present ? data.staffId.value : this.staffId,
+      methodId: data.methodId.present ? data.methodId.value : this.methodId,
     );
   }
 
@@ -19544,7 +19579,8 @@ class PurchaseData extends DataClass implements Insertable<PurchaseData> {
           ..write('paidMinor: $paidMinor, ')
           ..write('businessDate: $businessDate, ')
           ..write('createdAt: $createdAt, ')
-          ..write('staffId: $staffId')
+          ..write('staffId: $staffId, ')
+          ..write('methodId: $methodId')
           ..write(')'))
         .toString();
   }
@@ -19559,6 +19595,7 @@ class PurchaseData extends DataClass implements Insertable<PurchaseData> {
     businessDate,
     createdAt,
     staffId,
+    methodId,
   );
   @override
   bool operator ==(Object other) =>
@@ -19571,7 +19608,8 @@ class PurchaseData extends DataClass implements Insertable<PurchaseData> {
           other.paidMinor == this.paidMinor &&
           other.businessDate == this.businessDate &&
           other.createdAt == this.createdAt &&
-          other.staffId == this.staffId);
+          other.staffId == this.staffId &&
+          other.methodId == this.methodId);
 }
 
 class PurchaseCompanion extends UpdateCompanion<PurchaseData> {
@@ -19583,6 +19621,7 @@ class PurchaseCompanion extends UpdateCompanion<PurchaseData> {
   final Value<String> businessDate;
   final Value<int> createdAt;
   final Value<String?> staffId;
+  final Value<String?> methodId;
   final Value<int> rowid;
   const PurchaseCompanion({
     this.id = const Value.absent(),
@@ -19593,6 +19632,7 @@ class PurchaseCompanion extends UpdateCompanion<PurchaseData> {
     this.businessDate = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.staffId = const Value.absent(),
+    this.methodId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   PurchaseCompanion.insert({
@@ -19604,6 +19644,7 @@ class PurchaseCompanion extends UpdateCompanion<PurchaseData> {
     required String businessDate,
     required int createdAt,
     this.staffId = const Value.absent(),
+    this.methodId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : totalMinor = Value(totalMinor),
        businessDate = Value(businessDate),
@@ -19617,6 +19658,7 @@ class PurchaseCompanion extends UpdateCompanion<PurchaseData> {
     Expression<String>? businessDate,
     Expression<int>? createdAt,
     Expression<String>? staffId,
+    Expression<String>? methodId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -19628,6 +19670,7 @@ class PurchaseCompanion extends UpdateCompanion<PurchaseData> {
       if (businessDate != null) 'business_date': businessDate,
       if (createdAt != null) 'created_at': createdAt,
       if (staffId != null) 'staff_id': staffId,
+      if (methodId != null) 'method_id': methodId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -19641,6 +19684,7 @@ class PurchaseCompanion extends UpdateCompanion<PurchaseData> {
     Value<String>? businessDate,
     Value<int>? createdAt,
     Value<String?>? staffId,
+    Value<String?>? methodId,
     Value<int>? rowid,
   }) {
     return PurchaseCompanion(
@@ -19652,6 +19696,7 @@ class PurchaseCompanion extends UpdateCompanion<PurchaseData> {
       businessDate: businessDate ?? this.businessDate,
       createdAt: createdAt ?? this.createdAt,
       staffId: staffId ?? this.staffId,
+      methodId: methodId ?? this.methodId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -19683,6 +19728,9 @@ class PurchaseCompanion extends UpdateCompanion<PurchaseData> {
     if (staffId.present) {
       map['staff_id'] = Variable<String>(staffId.value);
     }
+    if (methodId.present) {
+      map['method_id'] = Variable<String>(methodId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -19700,6 +19748,7 @@ class PurchaseCompanion extends UpdateCompanion<PurchaseData> {
           ..write('businessDate: $businessDate, ')
           ..write('createdAt: $createdAt, ')
           ..write('staffId: $staffId, ')
+          ..write('methodId: $methodId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -20162,6 +20211,17 @@ class SupplierLedger extends Table
     requiredDuringInsert: true,
     $customConstraints: 'NOT NULL',
   );
+  static const VerificationMeta _methodIdMeta = const VerificationMeta(
+    'methodId',
+  );
+  late final GeneratedColumn<String> methodId = GeneratedColumn<String>(
+    'method_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'REFERENCES payment_method(id)',
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -20171,6 +20231,7 @@ class SupplierLedger extends Table
     purchaseId,
     note,
     createdAt,
+    methodId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -20234,6 +20295,12 @@ class SupplierLedger extends Table
     } else if (isInserting) {
       context.missing(_createdAtMeta);
     }
+    if (data.containsKey('method_id')) {
+      context.handle(
+        _methodIdMeta,
+        methodId.isAcceptableOrUnknown(data['method_id']!, _methodIdMeta),
+      );
+    }
     return context;
   }
 
@@ -20271,6 +20338,10 @@ class SupplierLedger extends Table
         DriftSqlType.int,
         data['${effectivePrefix}created_at'],
       )!,
+      methodId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}method_id'],
+      ),
     );
   }
 
@@ -20293,6 +20364,7 @@ class SupplierLedgerData extends DataClass
   final String? purchaseId;
   final String? note;
   final int createdAt;
+  final String? methodId;
   const SupplierLedgerData({
     this.id,
     required this.supplierId,
@@ -20301,6 +20373,7 @@ class SupplierLedgerData extends DataClass
     this.purchaseId,
     this.note,
     required this.createdAt,
+    this.methodId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -20318,6 +20391,9 @@ class SupplierLedgerData extends DataClass
       map['note'] = Variable<String>(note);
     }
     map['created_at'] = Variable<int>(createdAt);
+    if (!nullToAbsent || methodId != null) {
+      map['method_id'] = Variable<String>(methodId);
+    }
     return map;
   }
 
@@ -20332,6 +20408,9 @@ class SupplierLedgerData extends DataClass
           : Value(purchaseId),
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
       createdAt: Value(createdAt),
+      methodId: methodId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(methodId),
     );
   }
 
@@ -20348,6 +20427,7 @@ class SupplierLedgerData extends DataClass
       purchaseId: serializer.fromJson<String?>(json['purchase_id']),
       note: serializer.fromJson<String?>(json['note']),
       createdAt: serializer.fromJson<int>(json['created_at']),
+      methodId: serializer.fromJson<String?>(json['method_id']),
     );
   }
   @override
@@ -20361,6 +20441,7 @@ class SupplierLedgerData extends DataClass
       'purchase_id': serializer.toJson<String?>(purchaseId),
       'note': serializer.toJson<String?>(note),
       'created_at': serializer.toJson<int>(createdAt),
+      'method_id': serializer.toJson<String?>(methodId),
     };
   }
 
@@ -20372,6 +20453,7 @@ class SupplierLedgerData extends DataClass
     Value<String?> purchaseId = const Value.absent(),
     Value<String?> note = const Value.absent(),
     int? createdAt,
+    Value<String?> methodId = const Value.absent(),
   }) => SupplierLedgerData(
     id: id.present ? id.value : this.id,
     supplierId: supplierId ?? this.supplierId,
@@ -20380,6 +20462,7 @@ class SupplierLedgerData extends DataClass
     purchaseId: purchaseId.present ? purchaseId.value : this.purchaseId,
     note: note.present ? note.value : this.note,
     createdAt: createdAt ?? this.createdAt,
+    methodId: methodId.present ? methodId.value : this.methodId,
   );
   SupplierLedgerData copyWithCompanion(SupplierLedgerCompanion data) {
     return SupplierLedgerData(
@@ -20396,6 +20479,7 @@ class SupplierLedgerData extends DataClass
           : this.purchaseId,
       note: data.note.present ? data.note.value : this.note,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      methodId: data.methodId.present ? data.methodId.value : this.methodId,
     );
   }
 
@@ -20408,7 +20492,8 @@ class SupplierLedgerData extends DataClass
           ..write('amountMinor: $amountMinor, ')
           ..write('purchaseId: $purchaseId, ')
           ..write('note: $note, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('methodId: $methodId')
           ..write(')'))
         .toString();
   }
@@ -20422,6 +20507,7 @@ class SupplierLedgerData extends DataClass
     purchaseId,
     note,
     createdAt,
+    methodId,
   );
   @override
   bool operator ==(Object other) =>
@@ -20433,7 +20519,8 @@ class SupplierLedgerData extends DataClass
           other.amountMinor == this.amountMinor &&
           other.purchaseId == this.purchaseId &&
           other.note == this.note &&
-          other.createdAt == this.createdAt);
+          other.createdAt == this.createdAt &&
+          other.methodId == this.methodId);
 }
 
 class SupplierLedgerCompanion extends UpdateCompanion<SupplierLedgerData> {
@@ -20444,6 +20531,7 @@ class SupplierLedgerCompanion extends UpdateCompanion<SupplierLedgerData> {
   final Value<String?> purchaseId;
   final Value<String?> note;
   final Value<int> createdAt;
+  final Value<String?> methodId;
   final Value<int> rowid;
   const SupplierLedgerCompanion({
     this.id = const Value.absent(),
@@ -20453,6 +20541,7 @@ class SupplierLedgerCompanion extends UpdateCompanion<SupplierLedgerData> {
     this.purchaseId = const Value.absent(),
     this.note = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.methodId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SupplierLedgerCompanion.insert({
@@ -20463,6 +20552,7 @@ class SupplierLedgerCompanion extends UpdateCompanion<SupplierLedgerData> {
     this.purchaseId = const Value.absent(),
     this.note = const Value.absent(),
     required int createdAt,
+    this.methodId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : supplierId = Value(supplierId),
        kind = Value(kind),
@@ -20476,6 +20566,7 @@ class SupplierLedgerCompanion extends UpdateCompanion<SupplierLedgerData> {
     Expression<String>? purchaseId,
     Expression<String>? note,
     Expression<int>? createdAt,
+    Expression<String>? methodId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -20486,6 +20577,7 @@ class SupplierLedgerCompanion extends UpdateCompanion<SupplierLedgerData> {
       if (purchaseId != null) 'purchase_id': purchaseId,
       if (note != null) 'note': note,
       if (createdAt != null) 'created_at': createdAt,
+      if (methodId != null) 'method_id': methodId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -20498,6 +20590,7 @@ class SupplierLedgerCompanion extends UpdateCompanion<SupplierLedgerData> {
     Value<String?>? purchaseId,
     Value<String?>? note,
     Value<int>? createdAt,
+    Value<String?>? methodId,
     Value<int>? rowid,
   }) {
     return SupplierLedgerCompanion(
@@ -20508,6 +20601,7 @@ class SupplierLedgerCompanion extends UpdateCompanion<SupplierLedgerData> {
       purchaseId: purchaseId ?? this.purchaseId,
       note: note ?? this.note,
       createdAt: createdAt ?? this.createdAt,
+      methodId: methodId ?? this.methodId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -20536,6 +20630,9 @@ class SupplierLedgerCompanion extends UpdateCompanion<SupplierLedgerData> {
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
+    if (methodId.present) {
+      map['method_id'] = Variable<String>(methodId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -20552,6 +20649,7 @@ class SupplierLedgerCompanion extends UpdateCompanion<SupplierLedgerData> {
           ..write('purchaseId: $purchaseId, ')
           ..write('note: $note, ')
           ..write('createdAt: $createdAt, ')
+          ..write('methodId: $methodId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -30752,6 +30850,46 @@ final class $PaymentMethodReferences
     );
   }
 
+  static MultiTypedResultKey<Purchase, List<PurchaseData>> _purchaseRefsTable(
+    _$AppDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.purchase,
+    aliasName: $_aliasNameGenerator(db.paymentMethod.id, db.purchase.methodId),
+  );
+
+  $PurchaseProcessedTableManager get purchaseRefs {
+    final manager = $PurchaseTableManager(
+      $_db,
+      $_db.purchase,
+    ).filter((f) => f.methodId.id.sqlEquals($_itemColumn<String>('id')));
+
+    final cache = $_typedResult.readTableOrNull(_purchaseRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<SupplierLedger, List<SupplierLedgerData>>
+  _supplierLedgerRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.supplierLedger,
+    aliasName: $_aliasNameGenerator(
+      db.paymentMethod.id,
+      db.supplierLedger.methodId,
+    ),
+  );
+
+  $SupplierLedgerProcessedTableManager get supplierLedgerRefs {
+    final manager = $SupplierLedgerTableManager(
+      $_db,
+      $_db.supplierLedger,
+    ).filter((f) => f.methodId.id.sqlEquals($_itemColumn<String>('id')));
+
+    final cache = $_typedResult.readTableOrNull(_supplierLedgerRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
   static MultiTypedResultKey<Expense, List<ExpenseData>> _expenseRefsTable(
     _$AppDatabase db,
   ) => MultiTypedResultKey.fromTable(
@@ -30882,6 +31020,56 @@ class $PaymentMethodFilterComposer
           }) => $RefundFilterComposer(
             $db: $db,
             $table: $db.refund,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> purchaseRefs(
+    Expression<bool> Function($PurchaseFilterComposer f) f,
+  ) {
+    final $PurchaseFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.purchase,
+      getReferencedColumn: (t) => t.methodId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $PurchaseFilterComposer(
+            $db: $db,
+            $table: $db.purchase,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> supplierLedgerRefs(
+    Expression<bool> Function($SupplierLedgerFilterComposer f) f,
+  ) {
+    final $SupplierLedgerFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.supplierLedger,
+      getReferencedColumn: (t) => t.methodId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $SupplierLedgerFilterComposer(
+            $db: $db,
+            $table: $db.supplierLedger,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -31082,6 +31270,56 @@ class $PaymentMethodAnnotationComposer
     return f(composer);
   }
 
+  Expression<T> purchaseRefs<T extends Object>(
+    Expression<T> Function($PurchaseAnnotationComposer a) f,
+  ) {
+    final $PurchaseAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.purchase,
+      getReferencedColumn: (t) => t.methodId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $PurchaseAnnotationComposer(
+            $db: $db,
+            $table: $db.purchase,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> supplierLedgerRefs<T extends Object>(
+    Expression<T> Function($SupplierLedgerAnnotationComposer a) f,
+  ) {
+    final $SupplierLedgerAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.supplierLedger,
+      getReferencedColumn: (t) => t.methodId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $SupplierLedgerAnnotationComposer(
+            $db: $db,
+            $table: $db.supplierLedger,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
   Expression<T> expenseRefs<T extends Object>(
     Expression<T> Function($ExpenseAnnotationComposer a) f,
   ) {
@@ -31124,6 +31362,8 @@ class $PaymentMethodTableManager
           PrefetchHooks Function({
             bool paymentRefs,
             bool refundRefs,
+            bool purchaseRefs,
+            bool supplierLedgerRefs,
             bool expenseRefs,
           })
         > {
@@ -31207,12 +31447,20 @@ class $PaymentMethodTableManager
               )
               .toList(),
           prefetchHooksCallback:
-              ({paymentRefs = false, refundRefs = false, expenseRefs = false}) {
+              ({
+                paymentRefs = false,
+                refundRefs = false,
+                purchaseRefs = false,
+                supplierLedgerRefs = false,
+                expenseRefs = false,
+              }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
                     if (paymentRefs) db.payment,
                     if (refundRefs) db.refund,
+                    if (purchaseRefs) db.purchase,
+                    if (supplierLedgerRefs) db.supplierLedger,
                     if (expenseRefs) db.expense,
                   ],
                   addJoins: null,
@@ -31254,6 +31502,48 @@ class $PaymentMethodTableManager
                                 table,
                                 p0,
                               ).refundRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.methodId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (purchaseRefs)
+                        await $_getPrefetchedData<
+                          PaymentMethodData,
+                          PaymentMethod,
+                          PurchaseData
+                        >(
+                          currentTable: table,
+                          referencedTable: $PaymentMethodReferences
+                              ._purchaseRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $PaymentMethodReferences(
+                                db,
+                                table,
+                                p0,
+                              ).purchaseRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.methodId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (supplierLedgerRefs)
+                        await $_getPrefetchedData<
+                          PaymentMethodData,
+                          PaymentMethod,
+                          SupplierLedgerData
+                        >(
+                          currentTable: table,
+                          referencedTable: $PaymentMethodReferences
+                              ._supplierLedgerRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $PaymentMethodReferences(
+                                db,
+                                table,
+                                p0,
+                              ).supplierLedgerRefs,
                           referencedItemsForCurrentItem:
                               (item, referencedItems) => referencedItems.where(
                                 (e) => e.methodId == item.id,
@@ -31304,6 +31594,8 @@ typedef $PaymentMethodProcessedTableManager =
       PrefetchHooks Function({
         bool paymentRefs,
         bool refundRefs,
+        bool purchaseRefs,
+        bool supplierLedgerRefs,
         bool expenseRefs,
       })
     >;
@@ -49022,6 +49314,7 @@ typedef $PurchaseCreateCompanionBuilder =
       required String businessDate,
       required int createdAt,
       Value<String?> staffId,
+      Value<String?> methodId,
       Value<int> rowid,
     });
 typedef $PurchaseUpdateCompanionBuilder =
@@ -49034,6 +49327,7 @@ typedef $PurchaseUpdateCompanionBuilder =
       Value<String> businessDate,
       Value<int> createdAt,
       Value<String?> staffId,
+      Value<String?> methodId,
       Value<int> rowid,
     });
 
@@ -49071,6 +49365,25 @@ final class $PurchaseReferences
       $_db.staff,
     ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_staffIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static PaymentMethod _methodIdTable(_$AppDatabase db) =>
+      db.paymentMethod.createAlias(
+        $_aliasNameGenerator(db.purchase.methodId, db.paymentMethod.id),
+      );
+
+  $PaymentMethodProcessedTableManager? get methodId {
+    final $_column = $_itemColumn<String>('method_id');
+    if ($_column == null) return null;
+    final manager = $PaymentMethodTableManager(
+      $_db,
+      $_db.paymentMethod,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_methodIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
@@ -49192,6 +49505,29 @@ class $PurchaseFilterComposer extends Composer<_$AppDatabase, Purchase> {
           }) => $StaffFilterComposer(
             $db: $db,
             $table: $db.staff,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $PaymentMethodFilterComposer get methodId {
+    final $PaymentMethodFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.methodId,
+      referencedTable: $db.paymentMethod,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $PaymentMethodFilterComposer(
+            $db: $db,
+            $table: $db.paymentMethod,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -49335,6 +49671,29 @@ class $PurchaseOrderingComposer extends Composer<_$AppDatabase, Purchase> {
     );
     return composer;
   }
+
+  $PaymentMethodOrderingComposer get methodId {
+    final $PaymentMethodOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.methodId,
+      referencedTable: $db.paymentMethod,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $PaymentMethodOrderingComposer(
+            $db: $db,
+            $table: $db.paymentMethod,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $PurchaseAnnotationComposer extends Composer<_$AppDatabase, Purchase> {
@@ -49415,6 +49774,29 @@ class $PurchaseAnnotationComposer extends Composer<_$AppDatabase, Purchase> {
     return composer;
   }
 
+  $PaymentMethodAnnotationComposer get methodId {
+    final $PaymentMethodAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.methodId,
+      referencedTable: $db.paymentMethod,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $PaymentMethodAnnotationComposer(
+            $db: $db,
+            $table: $db.paymentMethod,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
   Expression<T> purchaseLineRefs<T extends Object>(
     Expression<T> Function($PurchaseLineAnnotationComposer a) f,
   ) {
@@ -49482,6 +49864,7 @@ class $PurchaseTableManager
           PrefetchHooks Function({
             bool supplierId,
             bool staffId,
+            bool methodId,
             bool purchaseLineRefs,
             bool purchaseOrderRefs,
           })
@@ -49507,6 +49890,7 @@ class $PurchaseTableManager
                 Value<String> businessDate = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<String?> staffId = const Value.absent(),
+                Value<String?> methodId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PurchaseCompanion(
                 id: id,
@@ -49517,6 +49901,7 @@ class $PurchaseTableManager
                 businessDate: businessDate,
                 createdAt: createdAt,
                 staffId: staffId,
+                methodId: methodId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -49529,6 +49914,7 @@ class $PurchaseTableManager
                 required String businessDate,
                 required int createdAt,
                 Value<String?> staffId = const Value.absent(),
+                Value<String?> methodId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PurchaseCompanion.insert(
                 id: id,
@@ -49539,6 +49925,7 @@ class $PurchaseTableManager
                 businessDate: businessDate,
                 createdAt: createdAt,
                 staffId: staffId,
+                methodId: methodId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -49550,6 +49937,7 @@ class $PurchaseTableManager
               ({
                 supplierId = false,
                 staffId = false,
+                methodId = false,
                 purchaseLineRefs = false,
                 purchaseOrderRefs = false,
               }) {
@@ -49597,6 +49985,19 @@ class $PurchaseTableManager
                                         ._staffIdTable(db),
                                     referencedColumn: $PurchaseReferences
                                         ._staffIdTable(db)
+                                        .id,
+                                  )
+                                  as T;
+                        }
+                        if (methodId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.methodId,
+                                    referencedTable: $PurchaseReferences
+                                        ._methodIdTable(db),
+                                    referencedColumn: $PurchaseReferences
+                                        ._methodIdTable(db)
                                         .id,
                                   )
                                   as T;
@@ -49669,6 +50070,7 @@ typedef $PurchaseProcessedTableManager =
       PrefetchHooks Function({
         bool supplierId,
         bool staffId,
+        bool methodId,
         bool purchaseLineRefs,
         bool purchaseOrderRefs,
       })
@@ -50088,6 +50490,7 @@ typedef $SupplierLedgerCreateCompanionBuilder =
       Value<String?> purchaseId,
       Value<String?> note,
       required int createdAt,
+      Value<String?> methodId,
       Value<int> rowid,
     });
 typedef $SupplierLedgerUpdateCompanionBuilder =
@@ -50099,6 +50502,7 @@ typedef $SupplierLedgerUpdateCompanionBuilder =
       Value<String?> purchaseId,
       Value<String?> note,
       Value<int> createdAt,
+      Value<String?> methodId,
       Value<int> rowid,
     });
 
@@ -50118,6 +50522,25 @@ final class $SupplierLedgerReferences
       $_db.supplier,
     ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_supplierIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static PaymentMethod _methodIdTable(_$AppDatabase db) =>
+      db.paymentMethod.createAlias(
+        $_aliasNameGenerator(db.supplierLedger.methodId, db.paymentMethod.id),
+      );
+
+  $PaymentMethodProcessedTableManager? get methodId {
+    final $_column = $_itemColumn<String>('method_id');
+    if ($_column == null) return null;
+    final manager = $PaymentMethodTableManager(
+      $_db,
+      $_db.paymentMethod,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_methodIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
@@ -50178,6 +50601,29 @@ class $SupplierLedgerFilterComposer
           }) => $SupplierFilterComposer(
             $db: $db,
             $table: $db.supplier,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $PaymentMethodFilterComposer get methodId {
+    final $PaymentMethodFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.methodId,
+      referencedTable: $db.paymentMethod,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $PaymentMethodFilterComposer(
+            $db: $db,
+            $table: $db.paymentMethod,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -50249,6 +50695,29 @@ class $SupplierLedgerOrderingComposer
     );
     return composer;
   }
+
+  $PaymentMethodOrderingComposer get methodId {
+    final $PaymentMethodOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.methodId,
+      referencedTable: $db.paymentMethod,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $PaymentMethodOrderingComposer(
+            $db: $db,
+            $table: $db.paymentMethod,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $SupplierLedgerAnnotationComposer
@@ -50304,6 +50773,29 @@ class $SupplierLedgerAnnotationComposer
     );
     return composer;
   }
+
+  $PaymentMethodAnnotationComposer get methodId {
+    final $PaymentMethodAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.methodId,
+      referencedTable: $db.paymentMethod,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $PaymentMethodAnnotationComposer(
+            $db: $db,
+            $table: $db.paymentMethod,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $SupplierLedgerTableManager
@@ -50319,7 +50811,7 @@ class $SupplierLedgerTableManager
           $SupplierLedgerUpdateCompanionBuilder,
           (SupplierLedgerData, $SupplierLedgerReferences),
           SupplierLedgerData,
-          PrefetchHooks Function({bool supplierId})
+          PrefetchHooks Function({bool supplierId, bool methodId})
         > {
   $SupplierLedgerTableManager(_$AppDatabase db, SupplierLedger table)
     : super(
@@ -50341,6 +50833,7 @@ class $SupplierLedgerTableManager
                 Value<String?> purchaseId = const Value.absent(),
                 Value<String?> note = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
+                Value<String?> methodId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SupplierLedgerCompanion(
                 id: id,
@@ -50350,6 +50843,7 @@ class $SupplierLedgerTableManager
                 purchaseId: purchaseId,
                 note: note,
                 createdAt: createdAt,
+                methodId: methodId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -50361,6 +50855,7 @@ class $SupplierLedgerTableManager
                 Value<String?> purchaseId = const Value.absent(),
                 Value<String?> note = const Value.absent(),
                 required int createdAt,
+                Value<String?> methodId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SupplierLedgerCompanion.insert(
                 id: id,
@@ -50370,6 +50865,7 @@ class $SupplierLedgerTableManager
                 purchaseId: purchaseId,
                 note: note,
                 createdAt: createdAt,
+                methodId: methodId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -50380,7 +50876,7 @@ class $SupplierLedgerTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({supplierId = false}) {
+          prefetchHooksCallback: ({supplierId = false, methodId = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [],
@@ -50413,6 +50909,19 @@ class $SupplierLedgerTableManager
                               )
                               as T;
                     }
+                    if (methodId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.methodId,
+                                referencedTable: $SupplierLedgerReferences
+                                    ._methodIdTable(db),
+                                referencedColumn: $SupplierLedgerReferences
+                                    ._methodIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
 
                     return state;
                   },
@@ -50437,7 +50946,7 @@ typedef $SupplierLedgerProcessedTableManager =
       $SupplierLedgerUpdateCompanionBuilder,
       (SupplierLedgerData, $SupplierLedgerReferences),
       SupplierLedgerData,
-      PrefetchHooks Function({bool supplierId})
+      PrefetchHooks Function({bool supplierId, bool methodId})
     >;
 typedef $ExpenseCategoryCreateCompanionBuilder =
     ExpenseCategoryCompanion Function({

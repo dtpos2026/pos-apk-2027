@@ -491,8 +491,11 @@ class PosService {
     final itemRows = await _expandDeals(soldRows);
     for (final r in itemRows) {
       final qty = r['qty_milli'] as int;
-      final recipe = await _select(
-          'SELECT stock_item_id, qty_milli FROM recipe_line WHERE product_id = ? AND (variant_id IS NULL OR variant_id = ?)', [r['product_id'], r['variant_id']]);
+      // a size with its own recipe uses exactly that; otherwise the item's own (base) recipe
+      var recipe = r['variant_id'] == null
+          ? <Map<String, Object?>>[]
+          : await _select('SELECT stock_item_id, qty_milli FROM recipe_line WHERE product_id = ? AND variant_id = ?', [r['product_id'], r['variant_id']]);
+      if (recipe.isEmpty) recipe = await _select('SELECT stock_item_id, qty_milli FROM recipe_line WHERE product_id = ? AND variant_id IS NULL', [r['product_id']]);
       if (recipe.isNotEmpty) {
         for (final line in recipe) {
           final delta = sign * ((line['qty_milli'] as int) * qty ~/ 1000);
