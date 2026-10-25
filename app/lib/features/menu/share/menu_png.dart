@@ -17,8 +17,9 @@ class MenuLabels {
     this.scanToOrder = 'Scan to order',
     this.poweredBy = 'Powered by DT Food POS',
     this.page = 'Page',
+    this.tagline = 'Super Delicious',
   });
-  final String menu, pricesIn, orderOnWhatsApp, orderHow, scanToOrder, poweredBy, page;
+  final String menu, pricesIn, orderOnWhatsApp, orderHow, scanToOrder, poweredBy, page, tagline;
 }
 
 const pngPageWidth = 1080.0;

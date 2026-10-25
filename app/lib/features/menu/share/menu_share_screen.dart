@@ -14,11 +14,14 @@ import '../../common/dialogs.dart';
 import 'menu_doc.dart';
 import 'menu_pdf.dart';
 import 'menu_png.dart';
+import 'menu_poster.dart';
 
 const _sharedKey = 'menu.shared_fp';
+const _templateKey = 'menu.template';
+const _coverKey = 'menu.cover';
 
 /// Words on the picture / PDF, in the app language.
-MenuLabels menuLabels(Strings t) => MenuLabels(menu: t['menu'], pricesIn: t['mn_prices_in'], orderOnWhatsApp: t['mn_order_wa'], orderHow: t['mn_order_how'], scanToOrder: t['mn_scan'], poweredBy: t['mn_powered'], page: t['mn_page']);
+MenuLabels menuLabels(Strings t) => MenuLabels(menu: t['menu'], pricesIn: t['mn_prices_in'], orderOnWhatsApp: t['mn_order_wa'], orderHow: t['mn_order_how'], scanToOrder: t['mn_scan'], poweredBy: t['mn_powered'], page: t['mn_page'], tagline: t['mn_tagline']);
 
 /// The message sent with the menu: what it is and how to order.
 String menuMessage(Strings t, MenuDoc d) =>
@@ -51,6 +54,8 @@ class _MenuShareScreenState extends ConsumerState<MenuShareScreen> {
   final _message = TextEditingController();
   final _pager = PageController();
   int _page = 0;
+  String _template = 'classic';
+  bool _cover = true;
   bool _busy = true;
   bool _changed = false;
   String? _error;
@@ -76,7 +81,13 @@ class _MenuShareScreenState extends ConsumerState<MenuShareScreen> {
     try {
       final t = Strings.of(context);
       final d = await currentMenuDoc(context, ref);
-      final pages = await renderMenuPng(d, labels: menuLabels(t));
+      final db = ref.read(databaseProvider);
+      final tid = await getSetting(db, _templateKey);
+      if (tid != null && menuTemplateIds.contains(tid)) _template = tid;
+      _cover = (await getSetting(db, _coverKey)) != '0';
+      final tpl = menuTemplateById(_template);
+      final labels = menuLabels(t);
+      final pages = tpl == null ? await renderMenuPng(d, labels: labels) : await renderPosterPages(d, tpl, labels: labels, cover: _cover);
       final saved = await getSetting(ref.read(databaseProvider), _sharedKey);
       if (!mounted) return;
       setState(() {
@@ -101,8 +112,28 @@ class _MenuShareScreenState extends ConsumerState<MenuShareScreen> {
   Future<Uint8List> _pdfBytes() async {
     if (_pdf != null) return _pdf!;
     final labels = menuLabels(Strings.of(context));
+    final tpl = menuTemplateById(_template);
+    if (tpl != null) {
+      // the look's PDF is made of sharper (2x) page pictures, so it prints exactly like the picture
+      final sharp = await renderPosterPages(_doc!, tpl, labels: labels, cover: _cover, scale: 2);
+      return _pdf = await posterPdf(sharp, '${_doc!.name} - ${labels.menu}');
+    }
     final font = pw.Font.ttf(await rootBundle.load('assets/fonts/NotoNaskhArabic.ttf'));
     return _pdf = await buildMenuPdf(_doc!, labels: labels, script: font);
+  }
+
+  Future<void> _pickTemplate(String id) async {
+    if (id == _template) return;
+    final db = ref.read(databaseProvider);
+    await setSetting(db, _templateKey, id, ref.read(clockProvider)().millisecondsSinceEpoch);
+    _template = id;
+    await _build();
+  }
+
+  Future<void> _toggleCover(bool on) async {
+    await setSetting(ref.read(databaseProvider), _coverKey, on ? '1' : '0', ref.read(clockProvider)().millisecondsSinceEpoch);
+    _cover = on;
+    await _build();
   }
 
   Future<void> _remember() async {
@@ -194,6 +225,13 @@ class _MenuShareScreenState extends ConsumerState<MenuShareScreen> {
                           decoration: BoxDecoration(color: cs.tertiaryContainer, borderRadius: BorderRadius.circular(12)),
                           child: Row(children: [Icon(Icons.update, color: cs.onTertiaryContainer), const SizedBox(width: 8), Expanded(child: Text(t['mn_changed'], style: TextStyle(color: cs.onTertiaryContainer)))]),
                         ),
+                      Text(t['mt_title'], style: const TextStyle(fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 6),
+                      Wrap(spacing: 8, runSpacing: 6, children: [
+                        for (final id in menuTemplateIds) ChoiceChip(key: ValueKey('menu-template-$id'), label: Text(t['mt_$id']), selected: _template == id, onSelected: (_) => _pickTemplate(id)),
+                      ]),
+                      if (_template != 'classic') SwitchListTile(key: const ValueKey('menu-cover'), contentPadding: EdgeInsets.zero, dense: true, title: Text(t['mt_cover']), value: _cover, onChanged: _toggleCover),
+                      const SizedBox(height: 8),
                       AspectRatio(
                         aspectRatio: pngPageWidth / pngPageHeight,
                         child: Container(

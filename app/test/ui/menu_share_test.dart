@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:dt_food_pos/features/menu/share/menu_doc.dart';
 import 'package:dt_food_pos/features/menu/share/menu_pdf.dart';
+import 'package:dt_food_pos/features/menu/share/menu_poster.dart';
 import 'package:dt_food_pos/features/menu/share/menu_png.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
@@ -61,6 +62,25 @@ void main() {
     expect(String.fromCharCodes(pdf.take(5)), '%PDF-');
     if (Platform.environment['SCREENSHOT_DIR'] != null) File('${Platform.environment['SCREENSHOT_DIR']}/menu.pdf').writeAsBytesSync(pdf);
     expect(RegExp(r'/Type\s*/Page[^s]').allMatches(String.fromCharCodes(pdf)).length, greaterThan(1));
+
+    // every look makes a cover + pages + ordering card, and a PDF from them
+    for (final tpl in menuTemplates) {
+      final cover = (await t.runAsync(() => renderPosterPages(doc, tpl, cover: true)))!;
+      final noCover = (await t.runAsync(() => renderPosterPages(doc, tpl, cover: false)))!;
+      expect(cover.length, greaterThanOrEqualTo(noCover.length), reason: '${tpl.id}: the cover is an extra page (the first page of dishes then has more room)');
+      expect(cover.length, greaterThan(2), reason: '${tpl.id}: 75 items take several pages');
+      for (final p in cover) {
+        expect(p.take(4).toList(), [0x89, 0x50, 0x4E, 0x47]);
+      }
+      final pdfp = (await t.runAsync(() => posterPdf(cover, 'x')))!;
+      expect(String.fromCharCodes(pdfp.take(5)), '%PDF-');
+      if (Platform.environment['SCREENSHOT_DIR'] != null) {
+        Directory(Platform.environment['SCREENSHOT_DIR']!).createSync(recursive: true);
+        for (final i in [0, 1, cover.length - 1]) {
+          File('${Platform.environment['SCREENSHOT_DIR']}/poster_${tpl.id}_$i.png').writeAsBytesSync(cover[i]);
+        }
+      }
+    }
 
     // an item with a damaged picture and no logo still makes a menu
     final doc2 = MenuDoc(name: 'X', primary: 0xFFC92A2A, accent: 0xFFF59F00, currencyCode: 'PKR', fingerprint: 'f', sections: [MenuSection(title: 'A', entries: [MenuEntry(name: 'N', price: '1', image: Uint8List.fromList([1, 2, 3]))])]);

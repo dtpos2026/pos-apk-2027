@@ -25,6 +25,21 @@ void main() {
     expect(message, allOf(contains('Burger Point'), contains('0300-0000000')));
     await shot(t, '101_menu_share');
 
+    // the restaurant can pick another look (and drop the cover); the pages and the PDF follow it
+    Future<void> waitPages() async {
+      for (var i = 0; i < 80; i++) {
+        await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
+        await t.pump(const Duration(milliseconds: 100));
+        if (find.byKey(const ValueKey('menu-pages')).evaluate().isNotEmpty) break;
+      }
+    }
+
+    await t.tap(find.byKey(const ValueKey('menu-template-royal')));
+    await t.pump();
+    await waitPages();
+    expect(find.byKey(const ValueKey('menu-cover')), findsOneWidget);
+    expect(find.byKey(const ValueKey('menu-page-count')), findsOneWidget);
+
     Future<void> tapAsync(String key) async {
       await t.ensureVisible(find.byKey(ValueKey(key)));
       await t.tap(find.byKey(ValueKey(key)));
