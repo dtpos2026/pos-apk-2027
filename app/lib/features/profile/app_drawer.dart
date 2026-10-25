@@ -37,11 +37,15 @@ class AppDrawer extends ConsumerWidget {
       padding: EdgeInsets.fromLTRB(20, MediaQuery.paddingOf(context).top + 20, 20, 20),
       decoration: BoxDecoration(gradient: BrandBanner(cs.primary, darken: 0.45).gradient),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        CircleAvatar(
+        Container(
+          padding: const EdgeInsets.all(3),
+          decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: BrandBanner(cs.primary).on, width: 2.5)),
+          child: CircleAvatar(
           radius: 34,
           backgroundColor: BrandBanner(cs.primary).on,
           backgroundImage: biz?.logoPath == null || !File(biz!.logoPath!).existsSync() ? null : FileImage(File(biz.logoPath!)),
           child: biz?.logoPath == null || !File(biz!.logoPath!).existsSync() ? Icon(Icons.storefront_outlined, size: 34, color: cs.primary) : null,
+        ),
         ),
         const SizedBox(height: 12),
         Text(biz?.name ?? t['app_name'], key: const ValueKey('drawer-name'), style: TextStyle(color: BrandBanner(cs.primary).on, fontSize: 20, fontWeight: FontWeight.w800)),
