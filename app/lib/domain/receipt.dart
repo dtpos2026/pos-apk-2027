@@ -286,10 +286,15 @@ ReceiptDoc _originalBill(ReceiptData d, BillDesign t, BillLabels L) {
   lines.add(row(L['invoice'], d.invoiceNo));
   lines.add(row(L['date'], d.dateTime));
   if (t.showCashier && d.cashier != null) lines.add(row(L['cashier'], d.cashier!));
-  for (final x in d.deliveryTo) {
-    lines.add(RText(x, align: rtl ? PrintAlign.right : PrintAlign.left));
+  if (d.deliveryTo.isNotEmpty) {
+    // who and where, as a small block of its own so it does not run into the cashier line
+    lines.add(const RRule());
+    lines.add(RText(d.orderTypeLabel == 'Delivery' ? L['delivery_type'].toUpperCase() : L['type'].toUpperCase(), align: rtl ? PrintAlign.right : PrintAlign.left, bold: true));
+    for (final x in d.deliveryTo) {
+      lines.add(RText(x, align: rtl ? PrintAlign.right : PrintAlign.left));
+    }
   }
-  lines.add(const RFeed());
+  lines.add(const RRule('='));
   for (final l in d.lines) {
     final qty = formatQty(l.qtyMilli);
     lines.add(row(rtl ? '${l.name} ×$qty' : '$qty× ${l.name}', money(l.totalMinor), bold: true));

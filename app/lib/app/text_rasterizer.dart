@@ -52,7 +52,7 @@ class FlutterTextRasterizer implements TextRasterizer, DocumentRasterizer {
 
   TextPainter _tp(String text, double size, {bool bold = false, TextAlign align = TextAlign.left, double? width, Color color = const Color(0xFF000000), bool italic = false}) {
     final p = TextPainter(
-      text: TextSpan(text: text, style: TextStyle(fontFamily: 'Inter', fontFamilyFallback: const ['NotoNaskhArabic'], fontSize: size, fontWeight: bold ? FontWeight.w800 : FontWeight.w500, fontStyle: italic ? FontStyle.italic : FontStyle.normal, color: color, height: 1.3)),
+      text: TextSpan(text: text, style: TextStyle(fontFamily: 'Inter', fontFamilyFallback: const ['NotoNaskhArabic'], fontSize: size, fontWeight: bold ? FontWeight.w800 : FontWeight.w600, fontStyle: italic ? FontStyle.italic : FontStyle.normal, color: color, height: 1.3)),
       textDirection: _dir(text),
       textAlign: align,
     );
@@ -67,6 +67,22 @@ class FlutterTextRasterizer implements TextRasterizer, DocumentRasterizer {
 
   @override
   Future<RasterImage> document(ReceiptDoc doc, {required int widthPx}) async {
+    final c = await _compose(doc, widthPx);
+    return _capture(widthPx, c.height, c.paint);
+  }
+
+  /// The same slip as a smooth picture at [scale]x, for the on-screen preview (the printer gets the 1-bit [document]).
+  Future<ui.Image> documentImage(ReceiptDoc doc, {required int widthPx, double scale = 2}) async {
+    final c = await _compose(doc, widthPx);
+    final rec = ui.PictureRecorder();
+    final canvas = Canvas(rec);
+    canvas.scale(scale);
+    canvas.drawRect(Rect.fromLTWH(0, 0, widthPx.toDouble(), c.height.toDouble()), Paint()..color = const Color(0xFFFFFFFF));
+    c.paint(canvas);
+    return rec.endRecording().toImage((widthPx * scale).ceil(), (c.height * scale).ceil());
+  }
+
+  Future<({int height, void Function(Canvas) paint})> _compose(ReceiptDoc doc, int widthPx) async {
     final w = widthPx.toDouble(), inner = w - 2 * _pad;
     const base = 21.0;
     final items = <({double h, void Function(Canvas c, double y) draw})>[];
@@ -183,17 +199,13 @@ class FlutterTextRasterizer implements TextRasterizer, DocumentRasterizer {
       }
     }
     final height = items.fold<double>(8, (a, e) => a + e.h).ceil();
-    final out = await _capture(widthPx, height, (c) {
+    return (height: height, paint: (Canvas c) {
       var y = 4.0;
       for (final e in items) {
         e.draw(c, y);
         y += e.h;
       }
     });
-    for (final im in images.values) {
-      im.dispose();
-    }
-    return out;
   }
 
   Future<ui.Image> _decode(RasterImage img) {

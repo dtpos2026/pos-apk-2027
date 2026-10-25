@@ -25,10 +25,12 @@ String menuMessage(Strings t, MenuDoc d) =>
     '*${d.name}*\n${t['mn_msg_intro']}\n\n${t['mn_msg_how']}\n${(d.phone ?? '').isEmpty ? '' : '${t['mn_msg_call']}: ${d.phone}\n'}${(d.address ?? '').isEmpty ? '' : '${d.address}\n'}';
 
 /// Reads the menu, the branding and the theme at this moment, so what is shown and shared is never an old copy.
-Future<MenuDoc> currentMenuDoc(BuildContext context, WidgetRef ref) {
+Future<MenuDoc> currentMenuDoc(BuildContext context, WidgetRef ref) async {
   final t = Strings.of(context);
   final scheme = Theme.of(context).colorScheme;
-  return ref.read(databaseProvider).let((db) => loadMenuDoc(db, primary: scheme.primary.toARGB32(), accent: context.accent.toARGB32(), dealsTitle: t['mn_deals'], otherTitle: t['menu'], fromWord: t['mn_from']));
+  final accent = context.accent.toARGB32();
+  final mark = (await rootBundle.load('assets/brand/dt_mark_red.png')).buffer.asUint8List();
+  return ref.read(databaseProvider).let((db) => loadMenuDoc(db, brandMark: mark, primary: scheme.primary.toARGB32(), accent: accent, dealsTitle: t['mn_deals'], otherTitle: t['menu'], fromWord: t['mn_from']));
 }
 
 extension _Let<T> on T {
@@ -162,13 +164,12 @@ class _MenuShareScreenState extends ConsumerState<MenuShareScreen> {
   Future<void> _qr() async {
     final t = Strings.of(context);
     final d = _doc!;
-    final bytes = await renderQrCard(d, labels: menuLabels(t));
-    if (bytes == null) {
+    if (d.qrLink == null) {
       if (mounted) showMessage(context, t['qr_need_phone']);
       return;
     }
     if (!mounted) return;
-    await showQrCardDialog(context, ref, bytes, d);
+    await showQrCardDialog(context, ref, d, menuLabels(t));
   }
 
   @override
@@ -231,39 +232,98 @@ class _MenuShareScreenState extends ConsumerState<MenuShareScreen> {
   }
 }
 
-/// The ordering QR poster, with share and save.
-Future<void> showQrCardDialog(BuildContext context, WidgetRef ref, Uint8List bytes, MenuDoc d) {
-  final t = Strings.of(context);
-  Future<String> write() async {
-    final dir = ref.read(exportDirProvider)..createSync(recursive: true);
-    return (File('${dir.path}/whatsapp-order-qr.png')..writeAsBytesSync(bytes)).path;
+/// The ordering QR poster, with share and save. The owner picks what the customer's WhatsApp message will say ("Hello", "Send me the menu",
+/// ...), one QR for each, or all of them on one poster, or a text of their own.
+Future<void> showQrCardDialog(BuildContext context, WidgetRef ref, MenuDoc d, MenuLabels labels) => showDialog<void>(context: context, builder: (_) => _QrDialog(d: d, labels: labels));
+
+class _QrDialog extends ConsumerStatefulWidget {
+  const _QrDialog({required this.d, required this.labels});
+  final MenuDoc d;
+  final MenuLabels labels;
+  @override
+  ConsumerState<_QrDialog> createState() => _QrDialogState();
+}
+
+class _QrDialogState extends ConsumerState<_QrDialog> {
+  static const presets = ['qr_msg_hello', 'qr_msg_menu', 'qr_msg_takeaway'];
+  final _custom = TextEditingController();
+  String _pick = 'qr_msg_hello'; // a preset key, 'all' or 'custom'
+  Uint8List? _bytes;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _render());
   }
 
-  return showDialog<void>(
-    context: context,
-    builder: (ctx) => AlertDialog(
+  @override
+  void dispose() {
+    _custom.dispose();
+    super.dispose();
+  }
+
+  List<String> _messages(Strings t) => switch (_pick) {
+        'all' => [for (final k in presets) t[k]],
+        'custom' => [_custom.text],
+        _ => [t[_pick]],
+      };
+
+  Future<void> _render() async {
+    final t = Strings.of(context);
+    final msgs = _messages(t);
+    final b = await renderQrCard(widget.d, labels: widget.labels, messages: msgs);
+    if (mounted && b != null) setState(() => _bytes = b);
+  }
+
+  Future<String> _write() async {
+    final dir = ref.read(exportDirProvider)..createSync(recursive: true);
+    return (File('${dir.path}/whatsapp-order-qr.png')..writeAsBytesSync(_bytes!)).path;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Strings.of(context);
+    final d = widget.d;
+    Widget chip(String key, String label) => ChoiceChip(key: ValueKey('qr-pick-$key'), label: Text(label), selected: _pick == key, onSelected: (_) {
+          setState(() => _pick = key);
+          _render();
+        });
+    return AlertDialog(
       title: Text(t['qr_title']),
       content: SizedBox(
         width: 340,
         child: SingleChildScrollView(
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.memory(bytes, key: const ValueKey('wa-qr-card'), fit: BoxFit.contain)),
+            Text(t['qr_msg_title'], style: const TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 6),
+            Wrap(spacing: 6, runSpacing: 4, alignment: WrapAlignment.center, children: [
+              for (final k in presets) chip(k, t[k]),
+              chip('all', t['qr_msg_all']),
+              chip('custom', t['qr_msg_custom']),
+            ]),
+            if (_pick == 'custom')
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: TextField(key: const ValueKey('qr-custom'), controller: _custom, maxLength: 80, decoration: InputDecoration(labelText: t['qr_msg_custom'], isDense: true), onChanged: (_) => _render()),
+              ),
+            const SizedBox(height: 8),
+            if (_bytes != null) ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.memory(_bytes!, key: const ValueKey('wa-qr-card'), fit: BoxFit.contain, gaplessPlayback: true)),
             const SizedBox(height: 8),
             Text(t['qr_hint'], textAlign: TextAlign.center),
           ]),
         ),
       ),
       actions: [
-        TextButton(key: const ValueKey('qr-save'), onPressed: () async {
-          final p = await write();
+        TextButton(key: const ValueKey('qr-save'), onPressed: _bytes == null ? null : () async {
+          final p = await _write();
           final where = await ref.read(phoneFileSaverProvider).save(path: p, name: 'whatsapp-order-qr.png', mime: 'image/png', gallery: true);
-          if (ctx.mounted) showMessage(ctx, '${t['saved_to']}: $where');
+          if (context.mounted) showMessage(context, '${t['saved_to']}: $where');
         }, child: Text(t['mn_save_png'])),
-        FilledButton(key: const ValueKey('qr-share'), onPressed: () async {
-          final p = await write();
+        FilledButton(key: const ValueKey('qr-share'), onPressed: _bytes == null ? null : () async {
+          final p = await _write();
           await ref.read(shareServiceProvider).shareFiles([p], text: '${d.name}\n${t['mn_qr_msg']}', mimeType: 'image/png', subject: d.name);
         }, child: Text(t['share'])),
       ],
-    ),
-  );
+    );
+  }
 }

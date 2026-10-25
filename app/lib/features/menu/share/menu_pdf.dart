@@ -23,6 +23,8 @@ Future<Uint8List> buildMenuPdf(MenuDoc d, {MenuLabels labels = const MenuLabels(
   final light = (primary.red * 0.299 + primary.green * 0.587 + primary.blue * 0.114) > 0.62;
   final onPrimary = light ? PdfColors.grey900 : PdfColors.white;
   final accentText = (accent.red * 0.299 + accent.green * 0.587 + accent.blue * 0.114) > 0.62 ? PdfColor.fromInt(0xFF8A5A00) : accent;
+  // a light tint of a colour as a SOLID colour (many PDF viewers ignore transparency and would paint it as the full colour)
+  PdfColor tint(PdfColor c, double a) => PdfColor(1 - (1 - c.red) * a, 1 - (1 - c.green) * a, 1 - (1 - c.blue) * a);
   final doc = pw.Document(title: '${d.name} - ${labels.menu}', author: d.name, creator: 'DT Food POS');
   pw.MemoryImage? img(Uint8List? b) {
     if (b == null || b.isEmpty) return null;
@@ -35,6 +37,7 @@ Future<Uint8List> buildMenuPdf(MenuDoc d, {MenuLabels labels = const MenuLabels(
 
   final logo = img(d.logo);
   final qr = img(await qrPngBytes(d.qrLink));
+  final mark = img(d.brandMark);
 
   pw.Widget header(pw.Context c) {
     if (c.pageNumber > 1) {
@@ -71,7 +74,7 @@ Future<Uint8List> buildMenuPdf(MenuDoc d, {MenuLabels labels = const MenuLabels(
     final si = img(s.image);
     return pw.Container(
       margin: const pw.EdgeInsets.only(top: 10, bottom: 4),
-      decoration: pw.BoxDecoration(color: PdfColor(col.red, col.green, col.blue, 0.12), borderRadius: pw.BorderRadius.circular(8)),
+      decoration: pw.BoxDecoration(color: tint(col, 0.12), borderRadius: pw.BorderRadius.circular(8)),
       child: pw.Row(children: [
         pw.Container(width: 5, height: 30, decoration: pw.BoxDecoration(color: col, borderRadius: const pw.BorderRadius.only(topLeft: pw.Radius.circular(8), bottomLeft: pw.Radius.circular(8)))),
         pw.SizedBox(width: 9),
@@ -88,7 +91,17 @@ Future<Uint8List> buildMenuPdf(MenuDoc d, {MenuLabels labels = const MenuLabels(
       padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 6),
       decoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey300, width: 0.6))),
       child: pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-        if (im != null) pw.Container(width: 52, height: 52, margin: const pw.EdgeInsets.only(right: 10), child: pw.ClipRRect(horizontalRadius: 6, verticalRadius: 6, child: pw.Image(im, fit: pw.BoxFit.cover))),
+        pw.Container(
+          width: 52,
+          height: 52,
+          margin: const pw.EdgeInsets.only(right: 10),
+          child: im != null
+              ? pw.ClipRRect(horizontalRadius: 6, verticalRadius: 6, child: pw.Image(im, fit: pw.BoxFit.cover))
+              : pw.Container(
+                  decoration: pw.BoxDecoration(color: tint(col, 0.14), borderRadius: pw.BorderRadius.circular(6)),
+                  alignment: pw.Alignment.center,
+                  child: pw.Text(e.name.trim().isEmpty ? '' : e.name.trim().substring(0, 1).toUpperCase(), style: pw.TextStyle(color: col, fontSize: 22, fontWeight: pw.FontWeight.bold))),
+        ),
         pw.Expanded(
           child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
             pw.Text(e.name, style: pw.TextStyle(fontSize: 12.5, fontWeight: pw.FontWeight.bold)),
@@ -114,7 +127,7 @@ Future<Uint8List> buildMenuPdf(MenuDoc d, {MenuLabels labels = const MenuLabels(
   body.add(pw.Container(
     margin: const pw.EdgeInsets.only(top: 18),
     padding: const pw.EdgeInsets.all(14),
-    decoration: pw.BoxDecoration(color: PdfColor(primary.red, primary.green, primary.blue, 0.07), border: pw.Border.all(color: primary, width: 0.8), borderRadius: pw.BorderRadius.circular(10)),
+    decoration: pw.BoxDecoration(color: tint(primary, 0.07), border: pw.Border.all(color: primary, width: 0.8), borderRadius: pw.BorderRadius.circular(10)),
     child: pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.center, children: [
       pw.Expanded(
         child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
@@ -135,8 +148,12 @@ Future<Uint8List> buildMenuPdf(MenuDoc d, {MenuLabels labels = const MenuLabels(
     margin: const pw.EdgeInsets.fromLTRB(30, 30, 30, 34),
     maxPages: 400,
     header: header,
-    footer: (c) => pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
-      pw.Text('${d.name}   ·   ${labels.poweredBy}', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
+    footer: (c) => pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, crossAxisAlignment: pw.CrossAxisAlignment.center, children: [
+      pw.Text(d.name, style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
+      pw.Row(children: [
+        if (mark != null) pw.Padding(padding: const pw.EdgeInsets.only(right: 4), child: pw.Image(mark, width: 11, height: 11)),
+        pw.Text(labels.poweredBy, style: pw.TextStyle(fontSize: 8, color: primary, fontWeight: pw.FontWeight.bold)),
+      ]),
       pw.Text('${labels.page} ${c.pageNumber} / ${c.pagesCount}', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
     ]),
     build: (c) => body,

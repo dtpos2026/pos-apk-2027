@@ -133,7 +133,7 @@ class ReceiptPaper extends StatelessWidget {
 }
 
 class _ImagePreview extends StatefulWidget {
-  const _ImagePreview({super.key, required this.image, required this.width});
+  const _ImagePreview({required this.image, required this.width});
   final RasterImage image;
   final double width;
   @override
@@ -171,7 +171,7 @@ class _ImagePreviewState extends State<_ImagePreview> {
   }
 }
 
-/// The "original design" preview: the very picture that is sent to the printer.
+/// The "original design" preview: the same slip as the printer gets, drawn smooth at 2x so it is easy to read on screen.
 class _GraphicPaper extends StatefulWidget {
   const _GraphicPaper({required this.doc, required this.paperMm});
   final ReceiptDoc doc;
@@ -181,7 +181,7 @@ class _GraphicPaper extends StatefulWidget {
 }
 
 class _GraphicPaperState extends State<_GraphicPaper> {
-  RasterImage? _img;
+  ui.Image? _img;
 
   @override
   void initState() {
@@ -197,19 +197,23 @@ class _GraphicPaperState extends State<_GraphicPaper> {
 
   Future<void> _render() async {
     final doc = widget.doc;
-    final img = await const FlutterTextRasterizer().document(doc, widthPx: dotsFor(widget.paperMm));
+    final img = await const FlutterTextRasterizer().documentImage(doc, widthPx: dotsFor(widget.paperMm));
     if (mounted && identical(doc, widget.doc)) setState(() => _img = img);
   }
 
   @override
   Widget build(BuildContext context) {
     final w = ReceiptPaper.textWidthFor(columnsFor(widget.paperMm));
+    final i = _img;
     return Container(
       key: const ValueKey('receipt-paper'),
       width: w + 32,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4), boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 12, offset: Offset(0, 4))]),
-      child: _img == null ? const SizedBox(height: 120, child: Center(child: CircularProgressIndicator())) : _ImagePreview(key: const ValueKey('graphic-preview'), image: _img!, width: w),
+      child: i == null
+          ? const SizedBox(height: 120)
+          : SizedBox(width: w, height: w * i.height / i.width, child: RawImage(key: const ValueKey('graphic-preview'), image: i, fit: BoxFit.fill, filterQuality: FilterQuality.high)),
     );
   }
 }
+

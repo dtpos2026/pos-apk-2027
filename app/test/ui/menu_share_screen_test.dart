@@ -44,7 +44,20 @@ void main() {
     await tapAsync('menu-save-png');
     expect(saver.saved.where((s) => s.mime == 'image/png' && s.gallery), isNotEmpty);
     await tapAsync('menu-qr');
+    for (var i = 0; i < 40 && find.byKey(const ValueKey('wa-qr-card')).evaluate().isEmpty; i++) {
+      await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
+      await t.pump(const Duration(milliseconds: 100));
+    }
     expect(find.byKey(const ValueKey('wa-qr-card')), findsOneWidget);
+    // the customer's message can be chosen: one QR per message, or all on one poster
+    for (final k in ['qr-pick-qr_msg_menu', 'qr-pick-all']) {
+      await t.tap(find.byKey(ValueKey(k)));
+      for (var i = 0; i < 15; i++) {
+        await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 60)));
+        await t.pump(const Duration(milliseconds: 60));
+      }
+      expect(find.byKey(const ValueKey('wa-qr-card')), findsOneWidget);
+    }
     await tapKey(t, 'qr-share');
     expect(share.multi.last.paths.single, endsWith('whatsapp-order-qr.png'));
     await t.tap(find.text('Save pictures').last);

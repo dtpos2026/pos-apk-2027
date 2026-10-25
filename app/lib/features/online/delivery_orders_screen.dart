@@ -15,7 +15,6 @@ import '../../data/receipt_loader.dart' show formatDateTime, two;
 import '../../domain/csv.dart';
 import '../../domain/delivery_messages.dart';
 import '../common/dialogs.dart';
-import '../menu/share/menu_png.dart' show renderQrCard;
 import '../menu/share/menu_share_screen.dart';
 import '../pos/cart.dart';
 import 'new_delivery_order_screen.dart';
@@ -213,9 +212,8 @@ class _DeliveryState extends ConsumerState<OnlineOrdersScreen> with SingleTicker
       showMessage(context, t['qr_need_phone']);
       return;
     }
-    final bytes = await renderQrCard(d, labels: menuLabels(t));
-    if (bytes == null || !mounted) return;
-    await showQrCardDialog(context, ref, bytes, d);
+    if (!mounted) return;
+    await showQrCardDialog(context, ref, d, menuLabels(t));
   }
 
   // ---- cards ----
@@ -270,10 +268,11 @@ class _DeliveryState extends ConsumerState<OnlineOrdersScreen> with SingleTicker
                 Expanded(flex: 2, child: FilledButton(key: ValueKey('accept-${o.id}'), style: FilledButton.styleFrom(backgroundColor: context.accent, foregroundColor: context.onAccent), onPressed: () => _accept(o), child: Text(t['accept']))),
               ])
             else
-              Row(children: [
-                if (next != null) Expanded(child: FilledButton(key: ValueKey('next-${o.id}'), onPressed: () => _move(o, next), child: Text('${t['dl_mark']} ${statusLabel(t, next)}', overflow: TextOverflow.ellipsis))) else const Spacer(),
-                const SizedBox(width: 6),
-                if (o.paymentStatus != 'paid' && !o.closed) FilledButton.tonal(key: ValueKey('pay-${o.id}'), onPressed: () => _pay(o), child: Text(t['take_payment'])),
+              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                if (next != null) FilledButton(key: ValueKey('next-${o.id}'), onPressed: () => _move(o, next), child: Text('${t['dl_mark']} ${statusLabel(t, next)}', textAlign: TextAlign.center)),
+                const SizedBox(height: 6),
+                Row(children: [
+                if (o.paymentStatus != 'paid' && !o.closed) Expanded(child: FilledButton.tonal(key: ValueKey('pay-${o.id}'), onPressed: () => _pay(o), child: Text(t['take_payment']))) else const Spacer(),
                 if (o.phone != null) IconButton(key: ValueKey('tell-${o.id}'), tooltip: t['tell_customer'], onPressed: () => _kindMenu(o), icon: const Icon(Icons.chat_outlined)),
                 PopupMenuButton<String>(
                   key: ValueKey('more-${o.id}'),
@@ -293,6 +292,7 @@ class _DeliveryState extends ConsumerState<OnlineOrdersScreen> with SingleTicker
                     if (OnlineOrderService.nextSteps(o.deliveryStatus, fulfilment: o.fulfilment).contains('cancelled')) PopupMenuItem(key: ValueKey('cancel-${o.id}'), value: 'cancelled', child: Text(t['dl_cancel_order'])),
                   ],
                 ),
+                ]),
               ]),
           ],
         ]),

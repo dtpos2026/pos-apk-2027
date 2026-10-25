@@ -72,6 +72,7 @@ Future<List<Uint8List>> renderMenuPng(MenuDoc d, {MenuLabels labels = const Menu
   final accentText = _isLight(accent) ? const Color(0xFF8A5A00) : accent;
 
   final logo = await _decode(d.logo, 280);
+  final brandImg = await _decode(d.brandMark, 64);
   final images = <Uint8List, ui.Image?>{};
   Future<ui.Image?> imageOf(Uint8List? b, int w) async {
     if (b == null) return null;
@@ -97,8 +98,8 @@ Future<List<Uint8List>> renderMenuPng(MenuDoc d, {MenuLabels labels = const Menu
     for (final e in s.entries) {
       final img = await imageOf(e.image, 260);
       const priceW = 230.0;
-      final imgSize = img == null ? 0.0 : 132.0;
-      final textX = _margin + 20 + (img == null ? 0 : imgSize + 22);
+      const imgSize = 132.0; // every dish has a picture tile (its photo, else a letter)
+      final textX = _margin + 20 + imgSize + 22;
       final textW = pngPageWidth - _margin - 20 - priceW - 20 - textX;
       final name = _tp(e.name, _style(34, ink, w: FontWeight.w700), textW, maxLines: 2);
       final desc = (e.description ?? '').trim().isEmpty ? null : _tp(e.description!.trim(), _style(26, muted), textW, maxLines: 2);
@@ -111,7 +112,14 @@ Future<List<Uint8List>> renderMenuPng(MenuDoc d, {MenuLabels labels = const Menu
       }
       final h = math.max(imgSize, th) + 40;
       blocks.add(_Block(h, (c, y) {
-        if (img != null) _drawImage(c, img, Rect.fromLTWH(_margin + 20, y + 20, imgSize, imgSize), radius: 18);
+        if (img != null) {
+          _drawImage(c, img, Rect.fromLTWH(_margin + 20, y + 20, imgSize, imgSize), radius: 18);
+        } else {
+          final col = s.deals ? accent : primary;
+          c.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(_margin + 20, y + 20, imgSize, imgSize), const Radius.circular(18)), Paint()..color = Color.alphaBlend(col.withValues(alpha: 0.14), const Color(0xFFFFFFFF)));
+          final ch = _tp(e.name.trim().isEmpty ? '' : e.name.trim().substring(0, 1).toUpperCase(), _style(60, s.deals ? accentText : primary, w: FontWeight.w800), imgSize, align: TextAlign.center);
+          ch.paint(c, Offset(_margin + 20, y + 20 + (imgSize - ch.height) / 2));
+        }
         var ty = y + 20.0;
         name.paint(c, Offset(textX, ty));
         ty += name.height;
@@ -223,8 +231,12 @@ Future<List<Uint8List>> renderMenuPng(MenuDoc d, {MenuLabels labels = const Menu
     if (index == pages.length - 1) closing(c, closingY);
     // footer
     c.drawLine(const Offset(_margin, pngPageHeight - 64), const Offset(pngPageWidth - _margin, pngPageHeight - 64), Paint()..color = line..strokeWidth = 2);
-    final fn = _tp(d.name, _style(24, muted), 700);
+    final fn = _tp(d.name, _style(24, muted), 420);
     fn.paint(c, Offset(_margin + 8, pngPageHeight - 50));
+    final pb = _tp(labels.poweredBy, _style(24, primary, w: FontWeight.w700), 420, align: TextAlign.center);
+    final bx = (pngPageWidth - pb.width) / 2 + (brandImg == null ? 0 : 18);
+    pb.paint(c, Offset(bx, pngPageHeight - 50));
+    if (brandImg != null) _drawImage(c, brandImg, Rect.fromLTWH(bx - 38, pngPageHeight - 50, 28, 28), cover: false);
     final fp = _tp('${labels.page} ${index + 1} / ${pages.length}', _style(24, muted), 300, align: TextAlign.right);
     fp.paint(c, Offset(pngPageWidth - _margin - 8 - 300, pngPageHeight - 50));
     final image = await rec.endRecording().toImage(pngPageWidth.toInt(), pngPageHeight.toInt());
@@ -242,8 +254,11 @@ Future<List<Uint8List>> renderMenuPng(MenuDoc d, {MenuLabels labels = const Menu
 
 /// A poster for the counter or a flyer: the restaurant's name and logo, "Order on WhatsApp", the QR and the number. null when the
 /// restaurant has no WhatsApp number to link to.
-Future<Uint8List?> renderQrCard(MenuDoc d, {MenuLabels labels = const MenuLabels()}) async {
+Future<Uint8List?> renderQrCard(MenuDoc d, {MenuLabels labels = const MenuLabels(), List<String> messages = const []}) async {
   if (d.qrLink == null) return null;
+  final texts = [for (final m in messages) if (m.trim().isNotEmpty) m.trim()];
+  String linkFor(String m) => 'https://wa.me/${d.whatsapp}?text=${Uri.encodeComponent(m)}';
+  final links = texts.isEmpty ? [d.qrLink!] : [for (final m in texts) linkFor(m)];
   const w = 1080.0, h = 1350.0;
   final primary = Color(d.primary);
   final onPrimary = _isLight(primary) ? const Color(0xFF1B1B1B) : const Color(0xFFFFFFFF);
@@ -264,18 +279,31 @@ Future<Uint8List?> renderQrCard(MenuDoc d, {MenuLabels labels = const MenuLabels
   name.paint(c, Offset(60, ty));
   final title = _tp(labels.orderOnWhatsApp, _style(54, primary, w: FontWeight.w800), w - 120, align: TextAlign.center);
   title.paint(c, const Offset(60, 400));
-  final qr = QrPainter(data: d.qrLink!, version: QrVersions.auto, gapless: true, eyeStyle: QrEyeStyle(eyeShape: QrEyeShape.square, color: primary), dataModuleStyle: const QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square, color: Color(0xFF1F1A1A)));
-  const qs = 560.0;
-  final qx = (w - qs) / 2, qy = 500.0;
-  c.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(qx - 28, qy - 28, qs + 56, qs + 56), const Radius.circular(32)), Paint()..color = const Color(0xFFFFFFFF));
-  c.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(qx - 28, qy - 28, qs + 56, qs + 56), const Radius.circular(32)), Paint()..color = primary.withValues(alpha: 0.5)..style = PaintingStyle.stroke..strokeWidth = 4);
-  c.save();
-  c.translate(qx, qy);
-  qr.paint(c, const Size(qs, qs));
-  c.restore();
+  QrPainter qrFor(String link) => QrPainter(data: link, version: QrVersions.auto, gapless: true, eyeStyle: QrEyeStyle(eyeShape: QrEyeShape.square, color: primary), dataModuleStyle: const QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square, color: Color(0xFF1F1A1A)));
+  final multi = links.length > 1;
+  final qs = multi ? (links.length == 2 ? 380.0 : 290.0) : 560.0;
+  final qy = multi ? 480.0 : 500.0;
+  final gap = multi ? 40.0 : 0.0;
+  final totalW = links.length * qs + (links.length - 1) * gap;
+  var qx = (w - totalW) / 2;
+  for (var i = 0; i < links.length; i++) {
+    c.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(qx - 24, qy - 24, qs + 48, qs + 48), const Radius.circular(28)), Paint()..color = const Color(0xFFFFFFFF));
+    c.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(qx - 24, qy - 24, qs + 48, qs + 48), const Radius.circular(28)), Paint()..color = primary.withValues(alpha: 0.5)..style = PaintingStyle.stroke..strokeWidth = 4);
+    c.save();
+    c.translate(qx, qy);
+    qrFor(links[i]).paint(c, Size(qs, qs));
+    c.restore();
+    if (texts.isNotEmpty) {
+      // what the customer's message will say, so they know what they are sending
+      final cap = _tp('"${texts[i]}"', _style(multi ? 28 : 34, const Color(0xFF1F1A1A), w: FontWeight.w700), qs + 40, maxLines: 3, align: TextAlign.center);
+      cap.paint(c, Offset(qx - 20, qy + qs + 34));
+    }
+    qx += qs + gap;
+  }
   final scan = _tp(labels.scanToOrder, _style(36, primary, w: FontWeight.w700), w - 120, align: TextAlign.center);
-  scan.paint(c, Offset(60, qy + qs + 56));
-  var by = qy + qs + 56 + scan.height + 22;
+  final scanY = qy + qs + (texts.isEmpty ? 56 : (multi ? 160 : 120));
+  scan.paint(c, Offset(60, scanY));
+  var by = scanY + scan.height + 22;
   for (final line in [d.phone ?? '', d.address ?? '']) {
     if (line.isEmpty) continue;
     final t = _tp(line, _style(line == d.phone ? 40 : 28, line == d.phone ? const Color(0xFF1F1A1A) : const Color(0xFF6B6262), w: line == d.phone ? FontWeight.w700 : FontWeight.w500), w - 120, maxLines: 2, align: TextAlign.center);

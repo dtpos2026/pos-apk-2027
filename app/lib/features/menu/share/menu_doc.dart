@@ -51,6 +51,7 @@ class MenuDoc {
     required this.sections,
     required this.fingerprint,
     this.qrLink,
+    this.brandMark,
   });
   final String name;
   final String? address;
@@ -67,6 +68,9 @@ class MenuDoc {
 
   /// The wa.me link the QR on the menu opens.
   final String? qrLink;
+
+  /// The Digital Target mark (PNG, red) printed in the footer next to "Powered by DT Food POS".
+  final Uint8List? brandMark;
 
   int get itemCount => sections.fold(0, (s, x) => s + x.entries.length);
 }
@@ -91,7 +95,7 @@ Uint8List? _thumb(String? path, int side) {
 }
 
 /// Reads the menu. Only items that are on sale are listed; deals come last under "Deals"; items with no category under "Menu".
-Future<MenuDoc> loadMenuDoc(AppDatabase db, {required int primary, required int accent, String dealsTitle = 'Deals', String otherTitle = 'Menu', String fromWord = 'from'}) async {
+Future<MenuDoc> loadMenuDoc(AppDatabase db, {required int primary, required int accent, String dealsTitle = 'Deals', String otherTitle = 'Menu', String fromWord = 'from', Uint8List? brandMark}) async {
   Future<List<Map<String, Object?>>> q(String sql, [List<Object?> a = const []]) async =>
       (await db.customSelect(sql, variables: [for (final v in a) v is int ? Variable.withInt(v) : Variable.withString('$v')]).get()).map((r) => r.data).toList();
 
@@ -110,13 +114,15 @@ Future<MenuDoc> loadMenuDoc(AppDatabase db, {required int primary, required int 
     (inside[r['deal_id'] as String] ??= []).add('${qty == qty.roundToDouble() ? qty.round() : qty} x ${r['pname']}${r['vname'] == null ? '' : ' (${r['vname']})'}');
   }
 
-  MenuEntry entry(MenuProduct p) {
+  final logoThumb = _thumb(biz?.logoPath, 300);
+  // every dish shows a picture: its own, else its category's, else the restaurant logo (the page draws a letter tile if there is none)
+  MenuEntry entry(MenuProduct p, Uint8List? fallback) {
     final vs = variants[p.id] ?? const [];
     return MenuEntry(
       name: p.name,
       price: vs.isEmpty ? _price(p.priceMinor, cur) : '$fromWord ${_price(vs.first.$2, cur)}',
       description: p.description,
-      image: _thumb(p.imagePath, 220),
+      image: _thumb(p.imagePath, 220) ?? fallback ?? logoThumb,
       sizes: [for (final v in vs) '${v.$1}  ${_price(v.$2, cur)}'],
       inside: inside[p.id] ?? const [],
     );
@@ -127,15 +133,16 @@ Future<MenuDoc> loadMenuDoc(AppDatabase db, {required int primary, required int 
   final deals = products.where((p) => kinds[p.id] == 'combo').toList();
   for (final c in cats) {
     final mine = regular.where((p) => p.categoryId == c.id).toList();
-    if (mine.isNotEmpty) sections.add(MenuSection(title: c.name, image: _thumb(c.imagePath, 120), entries: [for (final p in mine) entry(p)]));
+    final catThumb = _thumb(c.imagePath, 220);
+    if (mine.isNotEmpty) sections.add(MenuSection(title: c.name, image: _thumb(c.imagePath, 120), entries: [for (final p in mine) entry(p, catThumb)]));
   }
   final loose = regular.where((p) => p.categoryId == null).toList();
-  if (loose.isNotEmpty) sections.add(MenuSection(title: otherTitle, entries: [for (final p in loose) entry(p)]));
-  if (deals.isNotEmpty) sections.add(MenuSection(title: dealsTitle, deals: true, entries: [for (final p in deals) entry(p)]));
+  if (loose.isNotEmpty) sections.add(MenuSection(title: otherTitle, entries: [for (final p in loose) entry(p, null)]));
+  if (deals.isNotEmpty) sections.add(MenuSection(title: dealsTitle, deals: true, entries: [for (final p in deals) entry(p, null)]));
 
   final intl = biz?.phone == null ? null : internationalPhone(biz!.phone!, countryCode: callingCodeFor(cur.code));
   final link = intl == null ? null : 'https://wa.me/$intl?text=${Uri.encodeComponent('Hello ${biz!.name}')}';
-  final logo = _thumb(biz?.logoPath, 300);
+  final logo = logoThumb;
 
   // the fingerprint: any change to what is printed changes it (text, price, picture file, colours)
   final seed = StringBuffer('${biz?.name}|${biz?.address}|${biz?.phone}|${biz?.logoPath}|$primary|$accent|${cur.code}');
@@ -161,5 +168,6 @@ Future<MenuDoc> loadMenuDoc(AppDatabase db, {required int primary, required int 
     sections: sections,
     fingerprint: h.toRadixString(16),
     qrLink: link,
+    brandMark: brandMark,
   );
 }

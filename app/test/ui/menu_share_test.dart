@@ -59,6 +59,7 @@ void main() {
     final font = pw.Font.ttf(File('assets/fonts/NotoNaskhArabic.ttf').readAsBytesSync().buffer.asByteData());
     final pdf = (await t.runAsync(() => buildMenuPdf(doc, script: font)))!;
     expect(String.fromCharCodes(pdf.take(5)), '%PDF-');
+    if (Platform.environment['SCREENSHOT_DIR'] != null) File('${Platform.environment['SCREENSHOT_DIR']}/menu.pdf').writeAsBytesSync(pdf);
     expect(RegExp(r'/Type\s*/Page[^s]').allMatches(String.fromCharCodes(pdf)).length, greaterThan(1));
 
     // an item with a damaged picture and no logo still makes a menu
