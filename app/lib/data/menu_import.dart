@@ -65,6 +65,32 @@ class MenuImporter {
 
   static const _units = {'pc', 'kg', 'g', 'l', 'ml'};
 
+  /// The whole menu as CSV in the same columns the importer reads (without deals), so it can be edited in Excel and imported back.
+  /// Items without a SKU are exported with an empty SKU; importing those again creates new items, so give them a SKU first.
+  Future<String> exportCsv() async {
+    final rows = await db.customSelect(
+        "SELECT c.name AS cat, p.name, p.base_price_minor, p.sku, p.barcode, p.unit, p.available, p.track_stock, (SELECT t.rate_bp FROM tax_rate t WHERE t.id = p.tax_rate_id) AS tax "
+        "FROM product p LEFT JOIN category c ON c.id = p.category_id WHERE p.deleted_at IS NULL AND p.kind <> 'combo' ORDER BY c.name, p.name").get();
+    String money(int minor) => (minor / currency.factor).toStringAsFixed(currency.minorDigits);
+    final out = <String>[menuCsvHeader.join(',')];
+    for (final r in rows) {
+      final d = r.data;
+      final tax = d['tax'] as int?;
+      out.add([
+        d['cat'] as String? ?? '',
+        d['name'] as String,
+        money(d['base_price_minor'] as int),
+        d['sku'] as String? ?? '',
+        d['barcode'] as String? ?? '',
+        d['unit'] as String? ?? 'pc',
+        tax == null ? '' : (tax / 100).toStringAsFixed(2),
+        (d['available'] as int) == 1 ? 'yes' : 'no',
+        (d['track_stock'] as int) == 1 ? 'yes' : 'no',
+      ].map(csvEscape).join(','));
+    }
+    return out.join('\n');
+  }
+
   bool? _bool(String v, {required bool fallback}) {
     final s = v.trim().toLowerCase();
     if (s.isEmpty) return fallback;

@@ -96,4 +96,21 @@ void main() {
     expect(r.ok, isTrue);
     expect((await db.customSelect('SELECT name, unit FROM product').getSingle()).data, {'name': 'چکن (کلو)', 'unit': 'kg'});
   });
+
+  test('export writes the menu in the same columns, and the export imports back without changes (round trip)', () async {
+    await imp.import('category,name,price,sku,barcode,unit,tax_percent,available,track_stock\n'
+        'Burgers,"Zinger, Special",450.50,BRG-1,,pc,16,yes,no\n'
+        'Desi,Chicken Karahi (kg),1800,DSI-1,,kg,,no,yes\n'
+        'Drinks,Cola 500ml,100,DRK-1,6281000000000,pc,,yes,yes\n', dryRun: false);
+    final csv = await imp.exportCsv();
+    final rows = parseCsv(csv);
+    expect(rows.first, menuCsvHeader);
+    expect(rows.length, 4);
+    expect(rows.firstWhere((r) => r[3] == 'BRG-1'), ['Burgers', 'Zinger, Special', '450.50', 'BRG-1', '', 'pc', '16.00', 'yes', 'no']);
+    expect(rows.firstWhere((r) => r[3] == 'DSI-1')[5], 'kg');
+    final again = await imp.import(csv, dryRun: false);
+    expect(again.ok, isTrue, reason: again.issues.join('; '));
+    expect(again.updates, 3, reason: 'same SKUs: all updates, nothing duplicated');
+    expect(await count('product'), 3);
+  });
 }

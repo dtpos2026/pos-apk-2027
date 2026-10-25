@@ -10,6 +10,7 @@ import '../../data/menu_service.dart';
 import '../../data/queries.dart';
 import 'cart.dart';
 import 'options_sheet.dart';
+import 'weight_dialog.dart';
 import 'cart_panel.dart';
 import 'shift_dialogs.dart';
 
@@ -206,6 +207,13 @@ class _ProductTile extends ConsumerWidget {
   Future<void> _add(BuildContext context, WidgetRef ref) async {
     final opts = await ref.read(menuServiceProvider).optionsFor(p.id);
     if (opts.isEmpty) {
+      if (const {'kg', 'g', 'l', 'ml'}.contains(p.unit)) {
+        // sold by weight: ask for it (grams or kg) instead of guessing
+        if (!context.mounted) return;
+        final q = await showWeightDialog(context, ref, name: p.name, unit: p.unit, unitPriceMinor: p.priceMinor);
+        if (q != null) ref.read(cartProvider.notifier).addWeighed(p, q);
+        return;
+      }
       ref.read(cartProvider.notifier).add(p);
     } else if (context.mounted) {
       final item = await showOptionsSheet(context, ref, p, opts);

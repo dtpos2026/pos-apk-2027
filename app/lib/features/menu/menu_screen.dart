@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -61,6 +62,8 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
               await showDialog<void>(context: context, builder: (_) => const _ImportDialog());
               _refresh();
             }, icon: const Icon(Icons.upload_file), label: Text(t['import_csv'])),
+            const SizedBox(width: 8),
+            OutlinedButton.icon(key: const ValueKey('export-csv'), onPressed: () => _exportMenu(context, ref), icon: const Icon(Icons.download_outlined), label: Text(t['export_csv'])),
           ])),
           ]),
         ),
@@ -100,6 +103,21 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
       ]),
     );
   }
+}
+
+/// Saves the whole menu as a CSV file in the phone's Downloads (and opens the share sheet), ready for Excel.
+Future<void> _exportMenu(BuildContext context, WidgetRef ref) async {
+  final t = Strings.of(context);
+  final csv = await ref.read(menuImporterProvider).exportCsv();
+  final dir = ref.read(exportDirProvider)..createSync(recursive: true);
+  final f = File('${dir.path}/menu.csv')..writeAsStringSync('\u{FEFF}$csv'); // BOM so Excel reads Urdu names correctly
+  try {
+    final where = await ref.read(phoneFileSaverProvider).save(path: f.path, name: 'menu.csv', mime: 'text/csv');
+    if (context.mounted) showMessage(context, '${t['saved_to']}: $where');
+  } catch (e) {
+    if (context.mounted) showMessage(context, '${t['save_failed']}: $e');
+  }
+  await ref.read(shareServiceProvider).shareFile(f.path, mimeType: 'text/csv', subject: 'menu');
 }
 
 Future<bool> _editDialog(BuildContext context, WidgetRef ref, MenuProduct? p) async {

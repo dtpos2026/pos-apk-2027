@@ -153,9 +153,20 @@ void main() {
     expect(find.byKey(const ValueKey('charge')), findsOneWidget); // cart panel is visible without opening a sheet
     await tapProduct(t, 'Chicken Karahi (kg)');
     await t.pumpAndSettle();
-    expect(t.widget<Text>(find.byKey(const ValueKey('qty-0'))).data, '0.5');
-    await tapKey(t, 'inc-0');
-    expect(t.widget<Text>(find.byKey(const ValueKey('qty-0'))).data, '1');
+    // sold by weight: the cashier is asked for the weight, in grams
+    await typeInto(t, find.byKey(const ValueKey('weight-input')), '750');
+    expect(t.widget<Text>(find.byKey(const ValueKey('weight-price'))).data, 'PKR 1,350.00');
+    await shot(t, '94_weight_dialog');
+    await tapKey(t, 'weight-ok');
+    expect(t.widget<Text>(find.byKey(const ValueKey('qty-0'))).data, '750 g');
+    await tapKey(t, 'inc-0'); // +250 g
+    expect(t.widget<Text>(find.byKey(const ValueKey('qty-0'))).data, '1 kg');
+    await tapKey(t, 'qty-edit-0'); // weigh again: 1.25 kg
+    await t.tap(find.descendant(of: find.byKey(const ValueKey('weight-unit')), matching: find.text('kg')));
+    await t.pumpAndSettle();
+    await typeInto(t, find.byKey(const ValueKey('weight-input')), '1.25');
+    await tapKey(t, 'weight-ok');
+    expect(t.widget<Text>(find.byKey(const ValueKey('qty-0'))).data, '1.25 kg');
     await tapProduct(t, 'Zinger Burger');
     await t.pumpAndSettle();
     await shot(t, '10_pos_tablet');

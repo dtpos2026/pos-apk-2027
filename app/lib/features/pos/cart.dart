@@ -170,6 +170,30 @@ class CartNotifier extends Notifier<CartState> {
     _persist();
   }
 
+  /// Adds a product sold by weight or volume with the exact quantity (thousandths of its unit). The same product adds up on one line.
+  void addWeighed(MenuProduct p, int qtyMilli) {
+    final i = state.items.indexWhere((x) => x.productId == p.id && x.modifiers.isEmpty && x.note == null && x.lineDiscountMinor == 0);
+    final items = [...state.items];
+    if (i >= 0) {
+      final x = items[i];
+      items[i] = CartItem(productId: x.productId, name: x.name, qtyMilli: x.qtyMilli + qtyMilli, unitPriceMinor: x.unitPriceMinor, taxRateBp: x.taxRateBp, taxInclusive: x.taxInclusive, station: x.station, kotSentMilli: x.kotSentMilli);
+    } else {
+      items.add(CartItem(productId: p.id, name: p.name, qtyMilli: qtyMilli, unitPriceMinor: p.priceMinor, taxRateBp: p.taxBp, taxInclusive: p.taxInclusive, station: p.station));
+    }
+    state = _valid(state.copyWith(items: items));
+    _persist();
+  }
+
+  /// Sets the exact quantity of a line (weighing again).
+  void setQty(int index, int qtyMilli) {
+    if (qtyMilli <= 0) return;
+    final items = [...state.items];
+    final x = items[index];
+    items[index] = CartItem(productId: x.productId, variantId: x.variantId, name: x.name, qtyMilli: qtyMilli, unitPriceMinor: x.unitPriceMinor, modifiers: x.modifiers, lineDiscountMinor: 0, taxRateBp: x.taxRateBp, taxInclusive: x.taxInclusive, note: x.note, station: x.station, kotSentMilli: x.kotSentMilli);
+    state = _valid(state.copyWith(items: items));
+    _persist();
+  }
+
   /// Adds an item that was configured (variant, add-ons, note). The same configuration merges into one line.
   void addConfigured(CartItem item) {
     String key(CartItem i) => '${i.productId}|${i.variantId}|${(i.modifiers.map((m) => m.optionId ?? m.name).toList()..sort()).join(',')}|${i.note ?? ''}';

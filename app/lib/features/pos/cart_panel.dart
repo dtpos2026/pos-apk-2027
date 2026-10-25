@@ -16,8 +16,11 @@ import 'cart.dart';
 import 'checkout_sheet.dart';
 import 'delivery_card.dart';
 import 'shift_dialogs.dart';
+import 'weight_dialog.dart';
 
 final heldOrdersProvider = FutureProvider.autoDispose<List<HeldOrder>>((ref) => ref.watch(posServiceProvider).listHeld());
+final productUnitProvider = FutureProvider.family<String, String>((ref, id) async => (await ref.watch(dbHelperProvider).one('SELECT unit FROM product WHERE id = ?', [id]))?['unit'] as String? ?? 'pc');
+
 final _customerNameProvider = FutureProvider.autoDispose.family<String?, String?>((ref, id) async {
   if (id == null) return null;
   return (await ref.watch(dbHelperProvider).one('SELECT name FROM customer WHERE id = ?', [id]))?['name'] as String?;
@@ -135,7 +138,8 @@ class CartPanel extends ConsumerWidget {
                     itemBuilder: (_, i) {
                       final it = cart.items[i];
                       final line = bill.lines[i];
-                      final step = it.qtyMilli % 1000 != 0 ? 500 : 1000;
+                      final unit = ref.watch(productUnitProvider(it.productId)).value ?? 'pc';
+                      final step = unit == 'kg' || unit == 'l' ? 250 : (unit == 'g' || unit == 'ml' ? 250000 : (it.qtyMilli % 1000 != 0 ? 500 : 1000));
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 6),
                         child: Row(children: [
@@ -144,7 +148,23 @@ class CartPanel extends ConsumerWidget {
                             Text([ref.money(it.unitPriceMinor + it.modifiersMinor, symbol: false), if (it.modifiers.isNotEmpty) '+ ${it.modifiers.map((m) => m.name).join(', ')}', if (it.note != null) '* ${it.note}'].join('  '), style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
                           ])),
                           IconButton(key: ValueKey('dec-$i'), visualDensity: VisualDensity.compact, icon: const Icon(Icons.remove_circle_outline), onPressed: () => notifier.changeQty(i, -step)),
-                          SizedBox(width: 34, child: Text(formatQty(it.qtyMilli), key: ValueKey('qty-$i'), textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16))),
+                          if (unit != 'pc')
+                            InkWell(
+                              key: ValueKey('qty-edit-$i'),
+                              borderRadius: BorderRadius.circular(8),
+                              onTap: () async {
+                                final q = await showWeightDialog(context, ref, name: it.name, unit: unit, unitPriceMinor: it.unitPriceMinor, initialMilli: it.qtyMilli);
+                                if (q != null) notifier.setQty(i, q);
+                              },
+                              child: Container(
+                                constraints: const BoxConstraints(minWidth: 58),
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                decoration: BoxDecoration(border: Border.all(color: Theme.of(context).colorScheme.outlineVariant), borderRadius: BorderRadius.circular(8)),
+                                child: Text(weightLabel(unit, it.qtyMilli), key: ValueKey('qty-$i'), textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+                              ),
+                            )
+                          else
+                            SizedBox(width: 34, child: Text(formatQty(it.qtyMilli), key: ValueKey('qty-$i'), textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16))),
                           IconButton(key: ValueKey('inc-$i'), visualDensity: VisualDensity.compact, icon: const Icon(Icons.add_circle_outline), onPressed: () => notifier.changeQty(i, step)),
                           SizedBox(width: 84, child: Text(ref.money(line.grossMinor - line.discountMinor, symbol: false), textAlign: TextAlign.end, style: const TextStyle(fontWeight: FontWeight.w700))),
                         ]),
