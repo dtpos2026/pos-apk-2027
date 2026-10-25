@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/format.dart';
 import '../../app/providers.dart';
+import '../../app/feedback.dart';
 import '../../app/strings.dart';
 import '../common/dialogs.dart';
 import '../../app/theme.dart';
@@ -137,10 +138,13 @@ class _CheckoutSheetState extends ConsumerState<CheckoutSheet> {
         for (final l in _lines) SettlePayment(methodId: l.method.id, amountMinor: parseMinor(l.controller.text, currency: _cur)!),
       ];
       final settled = await ref.read(cartProvider.notifier).checkout(payments);
+      ref.read(appFeedbackProvider).success();
       if (mounted) Navigator.pop(context, settled);
     } on PosException catch (e) {
+      ref.read(appFeedbackProvider).failure();
       setState(() => _error = e.message);
     } catch (e) {
+      ref.read(appFeedbackProvider).failure();
       setState(() => _error = '${t['payment']}: $e');
     } finally {
       if (mounted) setState(() => _busy = false);

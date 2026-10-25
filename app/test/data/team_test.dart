@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Variable;
 import 'package:drift/native.dart';
 import 'package:dt_food_pos/data/db/database.dart';
 import 'package:dt_food_pos/data/db_helper.dart';
@@ -59,5 +60,34 @@ void main() {
     await migrateToV6(db);
     await migrateToV6(db);
     expect((await db.customSelect('SELECT COUNT(*) AS n FROM "order"').getSingle()).data['n'], 1);
+  });
+
+  test('waiters are a simple list like riders: kept apart, counted by their bills, shown on the table and the printed order', () async {
+    final w = await team.saveWaiter(name: 'Sara', staffId: 's1');
+    await team.saveRider(name: 'Sara', staffId: 's1'); // the same name as a rider is allowed
+    expect((await team.waiters()).map((x) => x.name), ['Sara']);
+    expect((await team.riders()).map((x) => x.name), ['Sara']);
+    await expectLater(team.saveWaiter(name: 'sara', staffId: 's1'), throwsA(isA<PosException>()));
+    final id = await pos.saveDraft(DraftOrder(orderType: 'dine_in', waiterId: w, items: [CartItem(productId: 'b', name: 'Zinger Burger', qtyMilli: 2000, unitPriceMinor: 45000)]), staffId: 's1');
+    final back = await pos.loadDraft(id);
+    expect(back!.waiterId, w);
+    final today = (await db.customSelect('SELECT business_date d FROM "order" WHERE id = ?', variables: [Variable.withString(id)]).getSingle()).data['d'] as String;
+    expect((await team.waiters(day: today)).single.deliveries, 1);
+  });
+
+  test('upgrading from schema 6 keeps riders and their orders and lets waiters in', () async {
+    await db.customStatement("INSERT INTO team_member(id, kind, name, updated_at) VALUES ('r1','rider','Ali Bike',1)");
+    // go back to the version 6 shape: the CHECK only allows riders, no waiter columns
+    await db.customStatement('PRAGMA foreign_keys = OFF');
+    await db.customStatement('ALTER TABLE team_member RENAME TO tm_new');
+    await db.customStatement("CREATE TABLE team_member (id TEXT PRIMARY KEY, kind TEXT NOT NULL DEFAULT 'rider' CHECK (kind IN ('rider')), name TEXT NOT NULL, phone TEXT, bike_no TEXT, active INTEGER NOT NULL DEFAULT 1, version INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL, deleted_at INTEGER)");
+    await db.customStatement('INSERT INTO team_member SELECT * FROM tm_new');
+    await db.customStatement('DROP TABLE tm_new');
+    await db.customStatement('PRAGMA foreign_keys = ON');
+    await migrateToV7(db);
+    await migrateToV7(db);
+    expect((await team.riders()).map((x) => x.name), contains('Ali Bike'));
+    await team.saveWaiter(name: 'Bilal', staffId: 's1');
+    expect((await team.waiters()).single.name, 'Bilal');
   });
 }

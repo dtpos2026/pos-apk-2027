@@ -16,6 +16,7 @@ class AccountSnapshot {
     this.disabledModules = const [],
     this.themeId = '',
     this.themeLocked = false,
+    this.maxPhones = 1,
     required this.checkedAt,
   });
 
@@ -39,17 +40,20 @@ class AccountSnapshot {
   /// True = the owner cannot change the theme in Settings.
   final bool themeLocked;
 
+  /// How many phones this licence allows. A new phone that still fits is let in without waiting for approval (it is listed in the panel).
+  final int maxPhones;
+
   /// When the server last confirmed this copy (never the time of an offline cache read).
   final DateTime checkedAt;
 
   AccountSnapshot copyWith({DateTime? checkedAt}) => AccountSnapshot(
         status: status, plan: plan, expiresAt: expiresAt, adminMessage: adminMessage, approvedPhones: approvedPhones,
-        blockedPhones: blockedPhones, phoneRequests: phoneRequests, customerId: customerId, businessName: businessName, disabledModules: disabledModules, themeId: themeId, themeLocked: themeLocked, checkedAt: checkedAt ?? this.checkedAt,
+        blockedPhones: blockedPhones, phoneRequests: phoneRequests, customerId: customerId, businessName: businessName, disabledModules: disabledModules, themeId: themeId, themeLocked: themeLocked, maxPhones: maxPhones, checkedAt: checkedAt ?? this.checkedAt,
       );
 
   String toJson() => jsonEncode({
         'status': status, 'plan': plan, 'exp': expiresAt?.millisecondsSinceEpoch, 'msg': adminMessage, 'ok': approvedPhones, 'bl': blockedPhones,
-        'rq': phoneRequests, 'cid': customerId, 'name': businessName, 'off': disabledModules, 'th': themeId, 'tl': themeLocked, 'chk': checkedAt.millisecondsSinceEpoch,
+        'rq': phoneRequests, 'cid': customerId, 'name': businessName, 'off': disabledModules, 'th': themeId, 'tl': themeLocked, 'mp': maxPhones, 'chk': checkedAt.millisecondsSinceEpoch,
       });
 
   static AccountSnapshot? tryParse(String? raw) {
@@ -68,6 +72,7 @@ class AccountSnapshot {
         businessName: j['name'] as String? ?? '',
         disabledModules: ((j['off'] as List?) ?? const []).cast<String>(),
         themeId: j['th'] as String? ?? '',
+        maxPhones: j['mp'] as int? ?? 1,
         themeLocked: j['tl'] as bool? ?? false,
         checkedAt: DateTime.fromMillisecondsSinceEpoch(j['chk'] as int),
       );
@@ -148,7 +153,7 @@ AccessDecision decideAccess({
       return AccessDecision(AccessReason.blocked, message: msg);
   }
   if (account.blockedPhones.contains(phoneId)) return AccessDecision(AccessReason.phoneBlocked, message: msg);
-  if (!account.approvedPhones.contains(phoneId)) return const AccessDecision(AccessReason.newPhone);
+  if (!account.approvedPhones.contains(phoneId) && !phoneFitsLicence(account, phoneId)) return const AccessDecision(AccessReason.newPhone);
   if (now.isBefore(highestClockSeen.subtract(const Duration(minutes: 10)))) return const AccessDecision(AccessReason.clockTampered);
   final exp = account.expiresAt;
   if (exp != null && !now.isBefore(exp)) return AccessDecision(AccessReason.expired, message: msg);
@@ -156,3 +161,6 @@ AccessDecision decideAccess({
   if (offlineFor > Duration(days: control.offlineDays)) return const AccessDecision(AccessReason.internetNeeded);
   return AccessDecision(AccessReason.ok, daysLeft: exp == null ? null : exp.difference(now).inDays + 1);
 }
+
+/// True when this phone, counted with the approved ones and the other phones already waiting, still fits the licence's phone limit.
+bool phoneFitsLicence(AccountSnapshot a, String phoneId) => {...a.approvedPhones, ...a.phoneRequests, phoneId}.length <= a.maxPhones;

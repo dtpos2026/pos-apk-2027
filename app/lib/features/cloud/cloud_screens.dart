@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/strings.dart';
+import '../../app/theme.dart';
+import '../../app/themes.dart';
 import '../../cloud/access_controller.dart';
 import '../../cloud/cloud_gateway.dart';
 import '../../cloud/location_consent.dart';
@@ -12,7 +14,13 @@ import 'support_screen.dart';
 /// Digital Target branded layout for the account screens: red header (same as the splash), content on a card.
 Widget _frame(BuildContext context, {required List<Widget> children}) {
   final top = MediaQuery.paddingOf(context).top;
-  return Scaffold(
+  // The account screens always wear the Digital Target red, whatever theme the restaurant picked inside the app.
+  final dark = Theme.of(context).brightness == Brightness.dark;
+  final brand = buildTheme(brightness: dark ? Brightness.dark : Brightness.light, spec: presetById('red'));
+  return Theme(data: brand.copyWith(
+    filledButtonTheme: FilledButtonThemeData(style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700))),
+    outlinedButtonTheme: OutlinedButtonThemeData(style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600))),
+  ), child: Scaffold(
     body: SingleChildScrollView(
       child: Column(children: [
         Container(
@@ -49,7 +57,7 @@ Widget _frame(BuildContext context, {required List<Widget> children}) {
         const Padding(padding: EdgeInsets.only(bottom: 24), child: BrandFooter()),
       ]),
     ),
-  );
+  ));
 }
 
 /// Firebase could not start (wrong or missing configuration).
@@ -155,8 +163,11 @@ class _CloudAuthScreenState extends ConsumerState<CloudAuthScreen> {
       if (_info != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(_info!)),
       const SizedBox(height: 16),
       FilledButton(key: const Key('cloud_submit'), onPressed: _busy ? null : _go, child: Text(_create ? t['create_account'] : t['sign_in'])),
-      TextButton(onPressed: _busy ? null : () => setState(() { _create = !_create; _error = null; }), child: Text(_create ? t['have_account'] : t['no_account'])),
-      if (!_create) TextButton(onPressed: _busy ? null : _reset, child: Text(t['forgot_password'])),
+      const SizedBox(height: 4),
+      Wrap(alignment: WrapAlignment.spaceBetween, crossAxisAlignment: WrapCrossAlignment.center, children: [
+        TextButton(onPressed: _busy ? null : () => setState(() { _create = !_create; _error = null; }), child: Text(_create ? t['have_account'] : t['no_account'])),
+        if (!_create) TextButton(onPressed: _busy ? null : _reset, child: Text(t['forgot_password'])),
+      ]),
       if (b != null && (b.contact.isNotEmpty || b.supportMessage.isNotEmpty)) ...[
         const Divider(),
         if (b.supportMessage.isNotEmpty) Text(b.supportMessage, textAlign: TextAlign.center),
@@ -272,6 +283,7 @@ class AccessBlockedScreen extends ConsumerWidget {
       ],
       const SizedBox(height: 20),
       FilledButton(key: const Key('check_again'), onPressed: () => ref.read(accessProvider.notifier).refresh(), child: Text(t['check_again'])),
+      const SizedBox(height: 12),
       OutlinedButton(onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SupportScreen())), child: Text(t['contact_support'])),
       TextButton(onPressed: () => ref.read(accessProvider.notifier).signOut(), child: Text(t['sign_out'])),
     ]);

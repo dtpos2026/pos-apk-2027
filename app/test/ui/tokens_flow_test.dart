@@ -370,7 +370,7 @@ void main() {
     await t.pageBack();
     await t.pumpAndSettle();
     await t.scrollUntilVisible(find.byKey(const ValueKey('printer-test-Counter')), 300, scrollable: verticalScroll);
-    await t.drag(verticalScroll, const Offset(0, -160));
+    await t.ensureVisible(find.byKey(const ValueKey('printer-test-Counter')));
     await t.pumpAndSettle();
     await tapKey(t, 'printer-test-Counter');
     await settle(t);

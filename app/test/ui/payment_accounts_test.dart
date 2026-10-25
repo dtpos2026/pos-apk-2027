@@ -9,7 +9,7 @@ Future<void> _openSettingsAt(WidgetTester t, String key) async {
   await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
   await t.pumpAndSettle();
   await t.scrollUntilVisible(find.byKey(ValueKey(key)), 300, scrollable: verticalScroll);
-  await t.drag(verticalScroll, const Offset(0, -160)); // clear of the bottom navigation bar
+  await t.ensureVisible(find.byKey(ValueKey(key)));
   await t.pumpAndSettle();
 }
 

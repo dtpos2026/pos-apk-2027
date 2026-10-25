@@ -119,8 +119,8 @@ CREATE TABLE product_modifier_group (
   PRIMARY KEY (product_id, group_id)
 );
 
-CREATE TABLE team_member (                 -- delivery riders (no PIN, they do not sign in): assigned to delivery orders
-  id TEXT PRIMARY KEY, kind TEXT NOT NULL DEFAULT 'rider' CHECK (kind IN ('rider')),
+CREATE TABLE team_member (                 -- delivery riders and dine-in waiters (no PIN, they do not sign in): assigned to orders
+  id TEXT PRIMARY KEY, kind TEXT NOT NULL DEFAULT 'rider' CHECK (kind IN ('rider','waiter')),
   name TEXT NOT NULL, phone TEXT, bike_no TEXT, active INTEGER NOT NULL DEFAULT 1,
   version INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL, deleted_at INTEGER
 );
@@ -149,7 +149,8 @@ CREATE TABLE dining_table (
   label TEXT NOT NULL, seats INTEGER NOT NULL DEFAULT 4,
   status TEXT NOT NULL DEFAULT 'free' CHECK (status IN ('free','occupied','reserved','cleaning')),
   waiter_id TEXT REFERENCES staff(id),
-  version INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL, deleted_at INTEGER
+  version INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL, deleted_at INTEGER,
+  waiter_member_id TEXT REFERENCES team_member(id)   -- the waiter (team_member) serving this table; waiter_id is the older staff link
 );
 
 -- ---------- customers & credit (udhaar) ----------
@@ -197,8 +198,9 @@ CREATE TABLE "order" (
   rounding_minor INTEGER NOT NULL DEFAULT 0, total_minor INTEGER NOT NULL DEFAULT 0,
   paid_minor INTEGER NOT NULL DEFAULT 0,
   business_date TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, settled_at INTEGER,
-  version INTEGER NOT NULL DEFAULT 1
-) AS OrderRow;
+  version INTEGER NOT NULL DEFAULT 1,
+  waiter_member_id TEXT REFERENCES team_member(id)   -- the waiter (team_member) on this order; waiter_id is the older staff link
+);
 CREATE INDEX order_date_ix ON "order"(business_date, status);
 CREATE INDEX order_table_ix ON "order"(table_id, status);
 

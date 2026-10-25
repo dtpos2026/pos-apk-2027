@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/feedback.dart';
 import '../../app/providers.dart';
 import '../../app/strings.dart';
 import '../../app/theme.dart';
@@ -14,8 +15,116 @@ final noticesProvider = StreamProvider.autoDispose<List<AppNotice>>((ref) {
   final gw = ref.watch(cloudGatewayProvider);
   final user = gw?.currentUser;
   if (gw == null || user == null) return const Stream.empty();
-  return gw.watchNotices(user.uid);
+  final cleared = ref.watch(noticeClearedProvider).value ?? 0;
+  // "Clear" hides what has arrived so far on this phone; later notices still show
+  return gw.watchNotices(user.uid).map((l) => [for (final n in l) if ((n.at?.millisecondsSinceEpoch ?? 0) > cleared) n]);
 });
+
+/// When the owner pressed "Clear all" in the notifications list (milliseconds).
+class NoticeClearedNotifier extends AsyncNotifier<int> {
+  static const key = 'notice.cleared';
+  @override
+  Future<int> build() async => int.tryParse(await getSetting(ref.read(databaseProvider), key) ?? '') ?? 0;
+
+  /// [newest] = the newest notice on screen, so one stamped a moment after this phone's clock is cleared as well.
+  Future<void> clearAll({int newest = 0}) async {
+    final now = ref.read(clockProvider)().millisecondsSinceEpoch;
+    final at = newest > now ? newest : now;
+    await setSetting(ref.read(databaseProvider), key, '$at', now);
+    state = AsyncData(at);
+    await ref.read(feedbackPlayerProvider).clearNotifications();
+  }
+}
+
+final noticeClearedProvider = AsyncNotifierProvider<NoticeClearedNotifier, int>(NoticeClearedNotifier.new);
+
+/// Shows each new notice in the phone's status bar (once), when the owner allowed it. Renders nothing.
+/// Notices arrive live while the app is running; this build has no push service for a fully closed app.
+class NoticePusher extends ConsumerStatefulWidget {
+  const NoticePusher({super.key});
+  @override
+  ConsumerState<NoticePusher> createState() => _NoticePusherState();
+}
+
+class _NoticePusherState extends ConsumerState<NoticePusher> {
+  static const _pushedKey = 'notice.pushed';
+  bool _busy = false;
+
+  Future<void> _push(List<AppNotice> list) async {
+    if (_busy) return;
+    _busy = true;
+    try {
+      final db = ref.read(databaseProvider);
+      final stored = await getSetting(db, _pushedKey);
+      final newest = list.fold<int>(0, (m, n) => (n.at?.millisecondsSinceEpoch ?? 0) > m ? (n.at?.millisecondsSinceEpoch ?? 0) : m);
+      final pushed = int.tryParse(stored ?? '');
+      final prefs = await ref.read(feedbackPrefsProvider.future);
+      if (pushed != null && prefs.notices) {
+        final fresh = [for (final n in list) if ((n.at?.millisecondsSinceEpoch ?? 0) > pushed) n]..sort((a, b) => a.at!.compareTo(b.at!));
+        for (final n in fresh) {
+          await ref.read(feedbackPlayerProvider).notify(n.title, n.body, n.at!.millisecondsSinceEpoch & 0x7fffffff);
+        }
+      }
+      // the very first reading is only a baseline: notices that already exist are not announced again
+      if (pushed == null || newest > pushed) await setSetting(db, _pushedKey, '$newest', ref.read(clockProvider)().millisecondsSinceEpoch);
+    } finally {
+      _busy = false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen(noticesProvider, (_, next) {
+      final v = next.value;
+      if (v != null) _push(v);
+    });
+    return const SizedBox.shrink();
+  }
+}
+
+/// Asks once whether DT Food POS may show notices in the phone's status bar.
+class NoticePermissionAsk extends ConsumerStatefulWidget {
+  const NoticePermissionAsk({super.key});
+  @override
+  ConsumerState<NoticePermissionAsk> createState() => _NoticePermissionAskState();
+}
+
+class _NoticePermissionAskState extends ConsumerState<NoticePermissionAsk> {
+  static const _askedKey = 'ui.notices_asked';
+  bool _started = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _ask());
+  }
+
+  Future<void> _ask() async {
+    if (_started || !mounted) return;
+    _started = true;
+    final db = ref.read(databaseProvider);
+    if (ref.read(cloudGatewayProvider) == null || !ref.read(feedbackPlayerProvider).supportsNotices || await getSetting(db, _askedKey) != null) return;
+    if (!mounted) return;
+    final t = Strings.of(context);
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        icon: const Icon(Icons.notifications_active_outlined),
+        title: Text(t['notices_ask_title']),
+        content: Text(t['notices_ask_body']),
+        actions: [
+          TextButton(key: const ValueKey('notices-no'), onPressed: () => Navigator.pop(c, false), child: Text(t['not_now'])),
+          FilledButton(key: const ValueKey('notices-yes'), onPressed: () => Navigator.pop(c, true), child: Text(t['allow'])),
+        ],
+      ),
+    );
+    await setSetting(db, _askedKey, '1', ref.read(clockProvider)().millisecondsSinceEpoch);
+    await ref.read(feedbackPrefsProvider.notifier).setNotices(yes == true);
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
+}
 
 /// When the owner last opened the bell (milliseconds): anything newer is "unread".
 class NoticeSeenNotifier extends AsyncNotifier<int> {
@@ -90,10 +199,13 @@ class _NoticesScreenState extends ConsumerState<NoticesScreen> {
     final newest = list.value?.fold<int>(0, (m, n) => (n.at?.millisecondsSinceEpoch ?? 0) > m ? (n.at?.millisecondsSinceEpoch ?? 0) : m) ?? 0;
     if (newest > 0) Future.microtask(() => ref.read(noticeSeenProvider.notifier).markSeen(newest));
     return Scaffold(
-      appBar: DtAppBar(title: Text(t['notifications'])),
+      appBar: DtAppBar(title: Text(t['notifications']), actions: [
+        if ((list.value ?? const []).isNotEmpty)
+          IconButton(key: const ValueKey('notices-clear'), tooltip: t['notices_clear'], icon: const Icon(Icons.delete_sweep_outlined), onPressed: () => ref.read(noticeClearedProvider.notifier).clearAll(newest: newest)),
+      ]),
       body: list.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('$e')),
+        error: (e, _) => Center(child: Padding(padding: const EdgeInsets.all(28), child: Text(t['notices_error'], key: const ValueKey('notices-error'), textAlign: TextAlign.center))),
         data: (items) => items.isEmpty
             ? Center(child: Padding(padding: const EdgeInsets.all(28), child: Text(t['notices_none'], key: const ValueKey('notices-empty'), textAlign: TextAlign.center)))
             : ListView.builder(

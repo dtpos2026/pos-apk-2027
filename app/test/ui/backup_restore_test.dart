@@ -11,7 +11,7 @@ import '../helpers/harness.dart';
 Future<void> _openBackup(WidgetTester t) async {
   await openTab(t, 'settings', 'Settings');
   await t.scrollUntilVisible(find.byKey(const ValueKey('restore')), 300, scrollable: verticalScroll);
-  await t.drag(verticalScroll, const Offset(0, -160));
+  await t.ensureVisible(find.byKey(const ValueKey('restore')));
   await t.pumpAndSettle();
 }
 

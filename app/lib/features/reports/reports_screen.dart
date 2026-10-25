@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/format.dart';
 import '../../app/providers.dart';
+import '../common/pdf_brand_loader.dart';
 import '../../app/strings.dart';
 import '../../data/pos_service.dart';
 import '../../data/receipt_loader.dart';
@@ -89,6 +90,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
         categories: d.categories,
         cashiers: d.cashiers,
         generatedAt: ref.read(clockProvider)(),
+        brand: await loadPdfBrand(ref),
       ),
       script: font,
     );

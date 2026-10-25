@@ -18,11 +18,20 @@ class RegistrationData {
 
 /// One reading of the account document. [fromServer] is false when Firestore answered from its offline cache.
 class AccountEvent {
-  const AccountEvent(this.account, {required this.fromServer});
+  const AccountEvent(this.account, {required this.fromServer, this.pinReset});
 
   /// null = the user has signed in but never submitted a registration.
   final AccountSnapshot? account;
   final bool fromServer;
+
+  /// A new owner PIN Digital Target set from the panel, waiting for this phone to apply it.
+  final PinResetRequest? pinReset;
+}
+
+class PinResetRequest {
+  const PinResetRequest({required this.id, required this.pin});
+  final String id;
+  final String pin;
 }
 
 class SupportMessage {
@@ -106,6 +115,8 @@ abstract class CloudGateway {
   Future<void> reportDevice(String uid, DeviceInfoReport device);
   /// A small picture of the restaurant's logo (a data URL) for the map pin in the panel.
   Future<void> reportLogo(String uid, String dataUrl);
+  /// The app has applied a PIN reset: remove the PIN from the account document and record that it was done.
+  Future<void> finishPinReset(String uid, String id);
 
   Future<void> reportSales(String uid, DayTotals today, String appVersion);
 

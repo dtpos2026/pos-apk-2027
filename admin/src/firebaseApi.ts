@@ -24,6 +24,7 @@ function toAccount(uid: string, d: DocumentData, stats?: DocumentData): Account 
     businessId: d.businessId ?? null, licenseId: d.licenseId ?? null, approvedPhones: arr(d.approvedPhones), phoneRequests: arr(d.phoneRequests).filter(p => !arr(d.approvedPhones).includes(p)),
     blockedPhones: arr(d.blockedPhones), maxPhones: num(d.maxPhones, 1), disabledModules: arr(d.disabledModules), themeId: str(d.themeId), themeLocked: d.themeLocked === true, adminMessage: str(d.adminMessage), createdAt: date(d.createdAt),
     appVersion: str(d.appVersion), todayNetMinor: num(stats?.todayNetMinor), todayAt: date(stats?.updatedAt), logo: str(d.logo) || undefined,
+    pinResetPending: d.pinReset != null, pinResetDoneAt: date((d.pinResetDone as DocumentData | undefined)?.at),
   };
 }
 function toInvoice(id: string, d: DocumentData): Invoice {
@@ -106,6 +107,11 @@ export function createFirebaseApi(cfg: FirebaseWebConfig, emulator?: { host: str
       const details: DocumentData = { ...patch };
       if ('expiresAt' in patch) details.expiresAt = patch.expiresAt ? patch.expiresAt.toISOString() : null;
       await audited('account.update', uid, details, b => b.update(doc(db, 'accounts', uid), data));
+    },
+    async resetOwnerPin(uid, pin) {
+      if (!/^\d{4,8}$/.test(pin)) throw new Error('The PIN must be 4 to 8 digits');
+      // The PIN lives on the restaurant's own account document only until its app applies it and deletes it; the audit entry never holds it.
+      await audited('account.pinreset', uid, {}, b => b.update(doc(db, 'accounts', uid), { pinReset: { pin, id: rid(), at: serverTimestamp() } }));
     },
     async setStatus(uid, status, message) { await audited('account.status', uid, { status, message }, b => b.update(doc(db, 'accounts', uid), { status, adminMessage: message })); },
     async approvePhone(uid, phoneId) {

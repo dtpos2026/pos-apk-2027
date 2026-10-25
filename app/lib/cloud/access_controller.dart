@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:drift/drift.dart' show Variable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
@@ -153,6 +154,7 @@ class AccessController extends Notifier<AccessState> {
         return;
       }
       _accountMissing = false;
+      if (e.fromServer && e.pinReset != null) await _applyPinReset(uid, e.pinReset!);
       if (e.fromServer) {
         _account = e.account!.copyWith(checkedAt: ref.read(clockProvider)());
         await setSetting(_db, 'cloud.account.$uid', _account!.toJson(), ref.read(clockProvider)().millisecondsSinceEpoch);
@@ -164,6 +166,28 @@ class AccessController extends Notifier<AccessState> {
       }
       _evaluate();
     }, onError: (_) {});
+  }
+
+  /// Digital Target set a new owner PIN from the panel. It is applied to the owner's login right here, nothing else on the phone is
+  /// touched, and the PIN is then removed from the cloud copy of the account. Each reset is applied once (by its id).
+  Future<void> _applyPinReset(String uid, PinResetRequest r) async {
+    final done = await getSetting(_db, 'cloud.pin_reset_done');
+    if (done != r.id) {
+      final rows = await _db.customSelect(
+          'SELECT s.id FROM staff s JOIN role r ON r.id = s.role_id WHERE s.active = 1 AND s.deleted_at IS NULL AND r.deleted_at IS NULL AND r.permissions LIKE ? ORDER BY s.rowid LIMIT 1',
+          variables: [Variable.withString('%"*"%')]).get();
+      if (rows.isEmpty) return; // the business is not set up yet: nothing to reset
+      try {
+        await ref.read(authServiceProvider).changePin(rows.first.read<String>('id'), r.pin);
+      } catch (_) {
+        return; // an unusable PIN (not 4-8 digits): leave it, the panel refuses those anyway
+      }
+      await setSetting(_db, 'cloud.pin_reset_done', r.id, ref.read(clockProvider)().millisecondsSinceEpoch);
+      ref.read(pinResetNoticeProvider.notifier).show();
+    }
+    try {
+      await _gw!.finishPinReset(uid, r.id);
+    } catch (_) {} // offline: the next reading of the account tries again
   }
 
   Future<void> _evaluate() async {
@@ -183,7 +207,8 @@ class AccessController extends Notifier<AccessState> {
     if (decision.reason != AccessReason.clockTampered && now.isAfter(highest)) {
       await setSetting(_db, 'cloud.clock', now.millisecondsSinceEpoch.toString(), now.millisecondsSinceEpoch);
     }
-    if (decision.reason == AccessReason.newPhone && !_phoneRequested && !account.phoneRequests.contains(id)) {
+    if ((decision.reason == AccessReason.newPhone || (decision.reason == AccessReason.ok && !account.approvedPhones.contains(id))) &&
+        !_phoneRequested && !account.phoneRequests.contains(id)) {
       _phoneRequested = true;
       _gw!.requestPhone(user.uid, id).catchError((_) {});
     }
@@ -230,6 +255,16 @@ AppControl? _parseControl(String? raw) {
     return null;
   }
 }
+
+/// True after Digital Target reset the owner PIN from the panel; the sign-in screen shows a banner until the next successful sign-in.
+class PinResetNotice extends Notifier<bool> {
+  @override
+  bool build() => false;
+  void show() => state = true;
+  void clear() => state = false;
+}
+
+final pinResetNoticeProvider = NotifierProvider<PinResetNotice, bool>(PinResetNotice.new);
 
 final accessProvider = NotifierProvider<AccessController, AccessState>(AccessController.new);
 

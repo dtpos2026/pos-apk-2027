@@ -7638,7 +7638,7 @@ class TeamMember extends Table with TableInfo<TeamMember, TeamMemberData> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
     $customConstraints:
-        'NOT NULL DEFAULT \'rider\' CHECK (kind IN (\'rider\'))',
+        'NOT NULL DEFAULT \'rider\' CHECK (kind IN (\'rider\', \'waiter\'))',
     defaultValue: const CustomExpression('\'rider\''),
   );
   static const VerificationMeta _nameMeta = const VerificationMeta('name');
@@ -7849,7 +7849,7 @@ class TeamMember extends Table with TableInfo<TeamMember, TeamMemberData> {
 }
 
 class TeamMemberData extends DataClass implements Insertable<TeamMemberData> {
-  /// delivery riders (no PIN, they do not sign in): assigned to delivery orders
+  /// delivery riders and dine-in waiters (no PIN, they do not sign in): assigned to orders
   final String? id;
   final String kind;
   final String name;
@@ -9302,6 +9302,17 @@ class DiningTable extends Table with TableInfo<DiningTable, DiningTableData> {
     requiredDuringInsert: false,
     $customConstraints: '',
   );
+  static const VerificationMeta _waiterMemberIdMeta = const VerificationMeta(
+    'waiterMemberId',
+  );
+  late final GeneratedColumn<String> waiterMemberId = GeneratedColumn<String>(
+    'waiter_member_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'REFERENCES team_member(id)',
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -9313,6 +9324,7 @@ class DiningTable extends Table with TableInfo<DiningTable, DiningTableData> {
     version,
     updatedAt,
     deletedAt,
+    waiterMemberId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -9383,6 +9395,15 @@ class DiningTable extends Table with TableInfo<DiningTable, DiningTableData> {
         deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
       );
     }
+    if (data.containsKey('waiter_member_id')) {
+      context.handle(
+        _waiterMemberIdMeta,
+        waiterMemberId.isAcceptableOrUnknown(
+          data['waiter_member_id']!,
+          _waiterMemberIdMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -9428,6 +9449,10 @@ class DiningTable extends Table with TableInfo<DiningTable, DiningTableData> {
         DriftSqlType.int,
         data['${effectivePrefix}deleted_at'],
       ),
+      waiterMemberId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}waiter_member_id'],
+      ),
     );
   }
 
@@ -9450,6 +9475,7 @@ class DiningTableData extends DataClass implements Insertable<DiningTableData> {
   final int version;
   final int updatedAt;
   final int? deletedAt;
+  final String? waiterMemberId;
   const DiningTableData({
     this.id,
     required this.areaId,
@@ -9460,6 +9486,7 @@ class DiningTableData extends DataClass implements Insertable<DiningTableData> {
     required this.version,
     required this.updatedAt,
     this.deletedAt,
+    this.waiterMemberId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -9479,6 +9506,9 @@ class DiningTableData extends DataClass implements Insertable<DiningTableData> {
     if (!nullToAbsent || deletedAt != null) {
       map['deleted_at'] = Variable<int>(deletedAt);
     }
+    if (!nullToAbsent || waiterMemberId != null) {
+      map['waiter_member_id'] = Variable<String>(waiterMemberId);
+    }
     return map;
   }
 
@@ -9497,6 +9527,9 @@ class DiningTableData extends DataClass implements Insertable<DiningTableData> {
       deletedAt: deletedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(deletedAt),
+      waiterMemberId: waiterMemberId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(waiterMemberId),
     );
   }
 
@@ -9515,6 +9548,7 @@ class DiningTableData extends DataClass implements Insertable<DiningTableData> {
       version: serializer.fromJson<int>(json['version']),
       updatedAt: serializer.fromJson<int>(json['updated_at']),
       deletedAt: serializer.fromJson<int?>(json['deleted_at']),
+      waiterMemberId: serializer.fromJson<String?>(json['waiter_member_id']),
     );
   }
   @override
@@ -9530,6 +9564,7 @@ class DiningTableData extends DataClass implements Insertable<DiningTableData> {
       'version': serializer.toJson<int>(version),
       'updated_at': serializer.toJson<int>(updatedAt),
       'deleted_at': serializer.toJson<int?>(deletedAt),
+      'waiter_member_id': serializer.toJson<String?>(waiterMemberId),
     };
   }
 
@@ -9543,6 +9578,7 @@ class DiningTableData extends DataClass implements Insertable<DiningTableData> {
     int? version,
     int? updatedAt,
     Value<int?> deletedAt = const Value.absent(),
+    Value<String?> waiterMemberId = const Value.absent(),
   }) => DiningTableData(
     id: id.present ? id.value : this.id,
     areaId: areaId ?? this.areaId,
@@ -9553,6 +9589,9 @@ class DiningTableData extends DataClass implements Insertable<DiningTableData> {
     version: version ?? this.version,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    waiterMemberId: waiterMemberId.present
+        ? waiterMemberId.value
+        : this.waiterMemberId,
   );
   DiningTableData copyWithCompanion(DiningTableCompanion data) {
     return DiningTableData(
@@ -9565,6 +9604,9 @@ class DiningTableData extends DataClass implements Insertable<DiningTableData> {
       version: data.version.present ? data.version.value : this.version,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      waiterMemberId: data.waiterMemberId.present
+          ? data.waiterMemberId.value
+          : this.waiterMemberId,
     );
   }
 
@@ -9579,7 +9621,8 @@ class DiningTableData extends DataClass implements Insertable<DiningTableData> {
           ..write('waiterId: $waiterId, ')
           ..write('version: $version, ')
           ..write('updatedAt: $updatedAt, ')
-          ..write('deletedAt: $deletedAt')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('waiterMemberId: $waiterMemberId')
           ..write(')'))
         .toString();
   }
@@ -9595,6 +9638,7 @@ class DiningTableData extends DataClass implements Insertable<DiningTableData> {
     version,
     updatedAt,
     deletedAt,
+    waiterMemberId,
   );
   @override
   bool operator ==(Object other) =>
@@ -9608,7 +9652,8 @@ class DiningTableData extends DataClass implements Insertable<DiningTableData> {
           other.waiterId == this.waiterId &&
           other.version == this.version &&
           other.updatedAt == this.updatedAt &&
-          other.deletedAt == this.deletedAt);
+          other.deletedAt == this.deletedAt &&
+          other.waiterMemberId == this.waiterMemberId);
 }
 
 class DiningTableCompanion extends UpdateCompanion<DiningTableData> {
@@ -9621,6 +9666,7 @@ class DiningTableCompanion extends UpdateCompanion<DiningTableData> {
   final Value<int> version;
   final Value<int> updatedAt;
   final Value<int?> deletedAt;
+  final Value<String?> waiterMemberId;
   final Value<int> rowid;
   const DiningTableCompanion({
     this.id = const Value.absent(),
@@ -9632,6 +9678,7 @@ class DiningTableCompanion extends UpdateCompanion<DiningTableData> {
     this.version = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
+    this.waiterMemberId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   DiningTableCompanion.insert({
@@ -9644,6 +9691,7 @@ class DiningTableCompanion extends UpdateCompanion<DiningTableData> {
     this.version = const Value.absent(),
     required int updatedAt,
     this.deletedAt = const Value.absent(),
+    this.waiterMemberId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : areaId = Value(areaId),
        label = Value(label),
@@ -9658,6 +9706,7 @@ class DiningTableCompanion extends UpdateCompanion<DiningTableData> {
     Expression<int>? version,
     Expression<int>? updatedAt,
     Expression<int>? deletedAt,
+    Expression<String>? waiterMemberId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -9670,6 +9719,7 @@ class DiningTableCompanion extends UpdateCompanion<DiningTableData> {
       if (version != null) 'version': version,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (deletedAt != null) 'deleted_at': deletedAt,
+      if (waiterMemberId != null) 'waiter_member_id': waiterMemberId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -9684,6 +9734,7 @@ class DiningTableCompanion extends UpdateCompanion<DiningTableData> {
     Value<int>? version,
     Value<int>? updatedAt,
     Value<int?>? deletedAt,
+    Value<String?>? waiterMemberId,
     Value<int>? rowid,
   }) {
     return DiningTableCompanion(
@@ -9696,6 +9747,7 @@ class DiningTableCompanion extends UpdateCompanion<DiningTableData> {
       version: version ?? this.version,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
+      waiterMemberId: waiterMemberId ?? this.waiterMemberId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -9730,6 +9782,9 @@ class DiningTableCompanion extends UpdateCompanion<DiningTableData> {
     if (deletedAt.present) {
       map['deleted_at'] = Variable<int>(deletedAt.value);
     }
+    if (waiterMemberId.present) {
+      map['waiter_member_id'] = Variable<String>(waiterMemberId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -9748,6 +9803,7 @@ class DiningTableCompanion extends UpdateCompanion<DiningTableData> {
           ..write('version: $version, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
+          ..write('waiterMemberId: $waiterMemberId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -11845,7 +11901,7 @@ class ShiftCompanion extends UpdateCompanion<ShiftData> {
   }
 }
 
-class Order extends Table with TableInfo<Order, OrderRow> {
+class Order extends Table with TableInfo<Order, OrderData> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
@@ -12170,6 +12226,17 @@ class Order extends Table with TableInfo<Order, OrderRow> {
     $customConstraints: 'NOT NULL DEFAULT 1',
     defaultValue: const CustomExpression('1'),
   );
+  static const VerificationMeta _waiterMemberIdMeta = const VerificationMeta(
+    'waiterMemberId',
+  );
+  late final GeneratedColumn<String> waiterMemberId = GeneratedColumn<String>(
+    'waiter_member_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'REFERENCES team_member(id)',
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -12201,6 +12268,7 @@ class Order extends Table with TableInfo<Order, OrderRow> {
     updatedAt,
     settledAt,
     version,
+    waiterMemberId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -12209,7 +12277,7 @@ class Order extends Table with TableInfo<Order, OrderRow> {
   static const String $name = 'order';
   @override
   VerificationContext validateIntegrity(
-    Insertable<OrderRow> instance, {
+    Insertable<OrderData> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
@@ -12416,15 +12484,24 @@ class Order extends Table with TableInfo<Order, OrderRow> {
         version.isAcceptableOrUnknown(data['version']!, _versionMeta),
       );
     }
+    if (data.containsKey('waiter_member_id')) {
+      context.handle(
+        _waiterMemberIdMeta,
+        waiterMemberId.isAcceptableOrUnknown(
+          data['waiter_member_id']!,
+          _waiterMemberIdMeta,
+        ),
+      );
+    }
     return context;
   }
 
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  OrderRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+  OrderData map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return OrderRow(
+    return OrderData(
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}id'],
@@ -12541,6 +12618,10 @@ class Order extends Table with TableInfo<Order, OrderRow> {
         DriftSqlType.int,
         data['${effectivePrefix}version'],
       )!,
+      waiterMemberId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}waiter_member_id'],
+      ),
     );
   }
 
@@ -12553,7 +12634,7 @@ class Order extends Table with TableInfo<Order, OrderRow> {
   bool get dontWriteConstraints => true;
 }
 
-class OrderRow extends DataClass implements Insertable<OrderRow> {
+class OrderData extends DataClass implements Insertable<OrderData> {
   final String? id;
   final String? invoiceNo;
 
@@ -12589,7 +12670,8 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
   final int updatedAt;
   final int? settledAt;
   final int version;
-  const OrderRow({
+  final String? waiterMemberId;
+  const OrderData({
     this.id,
     this.invoiceNo,
     required this.orderType,
@@ -12619,6 +12701,7 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
     required this.updatedAt,
     this.settledAt,
     required this.version,
+    this.waiterMemberId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -12678,6 +12761,9 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
       map['settled_at'] = Variable<int>(settledAt);
     }
     map['version'] = Variable<int>(version);
+    if (!nullToAbsent || waiterMemberId != null) {
+      map['waiter_member_id'] = Variable<String>(waiterMemberId);
+    }
     return map;
   }
 
@@ -12734,15 +12820,18 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
           ? const Value.absent()
           : Value(settledAt),
       version: Value(version),
+      waiterMemberId: waiterMemberId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(waiterMemberId),
     );
   }
 
-  factory OrderRow.fromJson(
+  factory OrderData.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return OrderRow(
+    return OrderData(
       id: serializer.fromJson<String?>(json['id']),
       invoiceNo: serializer.fromJson<String?>(json['invoice_no']),
       orderType: serializer.fromJson<String>(json['order_type']),
@@ -12776,6 +12865,7 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
       updatedAt: serializer.fromJson<int>(json['updated_at']),
       settledAt: serializer.fromJson<int?>(json['settled_at']),
       version: serializer.fromJson<int>(json['version']),
+      waiterMemberId: serializer.fromJson<String?>(json['waiter_member_id']),
     );
   }
   @override
@@ -12811,10 +12901,11 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
       'updated_at': serializer.toJson<int>(updatedAt),
       'settled_at': serializer.toJson<int?>(settledAt),
       'version': serializer.toJson<int>(version),
+      'waiter_member_id': serializer.toJson<String?>(waiterMemberId),
     };
   }
 
-  OrderRow copyWith({
+  OrderData copyWith({
     Value<String?> id = const Value.absent(),
     Value<String?> invoiceNo = const Value.absent(),
     String? orderType,
@@ -12844,7 +12935,8 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
     int? updatedAt,
     Value<int?> settledAt = const Value.absent(),
     int? version,
-  }) => OrderRow(
+    Value<String?> waiterMemberId = const Value.absent(),
+  }) => OrderData(
     id: id.present ? id.value : this.id,
     invoiceNo: invoiceNo.present ? invoiceNo.value : this.invoiceNo,
     orderType: orderType ?? this.orderType,
@@ -12876,9 +12968,12 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
     updatedAt: updatedAt ?? this.updatedAt,
     settledAt: settledAt.present ? settledAt.value : this.settledAt,
     version: version ?? this.version,
+    waiterMemberId: waiterMemberId.present
+        ? waiterMemberId.value
+        : this.waiterMemberId,
   );
-  OrderRow copyWithCompanion(OrderCompanion data) {
-    return OrderRow(
+  OrderData copyWithCompanion(OrderCompanion data) {
+    return OrderData(
       id: data.id.present ? data.id.value : this.id,
       invoiceNo: data.invoiceNo.present ? data.invoiceNo.value : this.invoiceNo,
       orderType: data.orderType.present ? data.orderType.value : this.orderType,
@@ -12928,12 +13023,15 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       settledAt: data.settledAt.present ? data.settledAt.value : this.settledAt,
       version: data.version.present ? data.version.value : this.version,
+      waiterMemberId: data.waiterMemberId.present
+          ? data.waiterMemberId.value
+          : this.waiterMemberId,
     );
   }
 
   @override
   String toString() {
-    return (StringBuffer('OrderRow(')
+    return (StringBuffer('OrderData(')
           ..write('id: $id, ')
           ..write('invoiceNo: $invoiceNo, ')
           ..write('orderType: $orderType, ')
@@ -12962,7 +13060,8 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('settledAt: $settledAt, ')
-          ..write('version: $version')
+          ..write('version: $version, ')
+          ..write('waiterMemberId: $waiterMemberId')
           ..write(')'))
         .toString();
   }
@@ -12998,11 +13097,12 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
     updatedAt,
     settledAt,
     version,
+    waiterMemberId,
   ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is OrderRow &&
+      (other is OrderData &&
           other.id == this.id &&
           other.invoiceNo == this.invoiceNo &&
           other.orderType == this.orderType &&
@@ -13031,10 +13131,11 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.settledAt == this.settledAt &&
-          other.version == this.version);
+          other.version == this.version &&
+          other.waiterMemberId == this.waiterMemberId);
 }
 
-class OrderCompanion extends UpdateCompanion<OrderRow> {
+class OrderCompanion extends UpdateCompanion<OrderData> {
   final Value<String?> id;
   final Value<String?> invoiceNo;
   final Value<String> orderType;
@@ -13064,6 +13165,7 @@ class OrderCompanion extends UpdateCompanion<OrderRow> {
   final Value<int> updatedAt;
   final Value<int?> settledAt;
   final Value<int> version;
+  final Value<String?> waiterMemberId;
   final Value<int> rowid;
   const OrderCompanion({
     this.id = const Value.absent(),
@@ -13095,6 +13197,7 @@ class OrderCompanion extends UpdateCompanion<OrderRow> {
     this.updatedAt = const Value.absent(),
     this.settledAt = const Value.absent(),
     this.version = const Value.absent(),
+    this.waiterMemberId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   OrderCompanion.insert({
@@ -13127,13 +13230,14 @@ class OrderCompanion extends UpdateCompanion<OrderRow> {
     required int updatedAt,
     this.settledAt = const Value.absent(),
     this.version = const Value.absent(),
+    this.waiterMemberId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : orderType = Value(orderType),
        status = Value(status),
        businessDate = Value(businessDate),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt);
-  static Insertable<OrderRow> custom({
+  static Insertable<OrderData> custom({
     Expression<String>? id,
     Expression<String>? invoiceNo,
     Expression<String>? orderType,
@@ -13163,6 +13267,7 @@ class OrderCompanion extends UpdateCompanion<OrderRow> {
     Expression<int>? updatedAt,
     Expression<int>? settledAt,
     Expression<int>? version,
+    Expression<String>? waiterMemberId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -13197,6 +13302,7 @@ class OrderCompanion extends UpdateCompanion<OrderRow> {
       if (updatedAt != null) 'updated_at': updatedAt,
       if (settledAt != null) 'settled_at': settledAt,
       if (version != null) 'version': version,
+      if (waiterMemberId != null) 'waiter_member_id': waiterMemberId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -13231,6 +13337,7 @@ class OrderCompanion extends UpdateCompanion<OrderRow> {
     Value<int>? updatedAt,
     Value<int?>? settledAt,
     Value<int>? version,
+    Value<String?>? waiterMemberId,
     Value<int>? rowid,
   }) {
     return OrderCompanion(
@@ -13263,6 +13370,7 @@ class OrderCompanion extends UpdateCompanion<OrderRow> {
       updatedAt: updatedAt ?? this.updatedAt,
       settledAt: settledAt ?? this.settledAt,
       version: version ?? this.version,
+      waiterMemberId: waiterMemberId ?? this.waiterMemberId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -13357,6 +13465,9 @@ class OrderCompanion extends UpdateCompanion<OrderRow> {
     if (version.present) {
       map['version'] = Variable<int>(version.value);
     }
+    if (waiterMemberId.present) {
+      map['waiter_member_id'] = Variable<String>(waiterMemberId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -13395,6 +13506,7 @@ class OrderCompanion extends UpdateCompanion<OrderRow> {
           ..write('updatedAt: $updatedAt, ')
           ..write('settledAt: $settledAt, ')
           ..write('version: $version, ')
+          ..write('waiterMemberId: $waiterMemberId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -37261,20 +37373,22 @@ final class $TeamMemberReferences
     extends BaseReferences<_$AppDatabase, TeamMember, TeamMemberData> {
   $TeamMemberReferences(super.$_db, super.$_table, super.$_typedResult);
 
-  static MultiTypedResultKey<Order, List<OrderRow>> _orderRefsTable(
-    _$AppDatabase db,
-  ) => MultiTypedResultKey.fromTable(
-    db.order,
-    aliasName: $_aliasNameGenerator(db.teamMember.id, db.order.riderId),
+  static MultiTypedResultKey<DiningTable, List<DiningTableData>>
+  _diningTableRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.diningTable,
+    aliasName: $_aliasNameGenerator(
+      db.teamMember.id,
+      db.diningTable.waiterMemberId,
+    ),
   );
 
-  $OrderProcessedTableManager get orderRefs {
-    final manager = $OrderTableManager(
+  $DiningTableProcessedTableManager get diningTableRefs {
+    final manager = $DiningTableTableManager(
       $_db,
-      $_db.order,
-    ).filter((f) => f.riderId.id.sqlEquals($_itemColumn<String>('id')));
+      $_db.diningTable,
+    ).filter((f) => f.waiterMemberId.id.sqlEquals($_itemColumn<String>('id')));
 
-    final cache = $_typedResult.readTableOrNull(_orderRefsTable($_db));
+    final cache = $_typedResult.readTableOrNull(_diningTableRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -37334,22 +37448,22 @@ class $TeamMemberFilterComposer extends Composer<_$AppDatabase, TeamMember> {
     builder: (column) => ColumnFilters(column),
   );
 
-  Expression<bool> orderRefs(
-    Expression<bool> Function($OrderFilterComposer f) f,
+  Expression<bool> diningTableRefs(
+    Expression<bool> Function($DiningTableFilterComposer f) f,
   ) {
-    final $OrderFilterComposer composer = $composerBuilder(
+    final $DiningTableFilterComposer composer = $composerBuilder(
       composer: this,
       getCurrentColumn: (t) => t.id,
-      referencedTable: $db.order,
-      getReferencedColumn: (t) => t.riderId,
+      referencedTable: $db.diningTable,
+      getReferencedColumn: (t) => t.waiterMemberId,
       builder:
           (
             joinBuilder, {
             $addJoinBuilderToRootComposer,
             $removeJoinBuilderFromRootComposer,
-          }) => $OrderFilterComposer(
+          }) => $DiningTableFilterComposer(
             $db: $db,
-            $table: $db.order,
+            $table: $db.diningTable,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -37450,22 +37564,22 @@ class $TeamMemberAnnotationComposer
   GeneratedColumn<int> get deletedAt =>
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
-  Expression<T> orderRefs<T extends Object>(
-    Expression<T> Function($OrderAnnotationComposer a) f,
+  Expression<T> diningTableRefs<T extends Object>(
+    Expression<T> Function($DiningTableAnnotationComposer a) f,
   ) {
-    final $OrderAnnotationComposer composer = $composerBuilder(
+    final $DiningTableAnnotationComposer composer = $composerBuilder(
       composer: this,
       getCurrentColumn: (t) => t.id,
-      referencedTable: $db.order,
-      getReferencedColumn: (t) => t.riderId,
+      referencedTable: $db.diningTable,
+      getReferencedColumn: (t) => t.waiterMemberId,
       builder:
           (
             joinBuilder, {
             $addJoinBuilderToRootComposer,
             $removeJoinBuilderFromRootComposer,
-          }) => $OrderAnnotationComposer(
+          }) => $DiningTableAnnotationComposer(
             $db: $db,
-            $table: $db.order,
+            $table: $db.diningTable,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -37489,7 +37603,7 @@ class $TeamMemberTableManager
           $TeamMemberUpdateCompanionBuilder,
           (TeamMemberData, $TeamMemberReferences),
           TeamMemberData,
-          PrefetchHooks Function({bool orderRefs})
+          PrefetchHooks Function({bool diningTableRefs})
         > {
   $TeamMemberTableManager(_$AppDatabase db, TeamMember table)
     : super(
@@ -37556,27 +37670,28 @@ class $TeamMemberTableManager
                     (e.readTable(table), $TeamMemberReferences(db, table, e)),
               )
               .toList(),
-          prefetchHooksCallback: ({orderRefs = false}) {
+          prefetchHooksCallback: ({diningTableRefs = false}) {
             return PrefetchHooks(
               db: db,
-              explicitlyWatchedTables: [if (orderRefs) db.order],
+              explicitlyWatchedTables: [if (diningTableRefs) db.diningTable],
               addJoins: null,
               getPrefetchedDataCallback: (items) async {
                 return [
-                  if (orderRefs)
+                  if (diningTableRefs)
                     await $_getPrefetchedData<
                       TeamMemberData,
                       TeamMember,
-                      OrderRow
+                      DiningTableData
                     >(
                       currentTable: table,
-                      referencedTable: $TeamMemberReferences._orderRefsTable(
-                        db,
-                      ),
+                      referencedTable: $TeamMemberReferences
+                          ._diningTableRefsTable(db),
                       managerFromTypedResult: (p0) =>
-                          $TeamMemberReferences(db, table, p0).orderRefs,
+                          $TeamMemberReferences(db, table, p0).diningTableRefs,
                       referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where((e) => e.riderId == item.id),
+                          referencedItems.where(
+                            (e) => e.waiterMemberId == item.id,
+                          ),
                       typedResults: items,
                     ),
                 ];
@@ -37599,7 +37714,7 @@ typedef $TeamMemberProcessedTableManager =
       $TeamMemberUpdateCompanionBuilder,
       (TeamMemberData, $TeamMemberReferences),
       TeamMemberData,
-      PrefetchHooks Function({bool orderRefs})
+      PrefetchHooks Function({bool diningTableRefs})
     >;
 typedef $ComboItemCreateCompanionBuilder =
     ComboItemCompanion Function({
@@ -38766,6 +38881,7 @@ typedef $DiningTableCreateCompanionBuilder =
       Value<int> version,
       required int updatedAt,
       Value<int?> deletedAt,
+      Value<String?> waiterMemberId,
       Value<int> rowid,
     });
 typedef $DiningTableUpdateCompanionBuilder =
@@ -38779,6 +38895,7 @@ typedef $DiningTableUpdateCompanionBuilder =
       Value<int> version,
       Value<int> updatedAt,
       Value<int?> deletedAt,
+      Value<String?> waiterMemberId,
       Value<int> rowid,
     });
 
@@ -38822,7 +38939,26 @@ final class $DiningTableReferences
     );
   }
 
-  static MultiTypedResultKey<Order, List<OrderRow>> _orderRefsTable(
+  static TeamMember _waiterMemberIdTable(_$AppDatabase db) =>
+      db.teamMember.createAlias(
+        $_aliasNameGenerator(db.diningTable.waiterMemberId, db.teamMember.id),
+      );
+
+  $TeamMemberProcessedTableManager? get waiterMemberId {
+    final $_column = $_itemColumn<String>('waiter_member_id');
+    if ($_column == null) return null;
+    final manager = $TeamMemberTableManager(
+      $_db,
+      $_db.teamMember,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_waiterMemberIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<Order, List<OrderData>> _orderRefsTable(
     _$AppDatabase db,
   ) => MultiTypedResultKey.fromTable(
     db.order,
@@ -38922,6 +39058,29 @@ class $DiningTableFilterComposer extends Composer<_$AppDatabase, DiningTable> {
           }) => $StaffFilterComposer(
             $db: $db,
             $table: $db.staff,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $TeamMemberFilterComposer get waiterMemberId {
+    final $TeamMemberFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.waiterMemberId,
+      referencedTable: $db.teamMember,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $TeamMemberFilterComposer(
+            $db: $db,
+            $table: $db.teamMember,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -39046,6 +39205,29 @@ class $DiningTableOrderingComposer
     );
     return composer;
   }
+
+  $TeamMemberOrderingComposer get waiterMemberId {
+    final $TeamMemberOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.waiterMemberId,
+      referencedTable: $db.teamMember,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $TeamMemberOrderingComposer(
+            $db: $db,
+            $table: $db.teamMember,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $DiningTableAnnotationComposer
@@ -39124,6 +39306,29 @@ class $DiningTableAnnotationComposer
     return composer;
   }
 
+  $TeamMemberAnnotationComposer get waiterMemberId {
+    final $TeamMemberAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.waiterMemberId,
+      referencedTable: $db.teamMember,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $TeamMemberAnnotationComposer(
+            $db: $db,
+            $table: $db.teamMember,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
   Expression<T> orderRefs<T extends Object>(
     Expression<T> Function($OrderAnnotationComposer a) f,
   ) {
@@ -39163,7 +39368,12 @@ class $DiningTableTableManager
           $DiningTableUpdateCompanionBuilder,
           (DiningTableData, $DiningTableReferences),
           DiningTableData,
-          PrefetchHooks Function({bool areaId, bool waiterId, bool orderRefs})
+          PrefetchHooks Function({
+            bool areaId,
+            bool waiterId,
+            bool waiterMemberId,
+            bool orderRefs,
+          })
         > {
   $DiningTableTableManager(_$AppDatabase db, DiningTable table)
     : super(
@@ -39187,6 +39397,7 @@ class $DiningTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
                 Value<int?> deletedAt = const Value.absent(),
+                Value<String?> waiterMemberId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => DiningTableCompanion(
                 id: id,
@@ -39198,6 +39409,7 @@ class $DiningTableTableManager
                 version: version,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
+                waiterMemberId: waiterMemberId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -39211,6 +39423,7 @@ class $DiningTableTableManager
                 Value<int> version = const Value.absent(),
                 required int updatedAt,
                 Value<int?> deletedAt = const Value.absent(),
+                Value<String?> waiterMemberId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => DiningTableCompanion.insert(
                 id: id,
@@ -39222,6 +39435,7 @@ class $DiningTableTableManager
                 version: version,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
+                waiterMemberId: waiterMemberId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -39231,7 +39445,12 @@ class $DiningTableTableManager
               )
               .toList(),
           prefetchHooksCallback:
-              ({areaId = false, waiterId = false, orderRefs = false}) {
+              ({
+                areaId = false,
+                waiterId = false,
+                waiterMemberId = false,
+                orderRefs = false,
+              }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [if (orderRefs) db.order],
@@ -39277,6 +39496,19 @@ class $DiningTableTableManager
                                   )
                                   as T;
                         }
+                        if (waiterMemberId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.waiterMemberId,
+                                    referencedTable: $DiningTableReferences
+                                        ._waiterMemberIdTable(db),
+                                    referencedColumn: $DiningTableReferences
+                                        ._waiterMemberIdTable(db)
+                                        .id,
+                                  )
+                                  as T;
+                        }
 
                         return state;
                       },
@@ -39286,7 +39518,7 @@ class $DiningTableTableManager
                         await $_getPrefetchedData<
                           DiningTableData,
                           DiningTable,
-                          OrderRow
+                          OrderData
                         >(
                           currentTable: table,
                           referencedTable: $DiningTableReferences
@@ -39319,7 +39551,12 @@ typedef $DiningTableProcessedTableManager =
       $DiningTableUpdateCompanionBuilder,
       (DiningTableData, $DiningTableReferences),
       DiningTableData,
-      PrefetchHooks Function({bool areaId, bool waiterId, bool orderRefs})
+      PrefetchHooks Function({
+        bool areaId,
+        bool waiterId,
+        bool waiterMemberId,
+        bool orderRefs,
+      })
     >;
 typedef $CustomerCreateCompanionBuilder =
     CustomerCompanion Function({
@@ -39377,7 +39614,7 @@ final class $CustomerReferences
     );
   }
 
-  static MultiTypedResultKey<Order, List<OrderRow>> _orderRefsTable(
+  static MultiTypedResultKey<Order, List<OrderData>> _orderRefsTable(
     _$AppDatabase db,
   ) => MultiTypedResultKey.fromTable(
     db.order,
@@ -39793,7 +40030,7 @@ class $CustomerTableManager
                         await $_getPrefetchedData<
                           CustomerData,
                           Customer,
-                          OrderRow
+                          OrderData
                         >(
                           currentTable: table,
                           referencedTable: $CustomerReferences._orderRefsTable(
@@ -40522,7 +40759,7 @@ final class $ShiftReferences
     );
   }
 
-  static MultiTypedResultKey<Order, List<OrderRow>> _orderRefsTable(
+  static MultiTypedResultKey<Order, List<OrderData>> _orderRefsTable(
     _$AppDatabase db,
   ) => MultiTypedResultKey.fromTable(
     db.order,
@@ -41140,7 +41377,7 @@ class $ShiftTableManager
                   getPrefetchedDataCallback: (items) async {
                     return [
                       if (orderRefs)
-                        await $_getPrefetchedData<ShiftData, Shift, OrderRow>(
+                        await $_getPrefetchedData<ShiftData, Shift, OrderData>(
                           currentTable: table,
                           referencedTable: $ShiftReferences._orderRefsTable(db),
                           managerFromTypedResult: (p0) =>
@@ -41259,6 +41496,7 @@ typedef $OrderCreateCompanionBuilder =
       required int updatedAt,
       Value<int?> settledAt,
       Value<int> version,
+      Value<String?> waiterMemberId,
       Value<int> rowid,
     });
 typedef $OrderUpdateCompanionBuilder =
@@ -41292,11 +41530,12 @@ typedef $OrderUpdateCompanionBuilder =
       Value<int> updatedAt,
       Value<int?> settledAt,
       Value<int> version,
+      Value<String?> waiterMemberId,
       Value<int> rowid,
     });
 
 final class $OrderReferences
-    extends BaseReferences<_$AppDatabase, Order, OrderRow> {
+    extends BaseReferences<_$AppDatabase, Order, OrderData> {
   $OrderReferences(super.$_db, super.$_table, super.$_typedResult);
 
   static DiningTable _tableIdTable(_$AppDatabase db) => db.diningTable
@@ -41398,6 +41637,25 @@ final class $OrderReferences
       $_db.teamMember,
     ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_riderIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static TeamMember _waiterMemberIdTable(_$AppDatabase db) =>
+      db.teamMember.createAlias(
+        $_aliasNameGenerator(db.order.waiterMemberId, db.teamMember.id),
+      );
+
+  $TeamMemberProcessedTableManager? get waiterMemberId {
+    final $_column = $_itemColumn<String>('waiter_member_id');
+    if ($_column == null) return null;
+    final manager = $TeamMemberTableManager(
+      $_db,
+      $_db.teamMember,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_waiterMemberIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
@@ -41758,6 +42016,29 @@ class $OrderFilterComposer extends Composer<_$AppDatabase, Order> {
     final $TeamMemberFilterComposer composer = $composerBuilder(
       composer: this,
       getCurrentColumn: (t) => t.riderId,
+      referencedTable: $db.teamMember,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $TeamMemberFilterComposer(
+            $db: $db,
+            $table: $db.teamMember,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $TeamMemberFilterComposer get waiterMemberId {
+    final $TeamMemberFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.waiterMemberId,
       referencedTable: $db.teamMember,
       getReferencedColumn: (t) => t.id,
       builder:
@@ -42188,6 +42469,29 @@ class $OrderOrderingComposer extends Composer<_$AppDatabase, Order> {
     );
     return composer;
   }
+
+  $TeamMemberOrderingComposer get waiterMemberId {
+    final $TeamMemberOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.waiterMemberId,
+      referencedTable: $db.teamMember,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $TeamMemberOrderingComposer(
+            $db: $db,
+            $table: $db.teamMember,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $OrderAnnotationComposer extends Composer<_$AppDatabase, Order> {
@@ -42423,6 +42727,29 @@ class $OrderAnnotationComposer extends Composer<_$AppDatabase, Order> {
     return composer;
   }
 
+  $TeamMemberAnnotationComposer get waiterMemberId {
+    final $TeamMemberAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.waiterMemberId,
+      referencedTable: $db.teamMember,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $TeamMemberAnnotationComposer(
+            $db: $db,
+            $table: $db.teamMember,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
   Expression<T> orderItemRefs<T extends Object>(
     Expression<T> Function($OrderItemAnnotationComposer a) f,
   ) {
@@ -42579,14 +42906,14 @@ class $OrderTableManager
         RootTableManager<
           _$AppDatabase,
           Order,
-          OrderRow,
+          OrderData,
           $OrderFilterComposer,
           $OrderOrderingComposer,
           $OrderAnnotationComposer,
           $OrderCreateCompanionBuilder,
           $OrderUpdateCompanionBuilder,
-          (OrderRow, $OrderReferences),
-          OrderRow,
+          (OrderData, $OrderReferences),
+          OrderData,
           PrefetchHooks Function({
             bool tableId,
             bool customerId,
@@ -42594,6 +42921,7 @@ class $OrderTableManager
             bool cashierId,
             bool shiftId,
             bool riderId,
+            bool waiterMemberId,
             bool orderItemRefs,
             bool paymentRefs,
             bool refundRefs,
@@ -42644,6 +42972,7 @@ class $OrderTableManager
                 Value<int> updatedAt = const Value.absent(),
                 Value<int?> settledAt = const Value.absent(),
                 Value<int> version = const Value.absent(),
+                Value<String?> waiterMemberId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => OrderCompanion(
                 id: id,
@@ -42675,6 +43004,7 @@ class $OrderTableManager
                 updatedAt: updatedAt,
                 settledAt: settledAt,
                 version: version,
+                waiterMemberId: waiterMemberId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -42708,6 +43038,7 @@ class $OrderTableManager
                 required int updatedAt,
                 Value<int?> settledAt = const Value.absent(),
                 Value<int> version = const Value.absent(),
+                Value<String?> waiterMemberId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => OrderCompanion.insert(
                 id: id,
@@ -42739,6 +43070,7 @@ class $OrderTableManager
                 updatedAt: updatedAt,
                 settledAt: settledAt,
                 version: version,
+                waiterMemberId: waiterMemberId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -42752,6 +43084,7 @@ class $OrderTableManager
                 cashierId = false,
                 shiftId = false,
                 riderId = false,
+                waiterMemberId = false,
                 orderItemRefs = false,
                 paymentRefs = false,
                 refundRefs = false,
@@ -42863,6 +43196,19 @@ class $OrderTableManager
                                   )
                                   as T;
                         }
+                        if (waiterMemberId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.waiterMemberId,
+                                    referencedTable: $OrderReferences
+                                        ._waiterMemberIdTable(db),
+                                    referencedColumn: $OrderReferences
+                                        ._waiterMemberIdTable(db)
+                                        .id,
+                                  )
+                                  as T;
+                        }
 
                         return state;
                       },
@@ -42870,7 +43216,7 @@ class $OrderTableManager
                     return [
                       if (orderItemRefs)
                         await $_getPrefetchedData<
-                          OrderRow,
+                          OrderData,
                           Order,
                           OrderItemData
                         >(
@@ -42887,7 +43233,11 @@ class $OrderTableManager
                           typedResults: items,
                         ),
                       if (paymentRefs)
-                        await $_getPrefetchedData<OrderRow, Order, PaymentData>(
+                        await $_getPrefetchedData<
+                          OrderData,
+                          Order,
+                          PaymentData
+                        >(
                           currentTable: table,
                           referencedTable: $OrderReferences._paymentRefsTable(
                             db,
@@ -42901,7 +43251,7 @@ class $OrderTableManager
                           typedResults: items,
                         ),
                       if (refundRefs)
-                        await $_getPrefetchedData<OrderRow, Order, RefundData>(
+                        await $_getPrefetchedData<OrderData, Order, RefundData>(
                           currentTable: table,
                           referencedTable: $OrderReferences._refundRefsTable(
                             db,
@@ -42916,7 +43266,7 @@ class $OrderTableManager
                         ),
                       if (tokenIssueRefs)
                         await $_getPrefetchedData<
-                          OrderRow,
+                          OrderData,
                           Order,
                           TokenIssueData
                         >(
@@ -42932,7 +43282,7 @@ class $OrderTableManager
                           typedResults: items,
                         ),
                       if (couponRefs)
-                        await $_getPrefetchedData<OrderRow, Order, CouponData>(
+                        await $_getPrefetchedData<OrderData, Order, CouponData>(
                           currentTable: table,
                           referencedTable: $OrderReferences._couponRefsTable(
                             db,
@@ -42947,7 +43297,7 @@ class $OrderTableManager
                         ),
                       if (kitchenEventRefs)
                         await $_getPrefetchedData<
-                          OrderRow,
+                          OrderData,
                           Order,
                           KitchenEventData
                         >(
@@ -42974,14 +43324,14 @@ typedef $OrderProcessedTableManager =
     ProcessedTableManager<
       _$AppDatabase,
       Order,
-      OrderRow,
+      OrderData,
       $OrderFilterComposer,
       $OrderOrderingComposer,
       $OrderAnnotationComposer,
       $OrderCreateCompanionBuilder,
       $OrderUpdateCompanionBuilder,
-      (OrderRow, $OrderReferences),
-      OrderRow,
+      (OrderData, $OrderReferences),
+      OrderData,
       PrefetchHooks Function({
         bool tableId,
         bool customerId,
@@ -42989,6 +43339,7 @@ typedef $OrderProcessedTableManager =
         bool cashierId,
         bool shiftId,
         bool riderId,
+        bool waiterMemberId,
         bool orderItemRefs,
         bool paymentRefs,
         bool refundRefs,

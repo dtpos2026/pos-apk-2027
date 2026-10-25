@@ -7,7 +7,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -17,6 +17,7 @@ class AppDatabase extends _$AppDatabase {
           if (from < 4) await migrateToV4(this);
           if (from < 5) await migrateToV5(this);
           if (from < 6) await migrateToV6(this);
+          if (from < 7) await migrateToV7(this);
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
@@ -49,6 +50,27 @@ Future<void> migrateToV2(AppDatabase db) async {
 )""",
   ]) {
     await db.customStatement(sql);
+  }
+}
+
+/// Version 7: dine-in waiters are simple team members too (no PIN), on orders and tables. Mirrors docs/schema/local.sql.
+Future<void> migrateToV7(AppDatabase db) async {
+  final info = await db.customSelect("SELECT sql FROM sqlite_master WHERE type='table' AND name='team_member'").get();
+  final sql = info.isEmpty ? '' : (info.first.data['sql'] as String? ?? '');
+  if (info.isNotEmpty && !sql.contains("'waiter'")) {
+    // the kind CHECK has to widen: rebuild the (small) table, keeping every row and its id
+    await db.customStatement("""CREATE TABLE team_member_new (
+  id TEXT PRIMARY KEY, kind TEXT NOT NULL DEFAULT 'rider' CHECK (kind IN ('rider','waiter')),
+  name TEXT NOT NULL, phone TEXT, bike_no TEXT, active INTEGER NOT NULL DEFAULT 1,
+  version INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL, deleted_at INTEGER
+)""");
+    await db.customStatement('INSERT INTO team_member_new(id, kind, name, phone, bike_no, active, version, updated_at, deleted_at) SELECT id, kind, name, phone, bike_no, active, version, updated_at, deleted_at FROM team_member');
+    await db.customStatement('DROP TABLE team_member');
+    await db.customStatement('ALTER TABLE team_member_new RENAME TO team_member');
+  }
+  for (final t in const ['"order"', 'dining_table']) {
+    final cols = await db.customSelect('PRAGMA table_info($t)').get();
+    if (!cols.any((c) => c.data['name'] == 'waiter_member_id')) await db.customStatement('ALTER TABLE $t ADD COLUMN waiter_member_id TEXT REFERENCES team_member(id)');
   }
 }
 

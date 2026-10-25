@@ -56,6 +56,19 @@ class FakeCloud implements CloudGateway {
     _acc.add(_last!);
   }
 
+  /// The panel sets a new owner PIN: the open app sees it at once.
+  void serverPinReset(AccountSnapshot a, String id, String pin) {
+    _last = AccountEvent(a, fromServer: true, pinReset: PinResetRequest(id: id, pin: pin));
+    _acc.add(_last!);
+  }
+
+  final finishedResets = <String>[];
+  @override
+  Future<void> finishPinReset(String uid, String id) async {
+    if (offline) throw const CloudException('No internet connection.');
+    finishedResets.add(id);
+  }
+
   @override
   Stream<AccountEvent> watchAccount(String uid) async* {
     if (_last != null) yield _last!;

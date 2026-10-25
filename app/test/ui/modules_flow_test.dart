@@ -478,8 +478,17 @@ void main() {
     });
     await h.db.customStatement("INSERT INTO printer(id,name,connection,address,paper_mm,role,updated_at) VALUES ('k','K','lan','127.0.0.1:${server.port}',58,'kot',1)");
 
+    await h.db.customStatement("INSERT INTO area(id,name,updated_at) VALUES ('ka','Hall',1)");
+    await h.db.customStatement("INSERT INTO dining_table(id,area_id,label,seats,status,updated_at) VALUES ('kt','ka','K1',4,'free',1)");
     Future<void> send(int expected) async {
       await tapKey(t, 'send-kitchen');
+      if (find.byKey(const ValueKey('dinein-table')).evaluate().isNotEmpty) {
+        // a dine-in order asks for its table before it goes to the kitchen
+        await tapKey(t, 'dinein-table');
+        await t.tap(find.text('K1').last);
+        await t.pumpAndSettle();
+        await tapKey(t, 'dinein-ok');
+      }
       for (var i = 0; i < 30 && got.length < expected; i++) {
         await t.runAsync(() async => Future<void>.delayed(const Duration(milliseconds: 100)));
         await t.pump(const Duration(milliseconds: 50));

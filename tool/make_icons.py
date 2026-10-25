@@ -21,17 +21,19 @@ def u(v):
     return int(round(v * S))
 
 
+OX, OY = 5, 2  # the receipt sits in the middle of the icon; the small coin tucks into its lower-right corner
+
+
 def receipt_mask(d, fill):
     """The paper: rounded top, zig-zag torn bottom."""
-    d.rounded_rectangle([u(29), u(19), u(69), u(70)], radius=u(5), fill=fill)
-    d.rectangle([u(29), u(40), u(69), u(78)], fill=fill)
-    x = 29.0
-    pts = [(29, 78)]
+    d.rounded_rectangle([u(29 + OX), u(19 + OY), u(69 + OX), u(70 + OY)], radius=u(5), fill=fill)
+    d.rectangle([u(29 + OX), u(40 + OY), u(69 + OX), u(78 + OY)], fill=fill)
+    pts = [(29 + OX, 78 + OY)]
     n = 8
     w = 40 / n
     for i in range(n):
-        pts.append((29 + w * (i + 0.5), 84))
-        pts.append((29 + w * (i + 1), 78))
+        pts.append((29 + OX + w * (i + 0.5), 84 + OY))
+        pts.append((29 + OX + w * (i + 1), 78 + OY))
     d.polygon([(u(a), u(b)) for a, b in pts], fill=fill)
 
 
@@ -52,15 +54,16 @@ def cutlery(d, cx, cy, color):
 def foreground(mono=False):
     im = Image.new('RGBA', (u(108), u(108)), (0, 0, 0, 0))
     d = ImageDraw.Draw(im)
+    cx, cy, r = 77, 77, 12  # the coin
     if mono:
         receipt_mask(d, (0, 0, 0, 255))
         # details are cut out so the themed icon still reads as a receipt
-        im.paste((0, 0, 0, 0), (u(39), u(23)), mark_mask(20))
+        im.paste((0, 0, 0, 0), (u(39 + OX), u(23 + OY)), mark_mask(20))
         for y0, y1, x1 in ((46, 48.4, 62), (52.5, 54.9, 53)):
-            d.rounded_rectangle([u(35), u(y0), u(x1), u(y1)], radius=u(1), fill=(0, 0, 0, 0))
-        d.ellipse([u(57), u(55), u(87), u(85)], fill=(0, 0, 0, 0))
-        d.ellipse([u(59), u(57), u(85), u(83)], fill=(0, 0, 0, 255))
-        cutlery(d, 72, 70, (0, 0, 0, 0))
+            d.rounded_rectangle([u(35 + OX), u(y0 + OY), u(x1 + OX), u(y1 + OY)], radius=u(1), fill=(0, 0, 0, 0))
+        d.ellipse([u(cx - r - 2), u(cy - r - 2), u(cx + r + 2), u(cy + r + 2)], fill=(0, 0, 0, 0))
+        d.ellipse([u(cx - r), u(cy - r), u(cx + r), u(cy + r)], fill=(0, 0, 0, 255))
+        cutlery(d, cx, cy, (0, 0, 0, 0))
         return im
     # soft shadow under the paper and the coin
     sh = Image.new('RGBA', im.size, (0, 0, 0, 0))
@@ -69,13 +72,13 @@ def foreground(mono=False):
     sh = sh.transform(sh.size, Image.AFFINE, (1, 0, 0, 0, 1, -u(1.2)))
     im.alpha_composite(sh)
     receipt_mask(d, WHITE)
-    im.paste(RED, (u(39), u(23)), mark_mask(20))  # the brand mark, now in restaurant red
+    im.paste(RED, (u(39 + OX), u(23 + OY)), mark_mask(20))  # the brand mark, now in restaurant red
     for y0, x1 in ((46, 62), (52.5, 53), (59, 51)):
-        d.rounded_rectangle([u(35), u(y0), u(x1), u(y0 + 2.6)], radius=u(1.3), fill=TINT)
-    d.rounded_rectangle([u(35), u(65.5), u(52), u(67.9)], radius=u(1.2), fill=BLACK)
-    d.ellipse([u(56), u(54), u(88), u(86)], fill=WHITE)  # white ring keeps the coin apart from the paper
-    d.ellipse([u(58), u(56), u(86), u(84)], fill=GOLD)
-    cutlery(d, 72, 70, BLACK)
+        d.rounded_rectangle([u(35 + OX), u(y0 + OY), u(x1 + OX), u(y0 + OY + 2.6)], radius=u(1.3), fill=TINT)
+    d.rounded_rectangle([u(35 + OX), u(65.5 + OY), u(52 + OX), u(67.9 + OY)], radius=u(1.2), fill=BLACK)
+    d.ellipse([u(cx - r - 2), u(cy - r - 2), u(cx + r + 2), u(cy + r + 2)], fill=WHITE)  # white ring keeps the coin apart from the paper
+    d.ellipse([u(cx - r), u(cy - r), u(cx + r), u(cy + r)], fill=GOLD)
+    cutlery(d, cx, cy, BLACK)
     return im
 
 

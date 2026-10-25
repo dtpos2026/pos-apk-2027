@@ -4,7 +4,13 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothManager
 import android.content.ActivityNotFoundException
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Intent
+import android.media.AudioManager
+import android.media.ToneGenerator
 import android.net.Uri
 import android.content.Context
 import android.content.ContentValues
@@ -51,6 +57,9 @@ class MainActivity : FlutterActivity() {
                     "bluetoothPrint" -> bluetoothPrint(call, result)
                     "location" -> location(result)
                     "saveFile" -> saveFile(call, result)
+                    "tone" -> { tone(call.argument<String>("kind") ?: "success"); result.success(true) }
+                    "notify" -> result.success(notify(call.argument<String>("title") ?: "", call.argument<String>("body") ?: "", call.argument<Int>("id") ?: 1))
+                    "clearNotifications" -> { (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancelAll(); result.success(true) }
                     "openWhatsApp" -> result.success(openWhatsApp(call.argument<String>("phone") ?: "", call.argument<String>("text") ?: ""))
                     else -> result.notImplemented()
                 }
@@ -123,8 +132,30 @@ class MainActivity : FlutterActivity() {
     private fun applies(p: String): Boolean =
         when (p) {
             "android.permission.BLUETOOTH_CONNECT", "android.permission.BLUETOOTH_SCAN" -> Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+            "android.permission.POST_NOTIFICATIONS" -> Build.VERSION.SDK_INT >= 33
             else -> true
         }
+
+    /** A short confirmation (success) or warning (error) tone on the notification volume; silent phones stay silent. */
+    private fun tone(kind: String) {
+        val g = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 85)
+        g.startTone(if (kind == "error") ToneGenerator.TONE_PROP_NACK else ToneGenerator.TONE_PROP_ACK, if (kind == "error") 300 else 220)
+        Handler(Looper.getMainLooper()).postDelayed({ g.release() }, 700)
+    }
+
+    /** Shows a notice in the phone's status bar. false = Android permission or the phone's notification switch is off. */
+    private fun notify(title: String, body: String, id: Int): Boolean {
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) return false
+        if (!nm.areNotificationsEnabled()) return false
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) nm.createNotificationChannel(NotificationChannel("dt_notices", "Digital Target notices", NotificationManager.IMPORTANCE_HIGH))
+        val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        val b = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Notification.Builder(this, "dt_notices") else @Suppress("DEPRECATION") Notification.Builder(this)
+        b.setSmallIcon(applicationInfo.icon).setContentTitle(title).setContentText(body).setStyle(Notification.BigTextStyle().bigText(body))
+            .setContentIntent(open).setAutoCancel(true)
+        nm.notify(id, b.build())
+        return true
+    }
 
     private fun hasAll(list: List<String>) = list.all { checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }
 

@@ -64,10 +64,10 @@ class TableService {
 
   Future<List<TableInfo>> tables({String? areaId}) async {
     final rows = await h.q(
-        'SELECT t.id, t.area_id, t.label, t.seats, t.status, s.name AS waiter, '
+        'SELECT t.id, t.area_id, t.label, t.seats, t.status, COALESCE(m.name, s.name) AS waiter, '
         '(SELECT o.id FROM "order" o WHERE o.table_id = t.id AND o.status IN (\'draft\',\'held\',\'new\',\'preparing\',\'ready\',\'served\') ORDER BY o.updated_at DESC LIMIT 1) AS order_id, '
         '(SELECT o.total_minor FROM "order" o WHERE o.table_id = t.id AND o.status IN (\'draft\',\'held\',\'new\',\'preparing\',\'ready\',\'served\') ORDER BY o.updated_at DESC LIMIT 1) AS order_total '
-        'FROM dining_table t LEFT JOIN staff s ON s.id = t.waiter_id WHERE t.deleted_at IS NULL ${areaId == null ? '' : 'AND t.area_id = ?'} ORDER BY t.label',
+        'FROM dining_table t LEFT JOIN staff s ON s.id = t.waiter_id LEFT JOIN team_member m ON m.id = t.waiter_member_id WHERE t.deleted_at IS NULL ${areaId == null ? '' : 'AND t.area_id = ?'} ORDER BY t.label',
         areaId == null ? [] : [areaId]);
     return [
       for (final r in rows)

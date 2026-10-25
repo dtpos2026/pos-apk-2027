@@ -58,6 +58,7 @@ class _TablesScreenState extends ConsumerState<TablesScreen> {
           if (t.orderId != null) ListTile(key: const ValueKey('act-merge'), leading: const Icon(Icons.call_merge), title: Text(s['merge_bill']), onTap: () => Navigator.pop(ctx, 'merge')),
           if (t.orderId != null) ListTile(key: const ValueKey('act-split'), leading: const Icon(Icons.call_split), title: Text(s['split_bill']), onTap: () => Navigator.pop(ctx, 'split')),
           if (t.orderId != null) ListTile(key: const ValueKey('act-transfer'), leading: const Icon(Icons.swap_horiz), title: Text(s['transfer']), onTap: () => Navigator.pop(ctx, 'transfer')),
+          if (canManage) ListTile(key: const ValueKey('act-edit'), leading: const Icon(Icons.edit_outlined), title: Text(s['edit_table']), onTap: () => Navigator.pop(ctx, 'edit')),
           if (canManage && t.orderId == null) ListTile(key: const ValueKey('act-delete'), leading: const Icon(Icons.delete_outline), title: Text(s['delete']), onTap: () => Navigator.pop(ctx, 'delete')),
         ]),
       ),
@@ -68,6 +69,8 @@ class _TablesScreenState extends ConsumerState<TablesScreen> {
         await showMergeBill(context, ref, t);
       } else if (choice == 'split') {
         await showSplitBill(context, ref, t);
+      } else if (choice == 'edit') {
+        await _editTable(t);
       } else if (choice == 'delete') {
         await svc.deleteTable(t.id);
       } else if (choice == 'transfer') {
@@ -88,6 +91,28 @@ class _TablesScreenState extends ConsumerState<TablesScreen> {
       if (mounted) showMessage(context, e.message);
     }
     _refresh();
+  }
+
+  /// Rename a table, change its seats or move it to another area.
+  Future<void> _editTable(TableInfo t) async {
+    final s = Strings.of(context);
+    final areas = await ref.read(tableServiceProvider).areas();
+    if (!mounted) return;
+    var area = t.areaId;
+    await showFormDialog(
+      context,
+      title: s['edit_table'],
+      fields: [FieldSpec('label', s['table_label'], initial: t.label), FieldSpec('seats', s['seats'], initial: '${t.seats}', number: true)],
+      extra: (set) => DropdownButtonFormField<String>(key: const ValueKey('edit-table-area'), initialValue: area, items: [for (final a in areas) DropdownMenuItem(value: a.id, child: Text(a.name))], onChanged: (x) => set(() => area = x ?? area)),
+      validate: (v) async {
+        try {
+          await ref.read(tableServiceProvider).saveTable(id: t.id, areaId: area, label: v['label']!, seats: int.tryParse(v['seats']!) ?? t.seats);
+          return null;
+        } on PosException catch (e) {
+          return e.message;
+        }
+      },
+    );
   }
 
   Future<void> _addArea() async {

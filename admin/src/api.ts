@@ -14,6 +14,10 @@ export interface Account {
   adminMessage: string; createdAt: Date | null; appVersion: string; todayNetMinor: number; todayAt: Date | null;
   /** Small picture of the restaurant's logo (a data URL) the app reports, shown on the map pin. */
   logo?: string;
+  /** A PIN reset waiting for the app to pick it up (the PIN itself is never read back here). */
+  pinResetPending?: boolean;
+  /** When the app last applied a reset from the panel. */
+  pinResetDoneAt?: Date | null;
 }
 export interface Device { id: string; uid: string; phoneId: string; model: string; android: string; appVersion: string; lastSeenAt: Date | null; locationAllowed: boolean; lat?: number; lng?: number; accuracyM?: number; locationAt?: Date | null }
 export interface DayTotal { date: string; netMinor: number; bills: number; customers: number }
@@ -45,6 +49,8 @@ export interface AdminApi {
   approve(uid: string, plan: PlanId, feeMinor: number, expiresAt: Date | null): Promise<void>;
   patchAccount(uid: string, patch: AccountPatch): Promise<void>;
   setStatus(uid: string, status: Status, message: string): Promise<void>;
+  /** Sets a new sign-in PIN (4-8 digits) for the restaurant's owner. The app applies it the moment it sees it; nothing on the phone is cleared. */
+  resetOwnerPin(uid: string, pin: string): Promise<void>;
   approvePhone(uid: string, phoneId: string): Promise<void>;
   removePhone(uid: string, phoneId: string): Promise<void>;
   notes(uid: string): Promise<string>;

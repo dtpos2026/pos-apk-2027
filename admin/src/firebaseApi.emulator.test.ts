@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { createFirebaseApi } from './firebaseApi';
 import { initializeApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator, createUserWithEmailAndPassword } from 'firebase/auth';
-import { addDoc, collection, connectFirestoreEmulator, doc, getDocs, getFirestore, query, serverTimestamp, setDoc, Timestamp, where } from 'firebase/firestore';
+import { addDoc, collection, connectFirestoreEmulator, deleteField, doc, updateDoc, getDocs, getFirestore, query, serverTimestamp, setDoc, Timestamp, where } from 'firebase/firestore';
 
 const on = !!process.env.FIRESTORE_EMULATOR_HOST;
 const cfg = { apiKey: 'fake', authDomain: 'localhost', projectId: 'dt-food-app', appId: 'fake' };
@@ -83,6 +83,13 @@ describe.skipIf(!on)('FirebaseApi on the emulator', () => {
     await api.setStatus(r.uid, 'suspended', 'Please pay');
     expect((await api.account(r.uid))!).toMatchObject({ status: 'suspended', adminMessage: 'Please pay' });
 
+    // owner PIN reset: validated, flagged pending, restaurant may clear it, the PIN never reaches the audit log
+    await expect(api.resetOwnerPin(r.uid, '12')).rejects.toThrow(/4 to 8/);
+    await api.resetOwnerPin(r.uid, '4821');
+    expect((await api.account(r.uid))!.pinResetPending).toBe(true);
+    await updateDoc(doc(r.db, 'accounts', r.uid), { pinReset: deleteField(), pinResetDone: { id: 'x', at: serverTimestamp() } });
+    expect((await api.account(r.uid))!).toMatchObject({ pinResetPending: false });
+
     // support chat both ways
     await setDoc(doc(r.db, 'support', r.uid), { businessName: 'Cafe One', lastMessage: 'help', lastAt: serverTimestamp(), unreadForAdmin: true });
     await addDoc(collection(r.db, 'support', r.uid, 'messages'), { sender: 'business', text: 'help', at: serverTimestamp() });
@@ -105,11 +112,12 @@ describe.skipIf(!on)('FirebaseApi on the emulator', () => {
     // every privileged change left an audit entry, stamped with the admin's email
     const log = await api.auditLog();
     const actions = log.map(e => e.action);
-    for (const a of ['account.approve', 'account.update', 'phone.approve', 'phone.block', 'invoice.create', 'invoice.paid', 'account.status', 'support.delete', 'settings.app', 'admin.add']) {
+    for (const a of ['account.approve', 'account.update', 'phone.approve', 'phone.block', 'invoice.create', 'invoice.paid', 'account.status', 'account.pinreset', 'support.delete', 'settings.app', 'admin.add']) {
       expect(actions).toContain(a);
     }
     expect(log.every(e => e.adminEmail === 'digitaltarget.digital@gmail.com')).toBe(true);
     expect(log.find(e => e.action === 'account.status')!.details).toMatchObject({ status: 'suspended', message: 'Please pay' });
+    expect(JSON.stringify(log.find(e => e.action === 'account.pinreset')!.details)).not.toContain('4821');
     await expect(api.removeAdmin(adminUid)).rejects.toThrow(/yourself/);
 
     // plan prices round-trip through billing settings

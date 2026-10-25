@@ -1,6 +1,6 @@
 import { initializeTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
 import { readFileSync } from 'node:fs';
-import { doc, getDoc, setDoc, updateDoc, deleteDoc, getDocs, collection, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, deleteField, deleteDoc, getDocs, collection, query, where, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { beforeAll, afterAll, beforeEach, describe, it } from 'vitest';
 
 let env;
@@ -46,6 +46,17 @@ describe('accounts', () => {
     await seed((db) => setDoc(doc(db, 'accounts/u1'), newAccount()));
     await assertSucceeds(updateDoc(doc(as('adm'), 'accounts/u1'), { status: 'active', plan: 'monthly', approvedPhones: ['p1'] }));
     await assertSucceeds(getDocs(collection(as('adm'), 'accounts')));
+  });
+});
+
+describe('PIN reset sent from the panel', () => {
+  it('only an admin can send a reset; the restaurant may clear it and stamp it done, never set one', async () => {
+    await makeAdmin('adm');
+    await seed((db) => setDoc(doc(db, 'accounts/u1'), newAccount()));
+    await assertFails(updateDoc(doc(as('u1'), 'accounts/u1'), { pinReset: { pin: '1234', id: 'x' } }));
+    await assertSucceeds(updateDoc(doc(as('adm'), 'accounts/u1'), { pinReset: { pin: '4821', id: 'r1', at: new Date() } }));
+    await assertFails(updateDoc(doc(as('u2'), 'accounts/u1'), { pinReset: deleteField() }));
+    await assertSucceeds(updateDoc(doc(as('u1'), 'accounts/u1'), { pinReset: deleteField(), pinResetDone: { id: 'r1', at: new Date() } }));
   });
 });
 
@@ -237,6 +248,9 @@ describe('notifications (the bell in the app)', () => {
     await assertSucceeds(getDoc(doc(as('u1'), 'notifications/n2')));
     await assertFails(getDoc(doc(as('u2'), 'notifications/n2')));
     await assertSucceeds(getDoc(doc(as('u2'), 'notifications/n1')));
+    // the exact query the app runs
+    await assertSucceeds(getDocs(query(collection(as('u1'), 'notifications'), where('target', 'in', ['all', 'u1']))));
+    await assertFails(getDocs(query(collection(as('u1'), 'notifications'), where('target', 'in', ['all', 'u2']))));
     await assertFails(deleteDoc(doc(as('u1'), 'notifications/n1')));
     await assertSucceeds(deleteDoc(doc(as('adm'), 'notifications/n1')));
   });

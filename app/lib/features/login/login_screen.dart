@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../app/whatsapp.dart';
+import '../../cloud/access_controller.dart';
 import '../../app/strings.dart';
 import '../../data/auth_service.dart';
 import '../../data/queries.dart';
@@ -29,6 +31,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() {
       _busy = false;
       _pin = '';
+      if (r == PinResult.ok) ref.read(pinResetNoticeProvider.notifier).clear();
       _error = switch (r) { PinResult.ok => null, PinResult.locked => t['pin_locked'], _ => t['wrong_pin'] };
     });
   }
@@ -57,6 +60,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 const SizedBox(height: 8),
                 _BusinessHeader(compact: _who != null),
                 const SizedBox(height: 6),
+                if (ref.watch(pinResetNoticeProvider))
+                  Container(
+                    key: const ValueKey('pin-reset-banner'),
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(color: const Color(0xFF1B7F3B), borderRadius: BorderRadius.circular(10)),
+                    child: Row(children: [
+                      const Icon(Icons.lock_reset, color: Colors.white),
+                      const SizedBox(width: 10),
+                      Expanded(child: Text(t['pin_reset_done'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600))),
+                    ]),
+                  ),
                 Text(_who == null ? t['choose_user'] : _who!.name, style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 20),
                 Expanded(
@@ -83,6 +99,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             _error = null;
                           })),
                 ),
+                TextButton(key: const ValueKey('forgot-pin'), onPressed: () => showDialog<void>(context: context, builder: (_) => const _ForgotPinDialog()), child: Text(t['forgot_pin'])),
                 const BrandFooter(),
               ]),
             ),
@@ -157,5 +174,46 @@ class _BusinessHeader extends ConsumerWidget {
       if (!compact && (b?.address?.trim().isNotEmpty ?? false)) Padding(padding: const EdgeInsets.only(top: 2), child: Text(b!.address!, textAlign: TextAlign.center, style: muted)),
       if (!compact && (b?.phone?.trim().isNotEmpty ?? false)) Padding(padding: const EdgeInsets.only(top: 2), child: Text(b!.phone!, textAlign: TextAlign.center, style: muted)),
     ]);
+  }
+}
+
+/// Tells the owner how to get a new PIN. Closes itself the moment the panel's reset reaches this phone.
+class _ForgotPinDialog extends ConsumerStatefulWidget {
+  const _ForgotPinDialog();
+  @override
+  ConsumerState<_ForgotPinDialog> createState() => _ForgotPinDialogState();
+}
+
+class _ForgotPinDialogState extends ConsumerState<_ForgotPinDialog> {
+  String _whatsapp = '';
+
+  @override
+  void initState() {
+    super.initState();
+    ref.read(cloudGatewayProvider)?.branding().then((b) {
+      if (mounted && b != null) setState(() => _whatsapp = b.whatsapp.trim());
+    }).catchError((_) {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Strings.of(context);
+    ref.listen(pinResetNoticeProvider, (_, on) {
+      if (on && mounted) Navigator.of(context).pop();
+    });
+    return AlertDialog(
+      title: Text(t['forgot_pin_title']),
+      content: Text(t['forgot_pin_body'], key: const ValueKey('forgot-pin-body')),
+      actions: [
+        if (_whatsapp.isNotEmpty)
+          TextButton.icon(
+            key: const ValueKey('forgot-pin-whatsapp'),
+            onPressed: () => sendViaWhatsApp(ref, _whatsapp, '${ref.read(businessProvider).value?.name ?? ''}: ${t['forgot_pin_title']}'.trim()),
+            icon: const Icon(Icons.chat, color: Color(0xFF25D366)),
+            label: Text(t['support_whatsapp']),
+          ),
+        TextButton(key: const ValueKey('forgot-pin-close'), onPressed: () => Navigator.of(context).pop(), child: Text(t['close'])),
+      ],
+    );
   }
 }

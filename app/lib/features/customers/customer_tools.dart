@@ -11,6 +11,7 @@ import '../../data/queries.dart' show loadBusiness;
 import '../../domain/customer_export.dart';
 import '../../domain/money.dart';
 import '../common/dialogs.dart';
+import '../common/pdf_brand_loader.dart';
 
 /// Saves the customer list (as shown by the search) to the phone's Downloads as CSV (Excel) or PDF, then opens the share sheet.
 Future<void> exportCustomers(BuildContext context, WidgetRef ref, {required bool pdf, String search = ''}) async {
@@ -22,7 +23,7 @@ Future<void> exportCustomers(BuildContext context, WidgetRef ref, {required bool
   final File f;
   if (pdf) {
     final font = pw.Font.ttf(await rootBundle.load('assets/fonts/NotoNaskhArabic.ttf'));
-    final bytes = await buildCustomersPdf(businessName: biz?.name ?? '', customers: list, currency: cur, generatedAt: ref.read(clockProvider)(), script: font);
+    final bytes = await buildCustomersPdf(businessName: biz?.name ?? '', customers: list, currency: cur, generatedAt: ref.read(clockProvider)(), script: font, identity: await loadPdfBrand(ref));
     f = File('${dir.path}/customers.pdf')..writeAsBytesSync(bytes);
   } else {
     f = File('${dir.path}/customers.csv')..writeAsStringSync('\u{FEFF}${customersCsv(list, currency: cur)}'); // BOM so Excel reads Urdu names

@@ -76,9 +76,11 @@ class FirebaseGateway implements CloudGateway {
             disabledModules: _list(d['disabledModules']),
             themeId: (d['themeId'] as String?) ?? '',
             themeLocked: d['themeLocked'] == true,
+            maxPhones: d['maxPhones'] is int ? d['maxPhones'] as int : 1,
             checkedAt: DateTime.now(),
           ),
           fromServer: !s.metadata.isFromCache,
+          pinReset: _pinReset(d['pinReset']),
         );
       });
 
@@ -99,6 +101,18 @@ class FirebaseGateway implements CloudGateway {
         if (d.locationAllowed && d.lat != null && d.lng != null) ...{
           'lat': d.lat, 'lng': d.lng, 'accuracyM': d.accuracyM ?? 0, 'locationAt': Timestamp.fromDate(d.locationAt ?? DateTime.now()),
         },
+      }));
+
+  static PinResetRequest? _pinReset(Object? v) {
+    if (v is! Map) return null;
+    final id = v['id'], pin = v['pin'];
+    return id is String && pin is String ? PinResetRequest(id: id, pin: pin) : null;
+  }
+
+  @override
+  Future<void> finishPinReset(String uid, String id) => _guard(() => _db.collection('accounts').doc(uid).update({
+        'pinReset': FieldValue.delete(),
+        'pinResetDone': {'id': id, 'at': FieldValue.serverTimestamp()},
       }));
 
   @override

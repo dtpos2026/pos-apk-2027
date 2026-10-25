@@ -21,8 +21,8 @@ import 'weight_dialog.dart';
 final heldOrdersProvider = FutureProvider.autoDispose<List<HeldOrder>>((ref) => ref.watch(posServiceProvider).listHeld());
 final productUnitProvider = FutureProvider.family<String, String>((ref, id) async => (await ref.watch(dbHelperProvider).one('SELECT unit FROM product WHERE id = ?', [id]))?['unit'] as String? ?? 'pc');
 
-final _waitersProvider = FutureProvider.autoDispose((ref) async => (await ref.watch(staffServiceProvider).list()).where((s) => s.active && s.roleName == 'Waiter').toList());
-final _waiterNameProvider = FutureProvider.autoDispose.family<String?, String?>((ref, id) async => id == null ? null : (await ref.watch(dbHelperProvider).one('SELECT name FROM staff WHERE id = ?', [id]))?['name'] as String?);
+final _waitersProvider = FutureProvider.autoDispose((ref) => ref.watch(teamServiceProvider).waiters(activeOnly: true));
+final _waiterNameProvider = FutureProvider.autoDispose.family<String?, String?>((ref, id) async => id == null ? null : (await ref.watch(dbHelperProvider).one('SELECT name FROM team_member WHERE id = ?', [id]))?['name'] as String?);
 
 final _customerNameProvider = FutureProvider.autoDispose.family<String?, String?>((ref, id) async {
   if (id == null) return null;
@@ -39,6 +39,8 @@ class CartPanel extends ConsumerWidget {
 
   /// [printKot]: null = follow the print settings, false = send without printing, true = send and print the KOT.
   Future<void> _send(BuildContext context, WidgetRef ref, CartNotifier notifier, Strings t, bool? printKot) async {
+    if (!await _ensureDineIn(context, ref, notifier, t)) return;
+    if (!context.mounted) return;
     final r = await notifier.sendToKitchen(ref.read(printServiceProvider), printKot: printKot);
     ref.invalidate(heldOrdersProvider);
     if (!context.mounted) return;
@@ -53,6 +55,60 @@ class CartPanel extends ConsumerWidget {
       case KitchenSend.busy:
         break;
     }
+  }
+
+  /// A dine-in order needs its table (and waiter, when waiters are set up) before it goes to the kitchen or is held, as in DT Enterprise.
+  /// Opens a small window to choose both. false = the cashier backed out.
+  Future<bool> _ensureDineIn(BuildContext context, WidgetRef ref, CartNotifier notifier, Strings t) async {
+    final cart = ref.read(cartProvider);
+    if (cart.orderType != 'dine_in') return true;
+    final waiters = await ref.read(teamServiceProvider).waiters(activeOnly: true);
+    if (cart.tableId != null && (waiters.isEmpty || cart.waiterId != null)) return true;
+    final tables = (await ref.read(tableServiceProvider).tables()).where((x) => x.status == 'free' || x.id == cart.tableId).toList();
+    if (!context.mounted) return false;
+    final r = await showDialog<({String table, String? waiter})>(
+      context: context,
+      builder: (ctx) {
+        String? table = cart.tableId;
+        String? waiter = cart.waiterId;
+        return StatefulBuilder(
+          builder: (ctx, set) => AlertDialog(
+            title: Text(t['dinein_pick_title']),
+            content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(t['dinein_pick_hint']),
+              const SizedBox(height: 14),
+              DropdownButtonFormField<String>(
+                key: const ValueKey('dinein-table'),
+                initialValue: table,
+                isExpanded: true,
+                decoration: InputDecoration(labelText: t['table']),
+                items: [for (final x in tables) DropdownMenuItem(value: x.id, child: Text(x.label))],
+                onChanged: (v) => set(() => table = v),
+              ),
+              if (waiters.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  key: const ValueKey('dinein-waiter'),
+                  initialValue: waiter,
+                  isExpanded: true,
+                  decoration: InputDecoration(labelText: t['waiter']),
+                  items: [DropdownMenuItem(value: '', child: Text(t['waiter_none'])), for (final w in waiters) DropdownMenuItem(value: w.id, child: Text(w.name))],
+                  onChanged: (v) => set(() => waiter = v),
+                ),
+              ],
+            ]),
+            actions: [
+              TextButton(key: const ValueKey('dinein-cancel'), onPressed: () => Navigator.pop(ctx), child: Text(t['cancel'])),
+              FilledButton(key: const ValueKey('dinein-ok'), onPressed: table == null ? null : () => Navigator.pop(ctx, (table: table!, waiter: waiter == null || waiter!.isEmpty ? null : waiter)), child: Text(t['ok'])),
+            ],
+          ),
+        );
+      },
+    );
+    if (r == null) return false;
+    notifier.setTable(r.table);
+    notifier.setWaiter(r.waiter);
+    return true;
   }
 
   @override
@@ -200,6 +256,7 @@ class CartPanel extends ConsumerWidget {
                 OutlinedButton(
                   key: const ValueKey('hold'),
                   onPressed: cart.isEmpty ? null : () async {
+                    if (!await _ensureDineIn(context, ref, notifier, t)) return;
                     await notifier.hold();
                     ref.invalidate(heldOrdersProvider);
                   },

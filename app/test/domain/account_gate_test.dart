@@ -3,7 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   final now = DateTime(2026, 10, 23, 12);
-  AccountSnapshot acc({String status = 'active', DateTime? exp, List<String> ok = const ['p1'], List<String> bl = const [], String msg = '', DateTime? checked}) => AccountSnapshot(
+  AccountSnapshot acc({String status = 'active', DateTime? exp, List<String> ok = const ['p1'], List<String> bl = const [], String msg = '', DateTime? checked, int max = 1, List<String> rq = const []}) => AccountSnapshot(
+      maxPhones: max, phoneRequests: rq,
       status: status, expiresAt: exp ?? now.add(const Duration(days: 20)), approvedPhones: ok, blockedPhones: bl, adminMessage: msg, checkedAt: checked ?? now);
   AccessDecision decide(AccountSnapshot? a, {AppControl c = const AppControl(), String version = '1.0.0', DateTime? at, DateTime? highest}) =>
       decideAccess(account: a, control: c, phoneId: 'p1', appVersion: version, now: at ?? now, highestClockSeen: highest ?? now);
@@ -26,6 +27,15 @@ void main() {
   test('a phone that is not approved asks for approval; a blocked phone is refused', () {
     expect(decide(acc(ok: ['other'])).reason, AccessReason.newPhone);
     expect(decide(acc(bl: ['p1'])).reason, AccessReason.phoneBlocked);
+  });
+  test('a new phone that still fits the phone limit opens without approval; one over the limit waits; a blocked one never opens', () {
+    expect(decide(acc(ok: ['a', 'b'], max: 15)).allowed, isTrue);
+    expect(decide(acc(ok: ['a', 'b'], max: 3)).allowed, isTrue, reason: 'third of three');
+    expect(decide(acc(ok: ['a', 'b'], max: 2)).reason, AccessReason.newPhone);
+    expect(decide(acc(ok: ['a'], rq: ['x'], max: 3)).allowed, isTrue, reason: 'a, x and this phone fit');
+    expect(decide(acc(ok: ['a', 'b'], rq: ['x'], max: 3)).reason, AccessReason.newPhone, reason: 'waiting phones use up slots too');
+    expect(decide(acc(ok: ['a'], bl: ['p1'], max: 15)).reason, AccessReason.phoneBlocked);
+    expect(decide(acc(status: 'suspended', ok: ['a'], max: 15)).allowed, isFalse);
   });
   test('expiry is enforced by the local clock, even when the stored status still says active, and works offline', () {
     final a = acc(exp: now.add(const Duration(days: 1)), checked: now);

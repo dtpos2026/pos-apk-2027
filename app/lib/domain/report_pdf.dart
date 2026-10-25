@@ -5,6 +5,7 @@ import 'package:pdf/widgets.dart' as pw;
 
 import '../data/report_service.dart';
 import 'money.dart';
+import 'pdf_brand.dart';
 
 /// Everything a report PDF shows. Figures come straight from the same queries as the Reports screen.
 class ReportPdfData {
@@ -23,8 +24,12 @@ class ReportPdfData {
     this.categories = const [],
     this.cashiers = const [],
     required this.generatedAt,
+    this.brand,
   });
   final String businessName;
+
+  /// Logo and contact for the page header; without it only the name is printed.
+  final PdfBrand? brand;
   final String from;
   final String to;
   final Currency currency;
@@ -79,11 +84,7 @@ Future<Uint8List> buildReportPdf(ReportPdfData d, {pw.Font? script}) async {
     pageFormat: PdfPageFormat.a4,
     margin: const pw.EdgeInsets.all(32),
     maxPages: 500,
-    header: (c) => pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-      pw.Text(d.businessName, style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
-      pw.Text('Sales report  ${d.from == d.to ? d.from : '${d.from} to ${d.to}'}', style: const pw.TextStyle(fontSize: 11, color: PdfColors.grey700)),
-      pw.Divider(color: brand),
-    ]),
+    header: (c) => pdfBrandHeader(d.brand ?? PdfBrand(name: d.businessName), title: 'Sales report', subtitle: d.from == d.to ? d.from : '${d.from} to ${d.to}'),
     footer: (c) => pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
       pw.Text('Generated ${d.generatedAt.toString().substring(0, 16)} · DT Food POS · Powered by Digital Target', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
       pw.Text('Page ${c.pageNumber} of ${c.pagesCount}', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),

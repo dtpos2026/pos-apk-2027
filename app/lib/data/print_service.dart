@@ -175,7 +175,12 @@ class PrintService {
     final kotDesign = await ReceiptTemplateStore(db).loadKot();
     final token = await TokenService(db, now: _now).orderTokenLabel(orderId);
     final deliveryTo = await deliveryLinesFor((sql, a) => _select(sql, a), o);
-    final waiterName = o['waiter_id'] == null ? null : (await _select('SELECT name FROM staff WHERE id = ?', [o['waiter_id'] as String])).firstOrNull?['name'] as String?;
+    String? waiterName;
+    if (o['waiter_member_id'] != null) {
+      waiterName = (await _select('SELECT name FROM team_member WHERE id = ?', [o['waiter_member_id'] as String])).firstOrNull?['name'] as String?;
+    } else if (o['waiter_id'] != null) {
+      waiterName = (await _select('SELECT name FROM staff WHERE id = ?', [o['waiter_id'] as String])).firstOrNull?['name'] as String?;
+    }
     for (final p in printers) {
       final station = (p['station'] as String?) ?? '';
       final lines = byStation[station];

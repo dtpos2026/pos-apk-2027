@@ -3,6 +3,8 @@ import 'package:dt_food_pos/cloud/access_controller.dart';
 import 'package:dt_food_pos/cloud/cloud_gateway.dart' show Branding;
 import 'package:dt_food_pos/app/device_channel.dart';
 import 'package:dt_food_pos/cloud/location_consent.dart';
+import 'package:dt_food_pos/app/providers.dart' show authServiceProvider;
+import 'package:dt_food_pos/data/auth_service.dart' show PinResult;
 import 'package:dt_food_pos/data/pos_service.dart';
 import 'package:dt_food_pos/data/queries.dart' show getSetting;
 import 'package:dt_food_pos/features/cloud/cloud_reporter.dart';
@@ -93,6 +95,67 @@ void main() {
     cloud.serverAccount(account(ok: [phoneId]));
     await settle(t);
     expect(find.byKey(const ValueKey('staff-Ali')), findsOneWidget);
+    await t.pumpWidget(const SizedBox());
+    h.container.dispose();
+  });
+
+  testWidgets('a PIN reset from the panel shows on the sign-in screen at once, the new PIN works, data stays, and it is applied only once', (t) async {
+    final cloud = FakeCloud()..signedIn = true;
+    final db = newDb();
+    await seedBusiness(db);
+    final h = await pumpApp(t, db: db, cloud: cloud);
+    await cloud.signInDirect('owner@cafe.pk');
+    final phoneId = await h.container.read(accessProvider.notifier).phoneId();
+    cloud.serverAccount(account(ok: [phoneId]));
+    await settle(t);
+    expect(find.byKey(const ValueKey('staff-Ali')), findsOneWidget);
+    expect(find.byKey(const ValueKey('pin-reset-banner')), findsNothing);
+
+    // "Forgot PIN?" explains what to do, and closes itself when the reset arrives
+    await t.tap(find.byKey(const ValueKey('forgot-pin')));
+    await t.pumpAndSettle();
+    expect(find.byKey(const ValueKey('forgot-pin-body')), findsOneWidget);
+    await shot(t, '64_forgot_pin');
+
+    // the owner is locked out after wrong tries, then Digital Target resets the PIN from the panel
+    final before = await db.customSelect('SELECT COUNT(*) c FROM product').getSingle();
+    cloud.serverPinReset(account(ok: [phoneId]), 'r1', '4821');
+    await settle(t);
+    await t.pumpAndSettle();
+    expect(find.byKey(const ValueKey('forgot-pin-body')), findsNothing, reason: 'dialog closed itself');
+    expect(find.byKey(const ValueKey('pin-reset-banner')), findsOneWidget);
+    expect(cloud.finishedResets, ['r1'], reason: 'the PIN was removed from the cloud copy');
+    await shot(t, '65_pin_reset_banner');
+
+    await signIn(t, 'Ali', '1234');
+    expect(find.byKey(const ValueKey('pin-error')), findsOneWidget);
+    expect((t.widget<Text>(find.byKey(const ValueKey('pin-error')))).data, 'Wrong PIN');
+    for (final d in '4821'.split('')) {
+      await tapKey(t, 'key-$d');
+    }
+    await tapKey(t, 'key-ok');
+    expect(find.byKey(const ValueKey('staff-Ali')), findsNothing, reason: 'signed in with the new PIN');
+    expect((await db.customSelect('SELECT COUNT(*) c FROM product').getSingle()).data['c'], before.data['c'], reason: 'no data was cleared');
+
+    // the same reset arriving again (reconnect) is not applied twice
+    cloud.serverPinReset(account(ok: [phoneId]), 'r1', '9999');
+    await settle(t);
+    expect(await h.container.read(authServiceProvider).verifyPin((await db.customSelect('SELECT id FROM staff').getSingle()).read<String>('id'), '4821'), PinResult.ok);
+    await t.pumpWidget(const SizedBox());
+    h.container.dispose();
+  });
+
+  testWidgets('with free phone slots a new phone opens at once and is still listed for the panel', (t) async {
+    final cloud = FakeCloud()..signedIn = true;
+    final db = newDb();
+    await seedBusiness(db);
+    final h = await pumpApp(t, db: db, cloud: cloud);
+    await cloud.signInDirect('owner@cafe.pk');
+    cloud.serverAccount(AccountSnapshot(status: 'active', approvedPhones: const ['other-1'], maxPhones: 15, businessName: 'Burger Point', expiresAt: testNow.add(const Duration(days: 30)), checkedAt: testNow));
+    await settle(t);
+    expect(find.text('New phone needs approval'), findsNothing);
+    expect(find.byKey(const ValueKey('staff-Ali')), findsOneWidget);
+    expect(cloud.requestedPhones, [await h.container.read(accessProvider.notifier).phoneId()]);
     await t.pumpWidget(const SizedBox());
     h.container.dispose();
   });

@@ -6,6 +6,7 @@ import 'package:pdf/widgets.dart' as pw;
 import '../data/customer_service.dart';
 import 'csv.dart';
 import 'money.dart';
+import 'pdf_brand.dart';
 
 /// The customer list as a spreadsheet: Name, Phone, Address, Owes (udhaar), Credit limit.
 String customersCsv(List<CustomerRow> customers, {required Currency currency}) {
@@ -18,7 +19,7 @@ String customersCsv(List<CustomerRow> customers, {required Currency currency}) {
 }
 
 /// The customer list as an A4 PDF in the brand red. [script] is a font with Urdu/Arabic letters so any name prints.
-Future<Uint8List> buildCustomersPdf({required String businessName, required List<CustomerRow> customers, required Currency currency, required DateTime generatedAt, pw.Font? script}) async {
+Future<Uint8List> buildCustomersPdf({required String businessName, required List<CustomerRow> customers, required Currency currency, required DateTime generatedAt, pw.Font? script, PdfBrand? identity}) async {
   String money(int m) => formatMinor(m, currency: currency);
   const brand = PdfColor.fromInt(0xFFC92A2A);
   final owing = customers.where((c) => c.balanceMinor > 0).fold<int>(0, (s, c) => s + c.balanceMinor);
@@ -28,11 +29,7 @@ Future<Uint8List> buildCustomersPdf({required String businessName, required List
     pageFormat: PdfPageFormat.a4,
     margin: const pw.EdgeInsets.all(32),
     maxPages: 500,
-    header: (c) => pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-      pw.Text(businessName, style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
-      pw.Text('Customers · ${customers.length}  ·  Udhaar due ${money(owing)}', style: const pw.TextStyle(fontSize: 11, color: PdfColors.grey700)),
-      pw.Divider(color: brand),
-    ]),
+    header: (c) => pdfBrandHeader(identity ?? PdfBrand(name: businessName), title: 'Customers', subtitle: '${customers.length} customers  ·  Udhaar due ${money(owing)}'),
     footer: (c) => pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
       pw.Text('Generated ${generatedAt.toString().substring(0, 16)} · DT Food POS · Powered by Digital Target', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
       pw.Text('Page ${c.pageNumber} of ${c.pagesCount}', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),

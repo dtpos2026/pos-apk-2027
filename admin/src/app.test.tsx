@@ -19,7 +19,7 @@ function fake(over: Partial<AdminApi> = {}): AdminApi {
   return {
     onAuth: cb => { cb({ uid: 'adm', email: 'a@dt.test' }); return () => {}; },
     signIn: async () => {}, signOut: async () => {}, resetPassword: async () => {}, isAdmin: async () => true, ownerClaimed: async () => true, claimSuperAdmin: vi.fn(async () => {}),
-    accounts: async () => [pending], account: async () => pending, approve: vi.fn(async () => {}), patchAccount: nope, setStatus: vi.fn(async () => {}), approvePhone: nope, removePhone: nope,
+    accounts: async () => [pending], account: async () => pending, approve: vi.fn(async () => {}), patchAccount: nope, setStatus: vi.fn(async () => {}), resetOwnerPin: vi.fn(async () => {}), approvePhone: nope, removePhone: nope,
     notes: async () => '', setNotes: nope, days: async () => [], devices: async () => [], setDeviceBlocked: nope, deleteDevice: nope, invoices: async () => [], invoice: async () => null,
     createInvoice: nope, recordPayment: nope, voidInvoice: nope, verifyInvoice: async () => null, threads: async () => [], messages: async () => [], sendMessage: nope, markRead: async () => {},
     clearChat: nope, deleteChat: nope,
@@ -62,6 +62,17 @@ describe('panel', () => {
     render(<App api={api} />);
     fireEvent.click(await screen.findByText('Sign in'));
     expect((await screen.findByRole('alert')).textContent).toBe('wrong password');
+  });
+  it('resets the owner PIN from the restaurant page, digits only, 4 to 8 of them', async () => {
+    const reset = vi.fn(async () => {});
+    render(<App api={fake({ resetOwnerPin: reset })} />);
+    fireEvent.click(await screen.findByText('Restaurants'));
+    fireEvent.click(await screen.findByText('Cafe One'));
+    const box = await screen.findByLabelText('New owner PIN');
+    fireEvent.change(box, { target: { value: '48a21' } });
+    expect((box as HTMLInputElement).value).toBe('4821');
+    fireEvent.click(screen.getByText('Reset PIN'));
+    await waitFor(() => expect(reset).toHaveBeenCalledWith('u1', '4821'));
   });
   it('switches app features off for one restaurant and saves only the switched-off ones', async () => {
     const patch = vi.fn(async () => {});

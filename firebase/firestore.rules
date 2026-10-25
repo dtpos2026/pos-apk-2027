@@ -46,10 +46,12 @@ service cloud.firestore {
         && request.resource.data.phoneRequests.size() == 1
         && request.resource.data.businessName is string && request.resource.data.businessName.size() > 0
         && request.resource.data.ownerName is string && request.resource.data.ownerName.size() > 0;
-      // The owner may only report the app version and ask for another phone to be approved.
+      // The owner may only report the app version and ask for another phone to be approved. After the app has applied a PIN reset sent
+      // from the panel it may delete `pinReset` (never set it) and stamp `pinResetDone`.
       allow update: if signedIn() && uid == me()
-        && changedOnly(['appVersion', 'lastSeenAt', 'phoneRequests', 'logo'])
-        && request.resource.data.phoneRequests.size() <= 6
+        && changedOnly(['appVersion', 'lastSeenAt', 'phoneRequests', 'logo', 'pinReset', 'pinResetDone'])
+        && !('pinReset' in request.resource.data)
+        && request.resource.data.phoneRequests.size() <= 20
         && (!('logo' in request.resource.data) || (request.resource.data.logo is string && request.resource.data.logo.size() <= 40000));
       allow create, update, delete: if can('restaurants') || can('invoices');
     }

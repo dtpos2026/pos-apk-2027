@@ -92,6 +92,7 @@ export function RestaurantPage({ api, go, arg }: PageProps) {
   const [plan, setPlan] = useState<PlanId>('monthly'); const [fee, setFee] = useState(''); const [custom, setCustom] = useState('');
   const [msgText, setMsgText] = useState(''); const [note, setNote] = useState<string | null>(null);
   const [maxPhones, setMaxPhones] = useState('');
+  const [pinDraft, setPinDraft] = useState('');
   const [offDraft, setOffDraft] = useState<string[] | null>(null);
   const [themeDraft, setThemeDraft] = useState<{ id: string; locked: boolean } | null>(null);
   // pre-fill the fee from Settings > Plan prices once they load
@@ -139,6 +140,15 @@ export function RestaurantPage({ api, go, arg }: PageProps) {
             setEditing(null);
           })}>Save details</button> <button className="act sec" onClick={() => setEditing(null)}>Cancel</button></div>)
           : <button className="act sec" onClick={() => setEditing({ businessName: a.businessName, ownerName: a.ownerName, phone: a.phone, city: a.city, email: a.email })}>Edit details</button>}
+      </div>
+      <div className="card"><h3>Owner PIN / password</h3>
+        <p className="mut small">Forgot PIN? Set a new one here. The restaurant's app signs in with it at once; no data is cleared. Tell the owner the new PIN yourself.</p>
+        <div className="row"><input aria-label="New owner PIN" inputMode="numeric" maxLength={8} placeholder="New PIN (4-8 digits)" value={pinDraft} onChange={e => setPinDraft(e.target.value.replace(/\D/g, ''))} />
+          <button className="act" disabled={act.busy} onClick={() => act.run(async () => { await api.resetOwnerPin(uid, pinDraft); setPinDraft(''); })}>Reset PIN</button></div>
+        {a.pinResetPending && <p className="small">Waiting for the restaurant's app to pick it up (it must be online).</p>}
+        {!a.pinResetPending && a.pinResetDoneAt && <p className="small">Last reset applied on the phone {ago(a.pinResetDoneAt)}.</p>}
+        <div className="row"><button className="act sec" disabled={!a.email || act.busy} onClick={() => act.run(async () => { await api.resetPassword(a.email); })}>Email cloud-account password reset</button></div>
+        <p className="mut small">The email button is for the restaurant's online account password, not the PIN used in the app.</p>
       </div>
       <div className="card"><h3>Sales</h3>
         <p>Today: <b>{money(dayNet(today), a.currency)}</b><br />Yesterday: {money(dayNet(yday), a.currency)}<br />Last 30 reported days: {money(sum(30), a.currency)}</p>

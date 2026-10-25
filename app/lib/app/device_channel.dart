@@ -92,6 +92,30 @@ class DeviceChannel {
     }
   }
 
+  static const notificationPermissions = ['android.permission.POST_NOTIFICATIONS'];
+
+  /// A confirmation tone ('success') or warning tone ('error'). Never throws.
+  Future<void> tone(String kind) async {
+    try {
+      await _c.invokeMethod<bool>('tone', {'kind': kind});
+    } catch (_) {}
+  }
+
+  /// A notice in the phone's status bar; false when Android permission is missing or notifications are off for the app.
+  Future<bool> notify(String title, String body, int id) async {
+    try {
+      return await _c.invokeMethod<bool>('notify', {'title': title, 'body': body, 'id': id}) ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> clearNotifications() async {
+    try {
+      await _c.invokeMethod<bool>('clearNotifications');
+    } catch (_) {}
+  }
+
   /// null when permission is missing or no fix arrived in time.
   Future<PhoneLocation?> location() async {
     final m = await _call<Map<Object?, Object?>>('location');

@@ -37,5 +37,7 @@ Every request from the owner in this project, in order, with its status. Updated
 9. Customer-facing ordering app: later, by your decision
 
 ## Needs something from the owner
+- **Deploy the Firestore rules again** (`npx firebase-tools deploy`, from the panel folder): the bell's "permission-denied" message, the owner PIN reset and the "new phone opens without approval while the phone limit has room" all need the new rules. Then upload the new panel zip.
+- Android shows notices in the phone's top bar only while the app is running (no push service for a fully closed app yet).
 - Stable signing key: add the GitHub secrets so updates install over the old app
 - A photo of a real 58 mm print from the new bill design, to tune it

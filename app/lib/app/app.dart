@@ -8,6 +8,7 @@ import '../features/cloud/cloud_screens.dart';
 import '../features/login/login_screen.dart';
 import '../features/setup/setup_screen.dart';
 import '../features/shell/home_shell.dart';
+import 'feedback.dart';
 import 'providers.dart';
 import 'strings.dart';
 import 'theme.dart';
@@ -46,7 +47,7 @@ class DtFoodPosApp extends ConsumerWidget {
         revision: revision,
         child: ColoredBox(
           color: Theme.of(context).scaffoldBackgroundColor,
-          child: SafeArea(top: false, left: false, right: false, child: child ?? const SizedBox.shrink()),
+          child: TapFeedback(child: SafeArea(top: false, left: false, right: false, child: child ?? const SizedBox.shrink())),
         ),
       ),
       ),

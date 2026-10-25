@@ -22,10 +22,10 @@ class StaffScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = Strings.of(context);
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Column(children: [
-        TabBar(tabs: [Tab(key: const ValueKey('tab-staff'), text: s['staff']), Tab(key: const ValueKey('tab-riders'), text: s['riders']), Tab(key: const ValueKey('tab-attendance'), text: s['attendance'])]),
-        const Expanded(child: TabBarView(children: [_StaffList(), RidersTab(), AttendanceTab()])),
+        TabBar(tabs: [Tab(key: const ValueKey('tab-staff'), text: s['staff']), Tab(key: const ValueKey('tab-riders'), text: s['riders']), Tab(key: const ValueKey('tab-waiters'), text: s['waiters']), Tab(key: const ValueKey('tab-attendance'), text: s['attendance'])]),
+        const Expanded(child: TabBarView(children: [_StaffList(), RidersTab(), RidersTab(kind: 'waiter'), AttendanceTab()])),
       ]),
     );
   }
@@ -245,49 +245,51 @@ class _AccessDialogState extends State<_AccessDialog> {
   }
 }
 
-final _ridersProvider = FutureProvider.autoDispose<List<RiderRow>>((ref) {
+final _ridersProvider = FutureProvider.autoDispose.family<List<RiderRow>, String>((ref, kind) {
   final now = ref.watch(clockProvider)();
-  return ref.watch(teamServiceProvider).riders(day: '${now.year}-${two(now.month)}-${two(now.day)}');
+  return ref.watch(teamServiceProvider).members(kind, day: '${now.year}-${two(now.month)}-${two(now.day)}');
 });
 
-/// Delivery riders: add, edit, hide. Each card shows today's deliveries so the owner sees who did what.
+/// Delivery riders (kind 'rider') or dine-in waiters (kind 'waiter'): add, edit, hide. Each card shows today's bills so the owner sees who did what.
 class RidersTab extends ConsumerWidget {
-  const RidersTab({super.key});
+  const RidersTab({super.key, this.kind = 'rider'});
+  final String kind;
+  bool get _waiter => kind == 'waiter';
 
   Future<void> _edit(BuildContext context, WidgetRef ref, RiderRow? r) async {
     final s = Strings.of(context);
     final v = await showFormDialog(
       context,
-      title: r == null ? s['add_rider'] : r.name,
+      title: r == null ? s[_waiter ? 'add_waiter' : 'add_rider'] : r.name,
       fields: [
         FieldSpec('name', s['name'], initial: r?.name ?? ''),
         FieldSpec('phone', s['phone'], initial: r?.phone ?? '', required: false),
-        FieldSpec('bike', s['rider_bike'], initial: r?.bikeNo ?? '', required: false),
+        if (!_waiter) FieldSpec('bike', s['rider_bike'], initial: r?.bikeNo ?? '', required: false),
       ],
       validate: (v) async {
         try {
-          await ref.read(teamServiceProvider).saveRider(id: r?.id, name: v['name']!, phone: v['phone'], bikeNo: v['bike'], staffId: ref.read(sessionProvider)!.staffId);
+          await ref.read(teamServiceProvider).saveMember(kind, id: r?.id, name: v['name']!, phone: v['phone'], bikeNo: v['bike'], staffId: ref.read(sessionProvider)!.staffId);
           return null;
         } on PosException catch (e) {
           return e.message;
         }
       },
     );
-    if (v != null) ref.invalidate(_ridersProvider);
+    if (v != null) ref.invalidate(_ridersProvider(kind));
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = Strings.of(context);
-    final list = ref.watch(_ridersProvider);
+    final list = ref.watch(_ridersProvider(kind));
     return Scaffold(
       backgroundColor: Colors.transparent,
-      floatingActionButton: FloatingActionButton.extended(key: const ValueKey('add-rider'), onPressed: () => _edit(context, ref, null), icon: const Icon(Icons.two_wheeler_outlined), label: Text(s['add_rider'])),
+      floatingActionButton: FloatingActionButton.extended(key: ValueKey(_waiter ? 'add-waiter' : 'add-rider'), onPressed: () => _edit(context, ref, null), icon: Icon(_waiter ? Icons.room_service_outlined : Icons.two_wheeler_outlined), label: Text(s[_waiter ? 'add_waiter' : 'add_rider'])),
       body: list.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('$e')),
         data: (rows) => rows.isEmpty
-            ? Center(child: Padding(padding: const EdgeInsets.all(28), child: Text(s['riders_none'], textAlign: TextAlign.center)))
+            ? Center(child: Padding(padding: const EdgeInsets.all(28), child: Text(s[_waiter ? 'waiters_none' : 'riders_none'], textAlign: TextAlign.center)))
             : ListView.builder(
                 padding: const EdgeInsets.fromLTRB(12, 12, 12, 90),
                 itemCount: rows.length,
@@ -295,23 +297,23 @@ class RidersTab extends ConsumerWidget {
                   final r = rows[i];
                   return Card(
                     child: ListTile(
-                      key: ValueKey('rider-${r.name}'),
-                      leading: CircleAvatar(child: Icon(Icons.two_wheeler_outlined, color: r.active ? null : Theme.of(context).colorScheme.outline)),
+                      key: ValueKey('${_waiter ? 'waiter' : 'rider'}-${r.name}'),
+                      leading: CircleAvatar(child: Icon(_waiter ? Icons.room_service_outlined : Icons.two_wheeler_outlined, color: r.active ? null : Theme.of(context).colorScheme.outline)),
                       title: Text(r.name, style: TextStyle(fontWeight: FontWeight.w600, decoration: r.active ? null : TextDecoration.lineThrough)),
-                      subtitle: Text([if ((r.phone ?? '').isNotEmpty) r.phone!, if ((r.bikeNo ?? '').isNotEmpty) r.bikeNo!, '${r.deliveries} ${s['rider_today']}${r.deliveries > 0 ? ' · ${ref.money(r.totalMinor)}' : ''}'].join('  ·  ')),
+                      subtitle: Text([if ((r.phone ?? '').isNotEmpty) r.phone!, if ((r.bikeNo ?? '').isNotEmpty) r.bikeNo!, '${r.deliveries} ${s[_waiter ? 'waiter_today' : 'rider_today']}${r.deliveries > 0 ? ' · ${ref.money(r.totalMinor)}' : ''}'].join('  ·  ')),
                       onTap: () => _edit(context, ref, r),
                       trailing: PopupMenuButton<String>(
-                        key: ValueKey('rider-menu-${r.name}'),
+                        key: ValueKey('${_waiter ? 'waiter' : 'rider'}-menu-${r.name}'),
                         onSelected: (a) async {
                           final svc = ref.read(teamServiceProvider);
                           final me = ref.read(sessionProvider)!.staffId;
                           if (a == 'toggle') await svc.setActive(r.id, !r.active, staffId: me);
                           if (a == 'delete') await svc.delete(r.id, staffId: me);
-                          ref.invalidate(_ridersProvider);
+                          ref.invalidate(_ridersProvider(kind));
                         },
                         itemBuilder: (_) => [
                           PopupMenuItem(value: 'toggle', child: Text(r.active ? s['deactivate'] : s['activate'])),
-                          PopupMenuItem(key: ValueKey('rider-delete-${r.name}'), value: 'delete', child: Text(s['delete'])),
+                          PopupMenuItem(key: ValueKey('${_waiter ? 'waiter' : 'rider'}-delete-${r.name}'), value: 'delete', child: Text(s['delete'])),
                         ],
                       ),
                     ),

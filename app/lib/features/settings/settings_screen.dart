@@ -12,6 +12,8 @@ import '../tokens/token_ui.dart';
 import '../tokens/tokens_settings_screen.dart';
 
 import '../../app/device_channel.dart' show PairedPrinter;
+import '../../app/feedback.dart';
+import '../cloud/notices.dart' show noticeClearedProvider;
 import '../../app/providers.dart';
 import '../../cloud/access_controller.dart';
 import '../../cloud/location_consent.dart';
@@ -155,6 +157,57 @@ class SettingsScreen extends ConsumerWidget {
         const ListTile(dense: true, leading: Icon(Icons.phone_outlined), title: Text('0345-1873354')),
         const ListTile(dense: true, leading: Icon(Icons.email_outlined), title: Text('digitaltarget.digital@gmail.com')),
         const ListTile(dense: true, leading: Icon(Icons.location_on_outlined), title: Text('Burewala, Pakistan')),
+      ]),
+      _Section(t['sound_section'], [
+        SwitchListTile(
+          key: const ValueKey('opt-sound'),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 6),
+          secondary: const Icon(Icons.volume_up_outlined),
+          title: Text(t['sound_on']),
+          subtitle: Text(t['sound_hint']),
+          value: ref.watch(feedbackPrefsProvider).value?.sound ?? true,
+          onChanged: (v) async {
+            await ref.read(feedbackPrefsProvider.notifier).setSound(v);
+            if (v) ref.read(appFeedbackProvider).tap();
+          },
+        ),
+        SwitchListTile(
+          key: const ValueKey('opt-vibrate'),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 6),
+          secondary: const Icon(Icons.vibration),
+          title: Text(t['vibrate_on']),
+          value: ref.watch(feedbackPrefsProvider).value?.vibrate ?? true,
+          onChanged: (v) async {
+            await ref.read(feedbackPrefsProvider.notifier).setVibrate(v);
+            if (v) ref.read(appFeedbackProvider).tap();
+          },
+        ),
+        if (ref.watch(cloudGatewayProvider) != null) ...[
+          SwitchListTile(
+            key: const ValueKey('opt-notices'),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 6),
+            secondary: const Icon(Icons.notifications_active_outlined),
+            title: Text(t['notices_on']),
+            subtitle: Text(t['notices_hint']),
+            value: ref.watch(feedbackPrefsProvider).value?.notices ?? true,
+            onChanged: (v) async {
+              final ok = await ref.read(feedbackPrefsProvider.notifier).setNotices(v);
+              if (v && !ok && context.mounted) showMessage(context, t['notices_denied']);
+            },
+          ),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton.icon(
+              key: const ValueKey('notices-clear-all'),
+              onPressed: () async {
+                await ref.read(noticeClearedProvider.notifier).clearAll();
+                if (context.mounted) showMessage(context, t['notices_cleared']);
+              },
+              icon: const Icon(Icons.delete_sweep_outlined),
+              label: Text(t['notices_clear']),
+            ),
+          ),
+        ],
       ]),
     ]);
   }
