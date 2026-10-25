@@ -7,13 +7,18 @@ import '../../data/queries.dart';
 import '../../domain/bill.dart';
 
 class CartState {
-  const CartState({this.items = const [], this.orderType = 'counter', this.draftId, this.config = const BillConfig(), this.customerId, this.tableId});
+  const CartState({this.items = const [], this.orderType = 'counter', this.draftId, this.config = const BillConfig(), this.customerId, this.tableId, this.deliveryAddress, this.deliveryName, this.deliveryPhone});
   final List<CartItem> items;
   final String orderType;
   final String? draftId;
   final BillConfig config;
   final String? customerId;
   final String? tableId;
+
+  /// Delivery details typed at the till. The customer is saved (or found by phone) when the order is stored.
+  final String? deliveryAddress;
+  final String? deliveryName;
+  final String? deliveryPhone;
 
   bool get isEmpty => items.isEmpty;
   BillResult get bill => calculateBill([
@@ -28,13 +33,16 @@ class CartState {
               taxInclusive: items[i].taxInclusive)
       ], config);
 
-  CartState copyWith({List<CartItem>? items, String? orderType, String? draftId, bool clearDraft = false, BillConfig? config, String? customerId, bool clearCustomer = false, String? tableId, bool clearTable = false}) => CartState(
+  CartState copyWith({List<CartItem>? items, String? orderType, String? draftId, bool clearDraft = false, BillConfig? config, String? customerId, bool clearCustomer = false, String? tableId, bool clearTable = false, String? deliveryAddress, String? deliveryName, String? deliveryPhone, bool clearDelivery = false}) => CartState(
       items: items ?? this.items,
       orderType: orderType ?? this.orderType,
       draftId: clearDraft ? null : (draftId ?? this.draftId),
       config: config ?? this.config,
       customerId: clearCustomer ? null : (customerId ?? this.customerId),
-      tableId: clearTable ? null : (tableId ?? this.tableId));
+      tableId: clearTable ? null : (tableId ?? this.tableId),
+      deliveryAddress: clearDelivery ? null : (deliveryAddress ?? this.deliveryAddress),
+      deliveryName: clearDelivery ? null : (deliveryName ?? this.deliveryName),
+      deliveryPhone: clearDelivery ? null : (deliveryPhone ?? this.deliveryPhone));
 }
 
 /// The order being rung up. Every change is written to the database (as a draft), so a crash, kill or dead battery
@@ -62,12 +70,58 @@ class CartNotifier extends Notifier<CartState> {
         return;
       }
       final id = await _pos.saveDraft(
-          DraftOrder(id: s.draftId, orderType: s.orderType, items: s.items, config: s.config, tableId: s.tableId, customerId: s.customerId),
+          DraftOrder(id: s.draftId, orderType: s.orderType, items: s.items, config: s.config, tableId: s.tableId, customerId: s.customerId, deliveryAddress: s.deliveryAddress),
           staffId: staffId);
       if (state.draftId == null) state = state.copyWith(draftId: id);
     }).catchError((Object _) {
       // A failed background save must not crash the UI; the next change retries with the full cart.
     });
+  }
+
+  /// A delivery order with a phone or name but no saved customer: finds the customer by phone or saves a new one, so next time
+  /// the cashier only searches. Never blocks the order: if it cannot be saved the order keeps the typed details only.
+  Future<void> _ensureDeliveryCustomer() async {
+    final s = state;
+    if (s.orderType != 'delivery') return;
+    final address = (s.deliveryAddress ?? '').trim();
+    if (s.customerId != null) {
+      // a saved customer with a new address: keep the newest one for next time
+      if (address.isNotEmpty) {
+        final h = ref.read(dbHelperProvider);
+        await h.exec('UPDATE customer SET address=?, updated_at=?, version=version+1 WHERE id=? AND COALESCE(address,\'\') <> ?', [address, h.ts, s.customerId!, address]);
+      }
+      return;
+    }
+    final name = (s.deliveryName ?? '').trim(), phone = (s.deliveryPhone ?? '').trim();
+    if (name.isEmpty && phone.isEmpty) return;
+    try {
+      final svc = ref.read(customerServiceProvider);
+      final found = phone.isEmpty ? const [] : await svc.list(search: phone);
+      final match = found.where((c) => c.phone == phone).firstOrNull;
+      final id = match?.id ?? await svc.save(name: name.isEmpty ? phone : name, phone: phone, address: s.deliveryAddress, staffId: ref.read(sessionProvider)?.staffId ?? '');
+      if (state.customerId == null) state = state.copyWith(customerId: id);
+    } catch (_) {}
+  }
+
+  /// Call before the order leaves the cart (send, hold, charge): saves the delivery customer and stores the order with them.
+  Future<void> finalizeDelivery() async {
+    await flush();
+    if (state.orderType != 'delivery' || state.isEmpty) return;
+    await _ensureDeliveryCustomer();
+    _persist();
+    await flush();
+  }
+
+  /// Delivery details changed in the cart (phone, name, address).
+  void setDelivery({String? name, String? phone, String? address}) {
+    state = state.copyWith(deliveryName: name, deliveryPhone: phone, deliveryAddress: address);
+    if (!state.isEmpty) _persist();
+  }
+
+  /// A saved customer was picked in the delivery search: use their name, phone and address.
+  void useCustomer(String id, {String? name, String? phone, String? address}) {
+    state = state.copyWith(customerId: id, deliveryName: name, deliveryPhone: phone, deliveryAddress: address);
+    if (!state.isEmpty) _persist();
   }
 
   /// Waits for pending saves (used before charging so the stored draft matches the screen).
@@ -78,7 +132,7 @@ class CartNotifier extends Notifier<CartState> {
     if (id == null) return;
     final d = await _pos.loadDraft(id);
     if (d == null) return;
-    state = CartState(items: d.items, orderType: d.orderType, draftId: id, config: d.config, customerId: d.customerId, tableId: d.tableId);
+    state = CartState(items: d.items, orderType: d.orderType, draftId: id, config: d.config, customerId: d.customerId, tableId: d.tableId, deliveryAddress: d.deliveryAddress);
   }
 
   /// A fixed discount can become larger than the bill after an item is removed; drop it instead of crashing.
@@ -154,7 +208,7 @@ class CartNotifier extends Notifier<CartState> {
     if (orderId != null) {
       final d = await _pos.loadDraft(orderId);
       if (d != null) {
-        state = CartState(items: d.items, orderType: d.orderType, draftId: orderId, config: d.config, customerId: d.customerId, tableId: d.tableId);
+        state = CartState(items: d.items, orderType: d.orderType, draftId: orderId, config: d.config, customerId: d.customerId, tableId: d.tableId, deliveryAddress: d.deliveryAddress);
         return;
       }
     }
@@ -170,7 +224,7 @@ class CartNotifier extends Notifier<CartState> {
     if (_sending) return KitchenSend.busy;
     _sending = true;
     try {
-      await flush();
+      await finalizeDelivery();
       final id = state.draftId;
       if (id == null) return KitchenSend.nothingNew;
       // null = follow the print settings (automatic KOT on or off for this order type); true / false = the cashier chose
@@ -189,10 +243,10 @@ class CartNotifier extends Notifier<CartState> {
 
   /// Parks the current order and clears the screen for the next customer.
   Future<void> hold() async {
-    await flush();
+    await finalizeDelivery();
     final s = state;
     if (s.isEmpty) return;
-    await _pos.saveDraft(DraftOrder(id: s.draftId, orderType: s.orderType, items: s.items, config: s.config, tableId: s.tableId, customerId: s.customerId, held: true), staffId: ref.read(sessionProvider)?.staffId);
+    await _pos.saveDraft(DraftOrder(id: s.draftId, orderType: s.orderType, items: s.items, config: s.config, tableId: s.tableId, customerId: s.customerId, deliveryAddress: s.deliveryAddress, held: true), staffId: ref.read(sessionProvider)?.staffId);
     state = CartState(orderType: s.orderType);
   }
 
@@ -201,7 +255,7 @@ class CartNotifier extends Notifier<CartState> {
     if (!state.isEmpty) await hold();
     final d = await _pos.loadDraft(orderId);
     if (d == null) return;
-    state = CartState(items: d.items, orderType: d.orderType, draftId: orderId, config: d.config, customerId: d.customerId, tableId: d.tableId);
+    state = CartState(items: d.items, orderType: d.orderType, draftId: orderId, config: d.config, customerId: d.customerId, tableId: d.tableId, deliveryAddress: d.deliveryAddress);
     _persist(); // back to a normal (non-held) draft
   }
 
@@ -217,7 +271,7 @@ class CartNotifier extends Notifier<CartState> {
 
   /// Settles the current cart. Returns the result and resets the cart for the next customer.
   Future<SettledOrder> checkout(List<SettlePayment> payments) async {
-    await flush();
+    await finalizeDelivery();
     final id = state.draftId;
     if (id == null) throw PosException('empty_order', 'Nothing to charge');
     final staffId = ref.read(sessionProvider)!.staffId;

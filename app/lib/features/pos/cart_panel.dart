@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../app/theme.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -13,6 +14,7 @@ import '../common/dialogs.dart';
 import '../customers/customers_screen.dart';
 import 'cart.dart';
 import 'checkout_sheet.dart';
+import 'delivery_card.dart';
 import 'shift_dialogs.dart';
 
 final heldOrdersProvider = FutureProvider.autoDispose<List<HeldOrder>>((ref) => ref.watch(posServiceProvider).listHeld());
@@ -63,9 +65,9 @@ class CartPanel extends ConsumerWidget {
       if (bill.taxMinor > 0) _TotalRow(t['tax'], ref.money(bill.taxMinor)),
       const Divider(height: 18),
       Row(children: [
-        Text(t['total'], style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+        Text(t['total'], style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: context.totalColor)),
         const SizedBox(width: 12),
-        Expanded(child: Align(alignment: AlignmentDirectional.centerEnd, child: FittedBox(fit: BoxFit.scaleDown, child: Text(ref.money(bill.totalMinor), key: const ValueKey('cart-total'), style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: scheme.primary))))),
+        Expanded(child: Align(alignment: AlignmentDirectional.centerEnd, child: FittedBox(fit: BoxFit.scaleDown, child: Text(ref.money(bill.totalMinor), key: const ValueKey('cart-total'), style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Theme.of(context).extension<BrandColors>()?.total ?? scheme.primary))))),
       ]),
     ];
 
@@ -91,6 +93,7 @@ class CartPanel extends ConsumerWidget {
               onSelectionChanged: (s) => notifier.setOrderType(s.first),
             ),
           ),
+          if (cart.orderType == 'delivery') DeliveryCard(key: ValueKey('dlv-${cart.draftId}')),
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
             child: Row(children: [

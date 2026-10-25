@@ -208,7 +208,7 @@ class _CheckoutSheetState extends ConsumerState<CheckoutSheet> {
           _row(t['change'], ref.money(result?.changeMinor ?? 0), key: const ValueKey('change'), strong: (result?.changeMinor ?? 0) > 0),
           if (_error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_error!, key: const ValueKey('checkout-error'), style: TextStyle(color: scheme.error, fontWeight: FontWeight.w600))),
           const SizedBox(height: 14),
-          FilledButton(key: const ValueKey('confirm-payment'), style: FilledButton.styleFrom(backgroundColor: context.accent, foregroundColor: Colors.white, minimumSize: const Size.fromHeight(52), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))), onPressed: (result != null && result.isSettled && !_busy) ? _confirm : null, child: _busy ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2)) : Text(t['complete_order'], style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16))),
+          FilledButton(key: const ValueKey('confirm-payment'), style: FilledButton.styleFrom(backgroundColor: context.accent, foregroundColor: context.onAccent, minimumSize: const Size.fromHeight(52), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))), onPressed: (result != null && result.isSettled && !_busy) ? _confirm : null, child: _busy ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2)) : Text(t['complete_order'], style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16))),
         ]),
       ),
     );

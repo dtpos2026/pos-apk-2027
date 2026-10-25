@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import '../../app/theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
@@ -34,23 +35,23 @@ class AppDrawer extends ConsumerWidget {
     final header = Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(20, MediaQuery.paddingOf(context).top + 20, 20, 20),
-      decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [cs.primary, Color.lerp(cs.primary, Colors.black, 0.45)!])),
+      decoration: BoxDecoration(gradient: BrandBanner(cs.primary, darken: 0.45).gradient),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         CircleAvatar(
           radius: 34,
-          backgroundColor: Colors.white,
+          backgroundColor: BrandBanner(cs.primary).on,
           backgroundImage: biz?.logoPath == null || !File(biz!.logoPath!).existsSync() ? null : FileImage(File(biz.logoPath!)),
           child: biz?.logoPath == null || !File(biz!.logoPath!).existsSync() ? Icon(Icons.storefront_outlined, size: 34, color: cs.primary) : null,
         ),
         const SizedBox(height: 12),
-        Text(biz?.name ?? t['app_name'], key: const ValueKey('drawer-name'), style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
-        if ((biz?.ownerName ?? '').isNotEmpty) Text(biz!.ownerName!, style: const TextStyle(color: Colors.white70)),
+        Text(biz?.name ?? t['app_name'], key: const ValueKey('drawer-name'), style: TextStyle(color: BrandBanner(cs.primary).on, fontSize: 20, fontWeight: FontWeight.w800)),
+        if ((biz?.ownerName ?? '').isNotEmpty) Text(biz!.ownerName!, style: TextStyle(color: BrandBanner(cs.primary).soft)),
         const SizedBox(height: 6),
         Row(children: [
-          Flexible(child: Text(session.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis)),
+          Flexible(child: Text(session.name, style: TextStyle(color: BrandBanner(cs.primary).on, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis)),
           if (status != null) ...[
             const SizedBox(width: 8),
-            Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(999)), child: Text(t['acc_status_$status'], style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700))),
+            Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: BrandBanner(cs.primary).chip, borderRadius: BorderRadius.circular(999)), child: Text(t['acc_status_$status'], style: TextStyle(color: BrandBanner(cs.primary).on, fontSize: 12, fontWeight: FontWeight.w700))),
           ],
         ]),
       ]),

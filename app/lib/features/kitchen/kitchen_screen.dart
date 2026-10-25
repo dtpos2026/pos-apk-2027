@@ -69,7 +69,7 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
                 showCheckmark: false,
                 selected: _tab == s,
                 selectedColor: context.accent,
-                labelStyle: TextStyle(fontWeight: FontWeight.w700, color: _tab == s ? Colors.white : cs.onSurface),
+                labelStyle: TextStyle(fontWeight: FontWeight.w700, color: _tab == s ? context.onAccent : cs.onSurface),
                 label: Text('${labels[s]} (${counts[s] ?? 0})'),
                 onSelected: (_) => setState(() => _tab = s),
               ),
@@ -134,7 +134,7 @@ class _TicketCard extends StatelessWidget {
             const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,
-              child: FilledButton(key: ValueKey('kadvance-${k.orderId}'), style: FilledButton.styleFrom(backgroundColor: context.accent, foregroundColor: Colors.white, minimumSize: const Size.fromHeight(46)), onPressed: onAdvance, child: Text(action, style: const TextStyle(fontWeight: FontWeight.w700))),
+              child: FilledButton(key: ValueKey('kadvance-${k.orderId}'), style: FilledButton.styleFrom(backgroundColor: context.accent, foregroundColor: context.onAccent, minimumSize: const Size.fromHeight(46)), onPressed: onAdvance, child: Text(action, style: const TextStyle(fontWeight: FontWeight.w700))),
             ),
           ],
         ]),

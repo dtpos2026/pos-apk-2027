@@ -119,7 +119,7 @@ class OnlineOrdersScreen extends ConsumerWidget {
                 Row(children: [
                   Expanded(child: OutlinedButton(key: ValueKey('reject-${o.id}'), onPressed: () => _reject(context, ref, o), child: Text(t['reject']))),
                   const SizedBox(width: 8),
-                  Expanded(flex: 2, child: FilledButton(key: ValueKey('accept-${o.id}'), style: FilledButton.styleFrom(backgroundColor: context.accent, foregroundColor: Colors.white), onPressed: () => _accept(context, ref, o), child: Text(t['accept']))),
+                  Expanded(flex: 2, child: FilledButton(key: ValueKey('accept-${o.id}'), style: FilledButton.styleFrom(backgroundColor: context.accent, foregroundColor: context.onAccent), onPressed: () => _accept(context, ref, o), child: Text(t['accept']))),
                 ])
               else
                 Row(children: [
@@ -227,7 +227,7 @@ class _NewOnlineOrderState extends ConsumerState<NewOnlineOrderScreen> {
         padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           if (_error != null) Padding(padding: const EdgeInsets.only(bottom: 6), child: Text(_error!, key: const ValueKey('on-error'), style: TextStyle(color: Theme.of(context).colorScheme.error))),
-          FilledButton(key: const ValueKey('on-save'), style: FilledButton.styleFrom(backgroundColor: context.accent, foregroundColor: Colors.white, minimumSize: const Size.fromHeight(50)), onPressed: () => _save(all), child: Text('${t['save_order']} ($count)')),
+          FilledButton(key: const ValueKey('on-save'), style: FilledButton.styleFrom(backgroundColor: context.accent, foregroundColor: context.onAccent, minimumSize: const Size.fromHeight(50)), onPressed: () => _save(all), child: Text('${t['save_order']} ($count)')),
         ]),
       ),
     );

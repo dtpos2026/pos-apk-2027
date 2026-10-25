@@ -130,7 +130,7 @@ class _ThemeStudioState extends ConsumerState<ThemeStudioScreen> {
               const Icon(Icons.warning_amber_rounded, color: Color(0xFF8A5A00)),
               const SizedBox(width: 10),
               Expanded(child: Text(t['studio_contrast_warning'], style: const TextStyle(color: Color(0xFF6B4500)))),
-              TextButton(key: const ValueKey('studio-fix'), onPressed: () => _set(s.copyWith(clearText: true)), child: Text(t['studio_fix'])),
+              TextButton(key: const ValueKey('studio-fix'), onPressed: () => _set(s.copyWith(clearText: true, clearHeading: true, clearMuted: true)), child: Text(t['studio_fix'])),
             ]),
           ),
         group(t['studio_start'], [
@@ -148,6 +148,11 @@ class _ThemeStudioState extends ConsumerState<ThemeStudioScreen> {
           _colorTile('nav', t['studio_nav'], s.nav, (c) => c == null ? s.copyWith(clearNav: true) : s.copyWith(nav: c), nullable: true),
           _colorTile('text', t['studio_text'], s.text, (c) => c == null ? s.copyWith(clearText: true) : s.copyWith(text: c), nullable: true),
           _colorTile('price', t['studio_price'], s.price, (c) => c == null ? s.copyWith(clearPrice: true) : s.copyWith(price: c), nullable: true, shown: s.main),
+          _colorTile('heading', t['studio_heading'], s.heading, (c) => c == null ? s.copyWith(clearHeading: true) : s.copyWith(heading: c), nullable: true),
+          _colorTile('muted', t['studio_muted'], s.muted, (c) => c == null ? s.copyWith(clearMuted: true) : s.copyWith(muted: c), nullable: true),
+          _colorTile('navtext', t['studio_navtext'], s.navText, (c) => c == null ? s.copyWith(clearNavText: true) : s.copyWith(navText: c), nullable: true),
+          _colorTile('total', t['studio_total'], s.total, (c) => c == null ? s.copyWith(clearTotal: true) : s.copyWith(total: c), nullable: true),
+          _colorTile('icon', t['studio_icon'], s.icon, (c) => c == null ? s.copyWith(clearIcon: true) : s.copyWith(icon: c), nullable: true),
           _colorTile('border', t['studio_border_color'], s.border, (c) => c == null ? s.copyWith(clearBorder: true) : s.copyWith(border: c), nullable: true),
         ]),
         group(t['studio_boxes'], [

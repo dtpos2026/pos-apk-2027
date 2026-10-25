@@ -41,14 +41,14 @@ class DashboardScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-            gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [cs.primary, Color.lerp(cs.primary, Colors.black, 0.4)!]),
+            gradient: BrandBanner(cs.primary).gradient,
           ),
           child: Row(children: [
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('$greeting, ${session.name}', key: const ValueKey('dash-greeting'), style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w800)),
+                Text('$greeting, ${session.name}', key: const ValueKey('dash-greeting'), style: TextStyle(color: BrandBanner(cs.primary).on, fontSize: 19, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 4),
-                Text('${biz?.name ?? ''}  ·  ${now.year}-${two(now.month)}-${two(now.day)}', style: const TextStyle(color: Colors.white70)),
+                Text('${biz?.name ?? ''}  ·  ${now.year}-${two(now.month)}-${two(now.day)}', style: TextStyle(color: BrandBanner(cs.primary).soft)),
               ]),
             ),
             FilledButton.icon(
@@ -156,24 +156,24 @@ class _Kpis extends StatelessWidget {
                     Row(children: [
                       Container(
                         padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(color: (k.primary ? Colors.white : (k.warn ? Colors.orange : cs.primary)).withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
-                        child: Icon(k.icon, size: 18, color: k.primary ? Colors.white : (k.warn ? Colors.orange.shade800 : cs.primary)),
+                        decoration: BoxDecoration(color: (k.primary ? readableOn(cs.primary) : (k.warn ? Colors.orange : cs.primary)).withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
+                        child: Icon(k.icon, size: 18, color: k.primary ? readableOn(cs.primary) : (k.warn ? Colors.orange.shade800 : cs.primary)),
                       ),
                       const SizedBox(width: 8),
-                      Expanded(child: Text(k.label, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, color: k.primary ? Colors.white70 : cs.onSurfaceVariant))),
+                      Expanded(child: Text(k.label, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, color: k.primary ? readableOn(cs.primary).withValues(alpha: 0.72) : cs.onSurfaceVariant))),
                     ]),
                     const SizedBox(height: 8),
-                    FittedBox(fit: BoxFit.scaleDown, alignment: AlignmentDirectional.centerStart, child: Text(k.value, style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800, color: k.primary ? Colors.white : cs.onSurface))),
+                    FittedBox(fit: BoxFit.scaleDown, alignment: AlignmentDirectional.centerStart, child: Text(k.value, style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800, color: k.primary ? readableOn(cs.primary) : cs.onSurface))),
                     if (k.deltaPct != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 2),
                         child: Text(
                           '${k.deltaPct! >= 0 ? '▲' : '▼'} ${k.deltaPct!.abs()}% ${Strings.of(context)['vs_yesterday']}',
                           key: ValueKey('${k.key}-delta'),
-                          style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: k.primary ? Colors.white : (k.deltaPct! >= 0 ? const Color(0xFF2E9E5B) : const Color(0xFFD93B3B))),
+                          style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: k.primary ? readableOn(cs.primary) : (k.deltaPct! >= 0 ? const Color(0xFF2E9E5B) : const Color(0xFFD93B3B))),
                         ),
                       ),
-                    if (k.sub != null) Text(k.sub!, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11.5, color: k.primary ? Colors.white70 : cs.onSurfaceVariant)),
+                    if (k.sub != null) Text(k.sub!, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11.5, color: k.primary ? readableOn(cs.primary).withValues(alpha: 0.72) : cs.onSurfaceVariant)),
                   ]),
                 ),
               ),

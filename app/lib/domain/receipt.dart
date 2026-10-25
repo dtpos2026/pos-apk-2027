@@ -51,7 +51,11 @@ class ReceiptData {
     this.currency = Currency.pkr,
     this.logo,
     this.token,
+    this.deliveryTo = const [],
   });
+
+  /// Who the delivery is for (name, phone, address); empty for other order types.
+  final List<String> deliveryTo;
 
   /// Token label ("17", "A17") when the order has one, printed big on the bill.
   final String? token;
@@ -162,6 +166,9 @@ ReceiptDoc buildBillDoc(ReceiptData d, {BillDesign template = BillDesign.default
     lines.add(row(L['type'], t.showTable && d.tableLabel != null ? '$type ${d.tableLabel}' : type));
   }
   if (t.showCashier && d.cashier != null) lines.add(row(L['cashier'], d.cashier!));
+  for (final x in d.deliveryTo) {
+    lines.add(RText(x, align: body));
+  }
   lines.add(rule);
 
   // items
@@ -329,6 +336,7 @@ ReceiptDoc buildKotDoc({
   String? tableLabel,
   String? waiter,
   String? token,
+  List<String> deliveryTo = const [],
   bool isReprint = false,
   KotDesign design = KotDesign.defaults,
 }) {
@@ -356,6 +364,9 @@ ReceiptDoc buildKotDoc({
     out.add(RRow('Time', dateTime));
   }
   if (design.showWaiter && waiter != null) out.add(RRow('Waiter', waiter));
+  for (final x in deliveryTo) {
+    out.add(RText(x, bold: true));
+  }
   out.add(const RRule());
   for (final l in lines) {
     out.add(RText('${formatQty(l.qtyMilli)} x ${l.name}', bold: true, width: big ? 2 : 1, height: style == 'compact' ? 1 : 2));

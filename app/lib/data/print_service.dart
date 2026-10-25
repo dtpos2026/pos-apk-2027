@@ -173,6 +173,7 @@ class PrintService {
     final ids = <String>[];
     final kotDesign = await ReceiptTemplateStore(db).loadKot();
     final token = await TokenService(db, now: _now).orderTokenLabel(orderId);
+    final deliveryTo = await deliveryLinesFor((sql, a) => _select(sql, a), o);
     for (final p in printers) {
       final station = (p['station'] as String?) ?? '';
       final lines = byStation[station];
@@ -190,6 +191,7 @@ class PrintService {
         dateTime: formatDateTime(_now()),
         lines: kotLines,
         token: token,
+        deliveryTo: deliveryTo,
         isReprint: reprint,
         design: kotDesign,
       );

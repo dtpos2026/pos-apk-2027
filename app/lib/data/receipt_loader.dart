@@ -40,6 +40,7 @@ Future<ReceiptData> loadReceipt(AppDatabase db, String orderId, {bool duplicate 
   final cashier = o['cashier_id'] == null ? null : (await q('SELECT name FROM staff WHERE id = ?', [o['cashier_id'] as String])).firstOrNull?['name'] as String?;
   final table = o['table_id'] == null ? null : (await q('SELECT label FROM dining_table WHERE id = ?', [o['table_id'] as String])).firstOrNull?['label'] as String?;
   final when = DateTime.fromMillisecondsSinceEpoch((o['settled_at'] ?? o['created_at']) as int);
+  final deliveryTo = await deliveryLinesFor(q, o);
 
   // The logo is optional: a missing or unreadable file must never stop a bill from printing.
   RasterImage? logo;
@@ -63,6 +64,7 @@ Future<ReceiptData> loadReceipt(AppDatabase db, String orderId, {bool duplicate 
     dateTime: formatDateTime(when),
     orderTypeLabel: orderTypeLabels[o['order_type']] ?? '${o['order_type']}',
     tableLabel: table,
+    deliveryTo: deliveryTo,
     cashier: cashier,
     lines: lines,
     subtotalMinor: o['subtotal_minor'] as int,
@@ -80,4 +82,16 @@ Future<ReceiptData> loadReceipt(AppDatabase db, String orderId, {bool duplicate 
     isDuplicate: duplicate,
     currency: cur,
   );
+}
+
+/// Name, phone and address of a delivery order (empty for other order types), for the bill and the kitchen ticket.
+Future<List<String>> deliveryLinesFor(Future<List<Map<String, Object?>>> Function(String, List<String>) q, Map<String, Object?> o) async {
+  if (o['order_type'] != 'delivery') return const [];
+  final c = o['customer_id'] == null ? null : (await q('SELECT name, phone, address FROM customer WHERE id = ?', [o['customer_id'] as String])).firstOrNull;
+  final address = ((o['delivery_address'] as String?)?.trim().isNotEmpty ?? false) ? (o['delivery_address'] as String).trim() : (c?['address'] as String?)?.trim();
+  return [
+    if ((c?['name'] as String?)?.isNotEmpty ?? false) c!['name'] as String,
+    if ((c?['phone'] as String?)?.isNotEmpty ?? false) 'Tel: ${c!['phone']}',
+    if (address != null && address.isNotEmpty) address,
+  ];
 }

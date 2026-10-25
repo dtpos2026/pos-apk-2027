@@ -19,6 +19,11 @@ class ThemeStyle {
     this.text,
     this.price,
     this.border,
+    this.heading,
+    this.muted,
+    this.navText,
+    this.total,
+    this.icon,
     this.shadowColor = const Color(0xFF000000),
     this.shadow = 1,
     this.cardBorder = true,
@@ -48,6 +53,13 @@ class ThemeStyle {
 
   /// Card / box border colour (null = automatic).
   final Color? border;
+
+  /// Headings / titles, labels and descriptions (muted), bottom-bar labels, grand totals, icons. null = automatic.
+  final Color? heading;
+  final Color? muted;
+  final Color? navText;
+  final Color? total;
+  final Color? icon;
   final Color shadowColor;
 
   /// 0 = none, 1 = subtle, 2 = medium, 3 = strong.
@@ -70,7 +82,8 @@ class ThemeStyle {
   static const defaults = ThemeStyle();
 
   ThemeStyle copyWith({
-    Color? main, Color? accent, Color? header, Color? header2, Color? background, Color? surface, Color? nav, Color? text, Color? price, Color? border, Color? shadowColor,
+    Color? main, Color? accent, Color? header, Color? header2, Color? background, Color? surface, Color? nav, Color? text, Color? price, Color? border, Color? heading, Color? muted, Color? navText, Color? total, Color? icon, Color? shadowColor,
+    bool clearHeading = false, bool clearMuted = false, bool clearNavText = false, bool clearTotal = false, bool clearIcon = false,
     bool clearHeader2 = false, bool clearText = false, bool clearPrice = false, bool clearBorder = false, bool clearHeader = false, bool clearBackground = false, bool clearSurface = false, bool clearNav = false,
     int? shadow, bool? cardBorder, double? cardRadius, double? buttonRadius, String? buttonStyle, String? fontFamily, double? fontScale,
   }) =>
@@ -85,6 +98,11 @@ class ThemeStyle {
         text: clearText ? null : (text ?? this.text),
         price: clearPrice ? null : (price ?? this.price),
         border: clearBorder ? null : (border ?? this.border),
+        heading: clearHeading ? null : (heading ?? this.heading),
+        muted: clearMuted ? null : (muted ?? this.muted),
+        navText: clearNavText ? null : (navText ?? this.navText),
+        total: clearTotal ? null : (total ?? this.total),
+        icon: clearIcon ? null : (icon ?? this.icon),
         shadowColor: shadowColor ?? this.shadowColor,
         shadow: (shadow ?? this.shadow).clamp(0, 3),
         cardBorder: cardBorder ?? this.cardBorder,
@@ -105,11 +123,16 @@ class ThemeStyle {
     return contrastRatio(background, Colors.white) >= contrastRatio(background, Colors.black) ? Colors.white : const Color(0xFF111111);
   }
 
+  /// [chosen] when it reads on [bg] (contrast >= [min]), otherwise [fallback]. Every owner-picked text colour goes through this.
+  static Color guard(Color? chosen, Color bg, Color fallback, {double min = 4.5}) => chosen != null && contrastRatio(chosen, bg) >= min ? chosen : fallback;
+
   /// Contrast problems to show next to the controls (empty = all fine).
   List<String> contrastWarnings() {
     final out = <String>[];
     final bg = background ?? const Color(0xFFFAF7F7);
     if (text != null && contrastRatio(text!, bg) < 4.5) out.add('text');
+    if (heading != null && contrastRatio(heading!, bg) < 4.5) out.add('heading');
+    if (muted != null && contrastRatio(muted!, bg) < 3) out.add('muted');
     final h = header ?? main;
     if (contrastRatio(h, Colors.white) < 3 && contrastRatio(h, Colors.black) < 3) out.add('header');
     return out;
@@ -128,11 +151,12 @@ class ThemeStyle {
         cardStyle: shadow > 0 ? 'shadow' : (cardBorder ? 'outline' : 'flat'),
         radius: buttonRadius,
         style: this,
+        dark: ((background ?? surface)?.computeLuminance() ?? 1) < 0.12,
       );
 
   Map<String, Object?> toJson() => {
         'main': _hex(main), 'accent': _hex(accent), 'header': _hexN(header), 'header2': _hexN(header2), 'background': _hexN(background), 'surface': _hexN(surface), 'nav': _hexN(nav),
-        'text': _hexN(text), 'price': _hexN(price), 'border': _hexN(border), 'shadowColor': _hex(shadowColor), 'shadow': shadow, 'cardBorder': cardBorder, 'cardRadius': cardRadius,
+        'text': _hexN(text), 'price': _hexN(price), 'border': _hexN(border), 'heading': _hexN(heading), 'muted': _hexN(muted), 'navText': _hexN(navText), 'total': _hexN(total), 'icon': _hexN(icon), 'shadowColor': _hex(shadowColor), 'shadow': shadow, 'cardBorder': cardBorder, 'cardRadius': cardRadius,
         'buttonRadius': buttonRadius, 'buttonStyle': buttonStyle, 'fontFamily': fontFamily, 'fontScale': fontScale,
       };
 
@@ -146,7 +170,7 @@ class ThemeStyle {
       if (j is! Map) return defaults;
       return defaults.copyWith(
         main: _color(j['main']), accent: _color(j['accent']), header: _color(j['header']), header2: _color(j['header2']), background: _color(j['background']), surface: _color(j['surface']), nav: _color(j['nav']),
-        text: _color(j['text']), price: _color(j['price']), border: _color(j['border']), shadowColor: _color(j['shadowColor']),
+        text: _color(j['text']), price: _color(j['price']), border: _color(j['border']), heading: _color(j['heading']), muted: _color(j['muted']), navText: _color(j['navText']), total: _color(j['total']), icon: _color(j['icon']), shadowColor: _color(j['shadowColor']),
         shadow: (j['shadow'] as num?)?.toInt(), cardBorder: j['cardBorder'] as bool?, cardRadius: (j['cardRadius'] as num?)?.toDouble(), buttonRadius: (j['buttonRadius'] as num?)?.toDouble(),
         buttonStyle: j['buttonStyle'] as String?, fontFamily: j['fontFamily'] as String?, fontScale: (j['fontScale'] as num?)?.toDouble(),
       );
