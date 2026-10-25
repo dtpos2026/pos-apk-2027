@@ -148,7 +148,7 @@ CREATE TABLE dining_table (
 
 -- ---------- customers & credit (udhaar) ----------
 CREATE TABLE customer (
-  id TEXT PRIMARY KEY, name TEXT NOT NULL, phone TEXT, address TEXT, notes TEXT,
+  id TEXT PRIMARY KEY, name TEXT NOT NULL, phone TEXT, address TEXT, notes TEXT, image_path TEXT,
   credit_limit_minor INTEGER NOT NULL DEFAULT 0, loyalty_points INTEGER NOT NULL DEFAULT 0,
   version INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL, deleted_at INTEGER
 );

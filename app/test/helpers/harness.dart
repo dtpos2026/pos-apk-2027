@@ -98,6 +98,8 @@ class FakeLogoPicker implements LogoPicker {
   Uint8List? bytes;
   @override
   Future<Uint8List?> pick() async => bytes;
+  @override
+  Future<Uint8List?> capture() async => bytes;
 }
 
 Future<Harness> pumpApp(WidgetTester t, {AppDatabase? db, bool tablet = false, Locale? locale, Directory? backupDir, LogoPicker? logoPicker, Directory? logoDir, ShareService? share, FakeSaver? saver, ImportFilePicker? importPicker, CloudGateway? cloud, BluetoothPrinterScanner? btScanner, TransportFactory? transport, String? platformPhoneId, List<Override> extra = const []}) async {

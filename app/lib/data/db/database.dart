@@ -7,7 +7,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -15,6 +15,7 @@ class AppDatabase extends _$AppDatabase {
           if (from < 2) await migrateToV2(this);
           if (from < 3) await migrateToV3(this);
           if (from < 4) await migrateToV4(this);
+          if (from < 5) await migrateToV5(this);
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
@@ -48,6 +49,12 @@ Future<void> migrateToV2(AppDatabase db) async {
   ]) {
     await db.customStatement(sql);
   }
+}
+
+/// Version 5: a photo for each customer. Mirrors docs/schema/local.sql.
+Future<void> migrateToV5(AppDatabase db) async {
+  final cols = await db.customSelect("PRAGMA table_info('customer')").get();
+  if (!cols.any((c) => c.data['name'] == 'image_path')) await db.customStatement('ALTER TABLE customer ADD COLUMN image_path TEXT');
 }
 
 /// Version 4: deals / combos (what each deal contains). Mirrors docs/schema/local.sql.

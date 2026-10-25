@@ -13,6 +13,10 @@ import '../../domain/statement_doc.dart';
 import '../common/slip_screen.dart';
 import '../../domain/money.dart';
 import '../common/dialogs.dart';
+import 'customer_tools.dart';
+import 'promo_screen.dart';
+import '../../data/menu_images.dart';
+import 'dart:io';
 
 final customersProvider = FutureProvider.autoDispose.family<List<CustomerRow>, String>((ref, q) => ref.watch(customerServiceProvider).list(search: q));
 
@@ -41,6 +45,29 @@ Future<String?> addCustomerDialog(BuildContext context, WidgetRef ref, {Customer
   if (v == null) return null;
   ref.invalidate(customersProvider);
   return id;
+}
+
+/// Round customer picture (or the first letter of the name) with a white ring, so lists look the same everywhere.
+class CustomerAvatar extends StatelessWidget {
+  const CustomerAvatar(this.c, {super.key, this.radius = 22});
+  final CustomerRow c;
+  final double radius;
+  @override
+  Widget build(BuildContext context) {
+    final has = c.imagePath != null && File(c.imagePath!).existsSync();
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: cs.primary.withValues(alpha: 0.35), width: 1.5)),
+      child: CircleAvatar(
+        radius: radius,
+        backgroundColor: cs.primaryContainer,
+        foregroundColor: cs.primary,
+        backgroundImage: has ? FileImage(File(c.imagePath!)) : null,
+        child: has ? null : Text(c.name.characters.first.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.w800)),
+      ),
+    );
+  }
 }
 
 final _outstandingProvider = FutureProvider.autoDispose((ref) => ref.watch(customerServiceProvider).outstanding());
@@ -85,6 +112,16 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
             FilterChip(key: const ValueKey('owing-only'), label: Text(s['owing_only']), selected: _owingOnly, showCheckmark: false, onSelected: (v) => setState(() => _owingOnly = v)),
           ]),
         ),
+        SizedBox(
+          height: 46,
+          child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 12), children: [
+            ActionChip(key: const ValueKey('promo-open-screen'), avatar: const Icon(Icons.campaign_outlined, size: 18), label: Text(s['promo_title']), onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const PromoScreen()))),
+            const SizedBox(width: 8),
+            ActionChip(key: const ValueKey('customers-csv'), avatar: const Icon(Icons.table_chart_outlined, size: 18), label: Text(s['export_csv']), onPressed: () => exportCustomers(context, ref, pdf: false, search: _q)),
+            const SizedBox(width: 8),
+            ActionChip(key: const ValueKey('customers-pdf'), avatar: const Icon(Icons.picture_as_pdf_outlined, size: 18), label: Text(s['export_customers_pdf']), onPressed: () => exportCustomers(context, ref, pdf: true, search: _q)),
+          ]),
+        ),
         Expanded(
           child: list.when(
             loading: () => const Center(child: CircularProgressIndicator()),
@@ -101,7 +138,7 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
                       return Card(
                         child: ListTile(
                           key: ValueKey('customer-${c.name}'),
-                          leading: CircleAvatar(child: Text(c.name.characters.first.toUpperCase())),
+                          leading: CustomerAvatar(c, radius: 22),
                           title: Text(c.name, style: const TextStyle(fontWeight: FontWeight.w600)),
                           subtitle: Text(c.phone ?? ''),
                           trailing: c.balanceMinor > 0
@@ -170,6 +207,19 @@ class _CustomerDialogState extends ConsumerState<_CustomerDialog> {
     ));
   }
 
+  Future<void> _photo({required bool camera}) async {
+    final picker = ref.read(logoPickerProvider);
+    final b = camera ? await picker.capture() : await picker.pick();
+    if (b == null) return;
+    try {
+      await ref.read(menuImageStoreProvider).setCustomer(widget.id, b);
+      ref.invalidate(customersProvider);
+      await _load();
+    } on MenuImageException catch (e) {
+      if (mounted) showMessage(context, e.message);
+    }
+  }
+
   Future<void> _receive() async {
     final s = Strings.of(context);
     final methods = (await ref.read(paymentMethodsProvider.future)).where((m) => m.kind != 'credit').toList();
@@ -197,12 +247,27 @@ class _CustomerDialogState extends ConsumerState<_CustomerDialog> {
     final s = Strings.of(context);
     final c = _c;
     return AlertDialog(
-      title: Text(c?.name ?? ''),
+      title: c == null
+          ? const Text('')
+          : Row(children: [
+              CustomerAvatar(c, radius: 26),
+              const SizedBox(width: 12),
+              Expanded(child: Text(c.name, maxLines: 2, overflow: TextOverflow.ellipsis)),
+            ]),
       content: SizedBox(
         width: 380,
         child: c == null
             ? const SizedBox(height: 80, child: Center(child: CircularProgressIndicator()))
             : Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Wrap(spacing: 6, children: [
+                  ActionChip(key: const ValueKey('cust-photo-camera'), avatar: const Icon(Icons.photo_camera_outlined, size: 18), label: Text(s['take_photo']), onPressed: () => _photo(camera: true)),
+                  ActionChip(key: const ValueKey('cust-photo-gallery'), avatar: const Icon(Icons.photo_library_outlined, size: 18), label: Text(s['choose_photo']), onPressed: () => _photo(camera: false)),
+                  if (c.imagePath != null) ActionChip(key: const ValueKey('cust-photo-remove'), avatar: const Icon(Icons.delete_outline, size: 18), label: Text(s['remove_photo']), onPressed: () async {
+                        await ref.read(menuImageStoreProvider).removeCustomer(c.id);
+                        await _load();
+                      }),
+                ]),
+                const SizedBox(height: 8),
                 Text('${s['balance']}: ${ref.money(c.balanceMinor)}', key: const ValueKey('cust-balance'), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
                 Text('${s['credit_limit']}: ${ref.money(c.creditLimitMinor)}'),
                 const Divider(),

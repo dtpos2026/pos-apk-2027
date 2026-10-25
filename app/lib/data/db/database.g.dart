@@ -9256,6 +9256,17 @@ class Customer extends Table with TableInfo<Customer, CustomerData> {
     requiredDuringInsert: false,
     $customConstraints: '',
   );
+  static const VerificationMeta _imagePathMeta = const VerificationMeta(
+    'imagePath',
+  );
+  late final GeneratedColumn<String> imagePath = GeneratedColumn<String>(
+    'image_path',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: '',
+  );
   static const VerificationMeta _creditLimitMinorMeta = const VerificationMeta(
     'creditLimitMinor',
   );
@@ -9321,6 +9332,7 @@ class Customer extends Table with TableInfo<Customer, CustomerData> {
     phone,
     address,
     notes,
+    imagePath,
     creditLimitMinor,
     loyaltyPoints,
     version,
@@ -9366,6 +9378,12 @@ class Customer extends Table with TableInfo<Customer, CustomerData> {
       context.handle(
         _notesMeta,
         notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
+    if (data.containsKey('image_path')) {
+      context.handle(
+        _imagePathMeta,
+        imagePath.isAcceptableOrUnknown(data['image_path']!, _imagePathMeta),
       );
     }
     if (data.containsKey('credit_limit_minor')) {
@@ -9435,6 +9453,10 @@ class Customer extends Table with TableInfo<Customer, CustomerData> {
         DriftSqlType.string,
         data['${effectivePrefix}notes'],
       ),
+      imagePath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}image_path'],
+      ),
       creditLimitMinor: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}credit_limit_minor'],
@@ -9473,6 +9495,7 @@ class CustomerData extends DataClass implements Insertable<CustomerData> {
   final String? phone;
   final String? address;
   final String? notes;
+  final String? imagePath;
   final int creditLimitMinor;
   final int loyaltyPoints;
   final int version;
@@ -9484,6 +9507,7 @@ class CustomerData extends DataClass implements Insertable<CustomerData> {
     this.phone,
     this.address,
     this.notes,
+    this.imagePath,
     required this.creditLimitMinor,
     required this.loyaltyPoints,
     required this.version,
@@ -9505,6 +9529,9 @@ class CustomerData extends DataClass implements Insertable<CustomerData> {
     }
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
+    }
+    if (!nullToAbsent || imagePath != null) {
+      map['image_path'] = Variable<String>(imagePath);
     }
     map['credit_limit_minor'] = Variable<int>(creditLimitMinor);
     map['loyalty_points'] = Variable<int>(loyaltyPoints);
@@ -9529,6 +9556,9 @@ class CustomerData extends DataClass implements Insertable<CustomerData> {
       notes: notes == null && nullToAbsent
           ? const Value.absent()
           : Value(notes),
+      imagePath: imagePath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(imagePath),
       creditLimitMinor: Value(creditLimitMinor),
       loyaltyPoints: Value(loyaltyPoints),
       version: Value(version),
@@ -9550,6 +9580,7 @@ class CustomerData extends DataClass implements Insertable<CustomerData> {
       phone: serializer.fromJson<String?>(json['phone']),
       address: serializer.fromJson<String?>(json['address']),
       notes: serializer.fromJson<String?>(json['notes']),
+      imagePath: serializer.fromJson<String?>(json['image_path']),
       creditLimitMinor: serializer.fromJson<int>(json['credit_limit_minor']),
       loyaltyPoints: serializer.fromJson<int>(json['loyalty_points']),
       version: serializer.fromJson<int>(json['version']),
@@ -9566,6 +9597,7 @@ class CustomerData extends DataClass implements Insertable<CustomerData> {
       'phone': serializer.toJson<String?>(phone),
       'address': serializer.toJson<String?>(address),
       'notes': serializer.toJson<String?>(notes),
+      'image_path': serializer.toJson<String?>(imagePath),
       'credit_limit_minor': serializer.toJson<int>(creditLimitMinor),
       'loyalty_points': serializer.toJson<int>(loyaltyPoints),
       'version': serializer.toJson<int>(version),
@@ -9580,6 +9612,7 @@ class CustomerData extends DataClass implements Insertable<CustomerData> {
     Value<String?> phone = const Value.absent(),
     Value<String?> address = const Value.absent(),
     Value<String?> notes = const Value.absent(),
+    Value<String?> imagePath = const Value.absent(),
     int? creditLimitMinor,
     int? loyaltyPoints,
     int? version,
@@ -9591,6 +9624,7 @@ class CustomerData extends DataClass implements Insertable<CustomerData> {
     phone: phone.present ? phone.value : this.phone,
     address: address.present ? address.value : this.address,
     notes: notes.present ? notes.value : this.notes,
+    imagePath: imagePath.present ? imagePath.value : this.imagePath,
     creditLimitMinor: creditLimitMinor ?? this.creditLimitMinor,
     loyaltyPoints: loyaltyPoints ?? this.loyaltyPoints,
     version: version ?? this.version,
@@ -9604,6 +9638,7 @@ class CustomerData extends DataClass implements Insertable<CustomerData> {
       phone: data.phone.present ? data.phone.value : this.phone,
       address: data.address.present ? data.address.value : this.address,
       notes: data.notes.present ? data.notes.value : this.notes,
+      imagePath: data.imagePath.present ? data.imagePath.value : this.imagePath,
       creditLimitMinor: data.creditLimitMinor.present
           ? data.creditLimitMinor.value
           : this.creditLimitMinor,
@@ -9624,6 +9659,7 @@ class CustomerData extends DataClass implements Insertable<CustomerData> {
           ..write('phone: $phone, ')
           ..write('address: $address, ')
           ..write('notes: $notes, ')
+          ..write('imagePath: $imagePath, ')
           ..write('creditLimitMinor: $creditLimitMinor, ')
           ..write('loyaltyPoints: $loyaltyPoints, ')
           ..write('version: $version, ')
@@ -9640,6 +9676,7 @@ class CustomerData extends DataClass implements Insertable<CustomerData> {
     phone,
     address,
     notes,
+    imagePath,
     creditLimitMinor,
     loyaltyPoints,
     version,
@@ -9655,6 +9692,7 @@ class CustomerData extends DataClass implements Insertable<CustomerData> {
           other.phone == this.phone &&
           other.address == this.address &&
           other.notes == this.notes &&
+          other.imagePath == this.imagePath &&
           other.creditLimitMinor == this.creditLimitMinor &&
           other.loyaltyPoints == this.loyaltyPoints &&
           other.version == this.version &&
@@ -9668,6 +9706,7 @@ class CustomerCompanion extends UpdateCompanion<CustomerData> {
   final Value<String?> phone;
   final Value<String?> address;
   final Value<String?> notes;
+  final Value<String?> imagePath;
   final Value<int> creditLimitMinor;
   final Value<int> loyaltyPoints;
   final Value<int> version;
@@ -9680,6 +9719,7 @@ class CustomerCompanion extends UpdateCompanion<CustomerData> {
     this.phone = const Value.absent(),
     this.address = const Value.absent(),
     this.notes = const Value.absent(),
+    this.imagePath = const Value.absent(),
     this.creditLimitMinor = const Value.absent(),
     this.loyaltyPoints = const Value.absent(),
     this.version = const Value.absent(),
@@ -9693,6 +9733,7 @@ class CustomerCompanion extends UpdateCompanion<CustomerData> {
     this.phone = const Value.absent(),
     this.address = const Value.absent(),
     this.notes = const Value.absent(),
+    this.imagePath = const Value.absent(),
     this.creditLimitMinor = const Value.absent(),
     this.loyaltyPoints = const Value.absent(),
     this.version = const Value.absent(),
@@ -9707,6 +9748,7 @@ class CustomerCompanion extends UpdateCompanion<CustomerData> {
     Expression<String>? phone,
     Expression<String>? address,
     Expression<String>? notes,
+    Expression<String>? imagePath,
     Expression<int>? creditLimitMinor,
     Expression<int>? loyaltyPoints,
     Expression<int>? version,
@@ -9720,6 +9762,7 @@ class CustomerCompanion extends UpdateCompanion<CustomerData> {
       if (phone != null) 'phone': phone,
       if (address != null) 'address': address,
       if (notes != null) 'notes': notes,
+      if (imagePath != null) 'image_path': imagePath,
       if (creditLimitMinor != null) 'credit_limit_minor': creditLimitMinor,
       if (loyaltyPoints != null) 'loyalty_points': loyaltyPoints,
       if (version != null) 'version': version,
@@ -9735,6 +9778,7 @@ class CustomerCompanion extends UpdateCompanion<CustomerData> {
     Value<String?>? phone,
     Value<String?>? address,
     Value<String?>? notes,
+    Value<String?>? imagePath,
     Value<int>? creditLimitMinor,
     Value<int>? loyaltyPoints,
     Value<int>? version,
@@ -9748,6 +9792,7 @@ class CustomerCompanion extends UpdateCompanion<CustomerData> {
       phone: phone ?? this.phone,
       address: address ?? this.address,
       notes: notes ?? this.notes,
+      imagePath: imagePath ?? this.imagePath,
       creditLimitMinor: creditLimitMinor ?? this.creditLimitMinor,
       loyaltyPoints: loyaltyPoints ?? this.loyaltyPoints,
       version: version ?? this.version,
@@ -9774,6 +9819,9 @@ class CustomerCompanion extends UpdateCompanion<CustomerData> {
     }
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
+    }
+    if (imagePath.present) {
+      map['image_path'] = Variable<String>(imagePath.value);
     }
     if (creditLimitMinor.present) {
       map['credit_limit_minor'] = Variable<int>(creditLimitMinor.value);
@@ -9804,6 +9852,7 @@ class CustomerCompanion extends UpdateCompanion<CustomerData> {
           ..write('phone: $phone, ')
           ..write('address: $address, ')
           ..write('notes: $notes, ')
+          ..write('imagePath: $imagePath, ')
           ..write('creditLimitMinor: $creditLimitMinor, ')
           ..write('loyaltyPoints: $loyaltyPoints, ')
           ..write('version: $version, ')
@@ -38307,6 +38356,7 @@ typedef $CustomerCreateCompanionBuilder =
       Value<String?> phone,
       Value<String?> address,
       Value<String?> notes,
+      Value<String?> imagePath,
       Value<int> creditLimitMinor,
       Value<int> loyaltyPoints,
       Value<int> version,
@@ -38321,6 +38371,7 @@ typedef $CustomerUpdateCompanionBuilder =
       Value<String?> phone,
       Value<String?> address,
       Value<String?> notes,
+      Value<String?> imagePath,
       Value<int> creditLimitMinor,
       Value<int> loyaltyPoints,
       Value<int> version,
@@ -38404,6 +38455,11 @@ class $CustomerFilterComposer extends Composer<_$AppDatabase, Customer> {
 
   ColumnFilters<String> get notes => $composableBuilder(
     column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get imagePath => $composableBuilder(
+    column: $table.imagePath,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -38516,6 +38572,11 @@ class $CustomerOrderingComposer extends Composer<_$AppDatabase, Customer> {
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get imagePath => $composableBuilder(
+    column: $table.imagePath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get creditLimitMinor => $composableBuilder(
     column: $table.creditLimitMinor,
     builder: (column) => ColumnOrderings(column),
@@ -38564,6 +38625,9 @@ class $CustomerAnnotationComposer extends Composer<_$AppDatabase, Customer> {
 
   GeneratedColumn<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<String> get imagePath =>
+      $composableBuilder(column: $table.imagePath, builder: (column) => column);
 
   GeneratedColumn<int> get creditLimitMinor => $composableBuilder(
     column: $table.creditLimitMinor,
@@ -38668,6 +38732,7 @@ class $CustomerTableManager
                 Value<String?> phone = const Value.absent(),
                 Value<String?> address = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
+                Value<String?> imagePath = const Value.absent(),
                 Value<int> creditLimitMinor = const Value.absent(),
                 Value<int> loyaltyPoints = const Value.absent(),
                 Value<int> version = const Value.absent(),
@@ -38680,6 +38745,7 @@ class $CustomerTableManager
                 phone: phone,
                 address: address,
                 notes: notes,
+                imagePath: imagePath,
                 creditLimitMinor: creditLimitMinor,
                 loyaltyPoints: loyaltyPoints,
                 version: version,
@@ -38694,6 +38760,7 @@ class $CustomerTableManager
                 Value<String?> phone = const Value.absent(),
                 Value<String?> address = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
+                Value<String?> imagePath = const Value.absent(),
                 Value<int> creditLimitMinor = const Value.absent(),
                 Value<int> loyaltyPoints = const Value.absent(),
                 Value<int> version = const Value.absent(),
@@ -38706,6 +38773,7 @@ class $CustomerTableManager
                 phone: phone,
                 address: address,
                 notes: notes,
+                imagePath: imagePath,
                 creditLimitMinor: creditLimitMinor,
                 loyaltyPoints: loyaltyPoints,
                 version: version,

@@ -35,6 +35,8 @@ class MenuImageStore {
 
   Future<String> setProduct(String productId, Uint8List bytes) => _set('product', productId, bytes);
   Future<String> setCategory(String categoryId, Uint8List bytes) => _set('category', categoryId, bytes);
+  Future<String> setCustomer(String id, Uint8List bytes) => _set('customer', id, bytes);
+  Future<void> removeCustomer(String id) => _remove('customer', id);
   Future<String> setPaymentMethod(String id, Uint8List bytes) => _set('payment_method', id, bytes);
   Future<void> removePaymentMethod(String id) => _remove('payment_method', id);
   Future<void> removeProduct(String productId) => _remove('product', productId);

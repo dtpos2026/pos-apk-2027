@@ -2,11 +2,12 @@ import 'db_helper.dart';
 import 'pos_service.dart' show PosException;
 
 class CustomerRow {
-  const CustomerRow({required this.id, required this.name, this.phone, this.address, required this.creditLimitMinor, required this.balanceMinor});
+  const CustomerRow({required this.id, required this.name, this.phone, this.address, this.imagePath, required this.creditLimitMinor, required this.balanceMinor});
   final String id;
   final String name;
   final String? phone;
   final String? address;
+  final String? imagePath;
   final int creditLimitMinor;
 
   /// Positive = the customer owes us (udhaar).
@@ -55,10 +56,10 @@ class CustomerService {
   Future<List<CustomerRow>> list({String search = ''}) async {
     final like = '%${search.trim()}%';
     final rows = await h.q(
-        'SELECT c.id, c.name, c.phone, c.address, c.credit_limit_minor, COALESCE((SELECT SUM(amount_minor) FROM customer_ledger WHERE customer_id = c.id),0) AS bal '
+        'SELECT c.id, c.name, c.phone, c.address, c.image_path, c.credit_limit_minor, COALESCE((SELECT SUM(amount_minor) FROM customer_ledger WHERE customer_id = c.id),0) AS bal '
         'FROM customer c WHERE c.deleted_at IS NULL AND (c.name LIKE ? OR c.phone LIKE ?) ORDER BY c.name',
         [like, like]);
-    return [for (final r in rows) CustomerRow(id: r['id'] as String, name: r['name'] as String, phone: r['phone'] as String?, address: r['address'] as String?, creditLimitMinor: r['credit_limit_minor'] as int, balanceMinor: r['bal'] as int)];
+    return [for (final r in rows) CustomerRow(id: r['id'] as String, name: r['name'] as String, phone: r['phone'] as String?, address: r['address'] as String?, imagePath: r['image_path'] as String?, creditLimitMinor: r['credit_limit_minor'] as int, balanceMinor: r['bal'] as int)];
   }
 
   /// Newest first, each entry with its bill number and the balance after it (so the list can show a running balance).
