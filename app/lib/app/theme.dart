@@ -177,7 +177,17 @@ ThemeData buildTheme({Brightness brightness = Brightness.light, Color seed = bra
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(style: OutlinedButton.styleFrom(minimumSize: const Size(64, 48), shape: buttonShape)),
     inputDecorationTheme: InputDecorationTheme(border: OutlineInputBorder(borderRadius: BorderRadius.circular((r - 2).clamp(4, 30).toDouble())), filled: true, fillColor: surface),
-    chipTheme: base.chipTheme.copyWith(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(r + 6))),
+    // Filter chips (bills tabs, categories...): a solid brand-colour pill with readable text when selected, a clean outline otherwise.
+    chipTheme: base.chipTheme.copyWith(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(r + 6), side: BorderSide(color: scheme.outlineVariant)),
+      selectedColor: fill,
+      secondarySelectedColor: fill,
+      backgroundColor: surface,
+      side: BorderSide(color: scheme.outlineVariant),
+      labelStyle: TextStyle(fontWeight: FontWeight.w600, color: scheme.onSurface),
+      secondaryLabelStyle: TextStyle(fontWeight: FontWeight.w800, color: _readableOn(fill)),
+      checkmarkColor: _readableOn(fill),
+    ),
   );
   if (st == null) return themed;
   // text colour for the whole app (text SIZE is applied in the app builder, on top of the phone's own text-size setting)

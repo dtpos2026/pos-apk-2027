@@ -141,7 +141,7 @@ class HomeShell extends ConsumerWidget {
                 if (picked != null) go(picked);
               },
               destinations: [
-                for (final d in onBar) NavigationDestination(icon: d.key == 'kitchen' ? Badge(isLabelVisible: ref.watch(kitchenReadyCountProvider) > 0, label: Text('${ref.watch(kitchenReadyCountProvider)}'), child: Icon(d.icon)) : Icon(d.icon), label: t[d.label]),
+                for (final d in onBar) NavigationDestination(icon: d.key == 'kitchen' ? Badge(isLabelVisible: ref.watch(kitchenReadyCountProvider) > 0, label: Text('${ref.watch(kitchenReadyCountProvider)}'), child: Icon(d.icon)) : Icon(d.icon), label: d.label == 'online' ? t['online_short'] : t[d.label]),
                 if (needMore) NavigationDestination(key: const ValueKey('nav-more'), icon: const Icon(Icons.apps_rounded), label: t['more']),
               ],
             ),

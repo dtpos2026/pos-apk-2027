@@ -146,7 +146,7 @@ void main() {
 
     await t.tap(find.byKey(const ValueKey('bill-INV-20260112-0001')));
     await t.pumpAndSettle();
-    expect(text(t, 'bill-preview').data, contains('2 x Zinger Burger'));
+    expect(find.descendant(of: find.byKey(const ValueKey('receipt-paper')), matching: find.textContaining('2 x Zinger Burger')), findsOneWidget);
     await shot(t, '42_bill_detail');
 
     await tapKey(t, 'bill-share');
@@ -314,6 +314,8 @@ void main() {
 
     await tapKey(t, 'ps-kot-enabled');
     await t.scrollUntilVisible(find.byKey(const ValueKey('ps-counter-bill')), 200, scrollable: verticalScroll);
+    await Scrollable.ensureVisible(t.element(find.byKey(const ValueKey('ps-counter-bill'))), alignment: 0.4);
+    await t.pumpAndSettle();
     await tapKey(t, 'ps-counter-bill'); // counter sales: no automatic bill
     cfg = h.container.read(printSettingsProvider).value!;
     expect([cfg.autoKotFor('counter'), cfg.autoBillFor('counter'), cfg.autoBillFor('takeaway')], [true, false, true]);

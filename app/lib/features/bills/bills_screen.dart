@@ -15,6 +15,8 @@ import '../../data/pos_service.dart';
 import '../../data/receipt_loader.dart';
 import '../../domain/money.dart';
 import '../../domain/receipt.dart';
+import '../../domain/receipt_doc.dart';
+import '../settings/receipt_paper.dart';
 import '../common/dialogs.dart';
 import '../pos/cart.dart';
 
@@ -150,7 +152,7 @@ class _RunningBillDialogState extends ConsumerState<_RunningBillDialog> {
           Text('${s['total']}: ${ref.money(b.totalMinor)}', style: const TextStyle(fontWeight: FontWeight.w800)),
         ]),
       ),
-      actions: [DialogActions([
+      actions: [DialogActions(grid: true, [
         TextButton(onPressed: () => Navigator.pop(context), child: Text(s['close'])),
         if (b.kitchenSent && (ref.watch(printSettingsProvider).value?.kotEnabled ?? true))
           TextButton.icon(key: const ValueKey('running-print-kot'), onPressed: () => _printKot(context, ref, b.id), icon: const Icon(Icons.soup_kitchen_outlined, size: 18), label: Text(s['print_kot'])),
@@ -171,6 +173,7 @@ class _BillDialog extends ConsumerStatefulWidget {
 
 class _BillDialogState extends ConsumerState<_BillDialog> {
   String? _preview;
+  ReceiptDoc? _doc;
   String? _customerPhone;
   bool _hasTokens = false;
   final _paperKey = GlobalKey();
@@ -189,6 +192,7 @@ class _BillDialogState extends ConsumerState<_BillDialog> {
     if (mounted) {
       setState(() {
         _preview = previewBill(data, template: design);
+        _doc = buildBillDoc(data, template: design);
         _customerPhone = phone.isEmpty ? null : phone.first.data['p'] as String?;
         _hasTokens = tokens;
       });
@@ -256,20 +260,16 @@ class _BillDialogState extends ConsumerState<_BillDialog> {
     final b = widget.bill;
     return AlertDialog(
       title: Text(b.invoiceNo),
-      content: SingleChildScrollView(
+      scrollable: true,
+      contentPadding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      content: Center(
         child: RepaintBoundary(
           key: _paperKey,
-          child: Container(
-          width: 340,
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.black12)),
-          child: _preview == null ? const Center(child: CircularProgressIndicator()) : Text(_preview!, key: const ValueKey('bill-preview'), style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 11, height: 1.25, color: Colors.black87)),
-        ),
+          // the same paper preview as the receipt designer: logo, bars, fonts, exactly what the printer prints
+          child: _doc == null ? const Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator()) : ReceiptPaper(doc: _doc!, paperMm: 58),
         ),
       ),
-      actionsOverflowButtonSpacing: 6,
-      actionsOverflowAlignment: OverflowBarAlignment.end,
-      actions: [DialogActions([
+      actions: [DialogActions(grid: true, [
         TextButton(onPressed: () => Navigator.pop(context), child: Text(s['close'])),
         if (_preview != null)
           TextButton.icon(key: const ValueKey('bill-share'), onPressed: () => ref.read(shareServiceProvider).shareText(_preview!, subject: b.invoiceNo), icon: const Icon(Icons.share_outlined, size: 18), label: Text(s['share'])),

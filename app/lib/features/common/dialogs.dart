@@ -95,8 +95,11 @@ void showMessage(BuildContext context, String text) => ScaffoldMessenger.of(cont
 /// Buttons at the bottom of a dialog: one tidy, wrapping, right-aligned group where every button has the same height and the
 /// same gap, however many there are or however long the (translated) labels are. Use as `actions: [DialogActions([...])]`.
 class DialogActions extends StatelessWidget {
-  const DialogActions(this.children, {super.key});
+  const DialogActions(this.children, {super.key, this.grid = false});
   final List<Widget> children;
+
+  /// Many actions (a bill has a dozen): lay them out as an even two- or three-column grid instead of a ragged wrap.
+  final bool grid;
 
   @override
   Widget build(BuildContext context) {
@@ -110,7 +113,21 @@ class DialogActions extends StatelessWidget {
       ),
       child: SizedBox(
         width: double.infinity,
-        child: Wrap(alignment: WrapAlignment.end, crossAxisAlignment: WrapCrossAlignment.center, spacing: 8, runSpacing: 8, children: children),
+        child: grid
+            ? Builder(builder: (context) {
+                // AlertDialog measures its actions with intrinsic sizes, so no LayoutBuilder here: work the dialog width out from the screen
+                final screen = MediaQuery.sizeOf(context).width;
+                final inner = (screen - 80).clamp(240.0, 560.0) - 48;
+                final cols = inner >= 430 ? 3 : 2;
+                final w = (inner - (cols - 1) * 8) / cols;
+                return Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [for (final x in children) SizedBox(width: w, height: 46, child: FittedBox(fit: BoxFit.scaleDown, child: x))],
+                );
+              })
+            : Wrap(alignment: WrapAlignment.end, crossAxisAlignment: WrapCrossAlignment.center, spacing: 8, runSpacing: 8, children: children),
       ),
     );
   }
