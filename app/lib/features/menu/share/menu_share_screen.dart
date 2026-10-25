@@ -326,7 +326,7 @@ class _QrDialogState extends ConsumerState<_QrDialog> {
           setState(() => _pick = key);
           _render();
         });
-    return AlertDialog(
+    return AlertDialog(scrollable: true, 
       title: Text(t['qr_title']),
       content: SizedBox(
         width: 340,

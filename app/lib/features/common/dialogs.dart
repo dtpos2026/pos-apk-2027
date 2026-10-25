@@ -30,7 +30,7 @@ Future<Map<String, String>?> showFormDialog(
   return showDialog<Map<String, String>>(
     context: context,
     builder: (ctx) => StatefulBuilder(
-      builder: (ctx, setState) => AlertDialog(
+      builder: (ctx, setState) => AlertDialog(scrollable: true, 
         title: Text(title),
         content: SingleChildScrollView(
           child: Column(mainAxisSize: MainAxisSize.min, children: [

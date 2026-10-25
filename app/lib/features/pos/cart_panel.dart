@@ -348,7 +348,7 @@ class CartPanel extends ConsumerWidget {
     await showDialog<void>(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setState) => AlertDialog(
+        builder: (ctx, setState) => AlertDialog(scrollable: true, 
           title: Text(t['discount']),
           content: Column(mainAxisSize: MainAxisSize.min, children: [
             SegmentedButton<bool>(showSelectedIcon: false, segments: [const ButtonSegment(value: true, label: Text('%')), ButtonSegment(value: false, label: Text(ref.currency.code))], selected: {percent}, onSelectionChanged: (s) => setState(() => percent = s.first)),

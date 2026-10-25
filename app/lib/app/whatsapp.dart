@@ -22,7 +22,7 @@ Future<String?> askPhone(BuildContext context, {String? initial, required String
   final c = TextEditingController(text: initial ?? '');
   return showDialog<String>(
     context: context,
-    builder: (ctx) => AlertDialog(
+    builder: (ctx) => AlertDialog(scrollable: true, 
       title: Text(title),
       content: TextField(key: const ValueKey('wa-phone'), controller: c, keyboardType: TextInputType.phone, autofocus: true, decoration: InputDecoration(labelText: label, prefixIcon: const Icon(Icons.phone_outlined))),
       actions: [

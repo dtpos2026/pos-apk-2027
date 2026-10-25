@@ -34,7 +34,7 @@ class DayCloseScreen extends ConsumerWidget {
     final counts = {for (final s in openShifts) s.id: TextEditingController()};
     final ok = await showDialog<bool>(
       context: context,
-      builder: (c) => AlertDialog(
+      builder: (c) => AlertDialog(scrollable: true, 
         title: Text(t['close_day_btn']),
         content: SingleChildScrollView(
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [

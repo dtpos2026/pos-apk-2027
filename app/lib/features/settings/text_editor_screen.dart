@@ -21,7 +21,7 @@ class _TextEditorState extends ConsumerState<TextEditorScreen> {
     final c = TextEditingController(text: Strings.overrides[lang]?[key] ?? Strings.builtIn(lang, key));
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => AlertDialog(scrollable: true, 
         title: Text(key),
         content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('${t['text_original']}: ${Strings.builtIn(lang, key)}', style: Theme.of(ctx).textTheme.bodySmall),

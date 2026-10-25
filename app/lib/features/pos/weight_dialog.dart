@@ -63,6 +63,16 @@ class _WeightDialogState extends ConsumerState<_WeightDialog> {
     } else {
       _c = TextEditingController(text: smallAmount == null ? '' : _trim(smallAmount));
     }
+    // the total follows every change of the text, however the keyboard delivers it (typing, paste, predictive text)
+    _c.addListener(() {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
   }
 
   int? get _milli {
@@ -78,6 +88,7 @@ class _WeightDialogState extends ConsumerState<_WeightDialog> {
     final price = milli == null ? 0 : widget.unitPriceMinor * milli ~/ 1000;
     return AlertDialog(
       title: Text(widget.name),
+      actionsPadding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
       content: SizedBox(
         width: 320,
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -91,7 +102,6 @@ class _WeightDialogState extends ConsumerState<_WeightDialog> {
                 autofocus: true,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(labelText: _big ? _bigName : _small, hintText: _big ? '1.5' : '750'),
-                onChanged: (_) => setState(() {}),
               ),
             ),
             const SizedBox(width: 10),
@@ -142,7 +152,7 @@ Future<int?> showOpenPriceDialog(BuildContext context, WidgetRef ref, String nam
   final c = TextEditingController();
   return showDialog<int>(
     context: context,
-    builder: (ctx) => AlertDialog(
+    builder: (ctx) => AlertDialog(scrollable: true, 
       title: Text(name),
       content: TextField(
         key: const ValueKey('open-price-input'),

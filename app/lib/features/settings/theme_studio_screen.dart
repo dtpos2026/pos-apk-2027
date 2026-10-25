@@ -47,7 +47,7 @@ class _ThemeStudioState extends ConsumerState<ThemeStudioScreen> {
         final hex = TextEditingController(text: current == null ? '' : (current.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase());
         String? err;
         return StatefulBuilder(
-          builder: (ctx, setS) => AlertDialog(
+          builder: (ctx, setS) => AlertDialog(scrollable: true, 
             title: Text(label),
             content: SingleChildScrollView(
               child: Column(mainAxisSize: MainAxisSize.min, children: [

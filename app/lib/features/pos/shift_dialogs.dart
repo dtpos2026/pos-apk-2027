@@ -13,7 +13,7 @@ Future<int?> _askAmount(BuildContext context, WidgetRef ref, String title, Strin
   final t = Strings.of(context);
   return showDialog<int>(
     context: context,
-    builder: (ctx) => AlertDialog(
+    builder: (ctx) => AlertDialog(scrollable: true, 
       title: Text(title),
       content: TextField(key: const ValueKey('amount-field'), controller: c, autofocus: true, keyboardType: const TextInputType.numberWithOptions(decimal: true), inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))], decoration: InputDecoration(labelText: label)),
       actions: [

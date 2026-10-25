@@ -425,7 +425,7 @@ class _DesignsTab extends ConsumerWidget {
     final ctl = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => AlertDialog(scrollable: true, 
         title: Text(t['design_import']),
         content: SizedBox(
           width: 420,

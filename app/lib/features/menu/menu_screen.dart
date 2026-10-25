@@ -430,7 +430,7 @@ class _ImportDialogState extends ConsumerState<_ImportDialog> {
   Widget build(BuildContext context) {
     final t = Strings.of(context);
     final r = _report;
-    return AlertDialog(
+    return AlertDialog(scrollable: true, 
       title: Text(t['import_csv']),
       content: SizedBox(
         width: 520,
@@ -594,7 +594,7 @@ class _CategoriesDialog extends ConsumerWidget {
                           final ctl = TextEditingController(text: c.station);
                           final ok = await showDialog<bool>(
                             context: context,
-                            builder: (d) => AlertDialog(
+                            builder: (d) => AlertDialog(scrollable: true, 
                               title: Text('${t['counter_station']}: ${c.name}'),
                               content: TextField(key: const ValueKey('category-counter-field'), controller: ctl, autofocus: true, decoration: InputDecoration(helperText: t['counter_station_hint'], helperMaxLines: 3)),
                               actions: [TextButton(onPressed: () => Navigator.pop(d, false), child: Text(t['cancel'])), FilledButton(key: const ValueKey('category-counter-save'), onPressed: () => Navigator.pop(d, true), child: Text(t['save']))],

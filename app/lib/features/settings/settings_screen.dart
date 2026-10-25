@@ -315,7 +315,7 @@ class SettingsScreen extends ConsumerWidget {
     await showDialog<void>(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setState) => AlertDialog(
+        builder: (ctx, setState) => AlertDialog(scrollable: true, 
           title: Text(t['add_printer']),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -396,7 +396,7 @@ class SettingsScreen extends ConsumerWidget {
     final pass = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => AlertDialog(scrollable: true, 
         title: Text(t['backup']),
         content: TextField(key: const ValueKey('backup-pass'), controller: pass, obscureText: true, decoration: InputDecoration(labelText: t['backup_passphrase'])),
         actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(t['cancel'])), FilledButton(key: const ValueKey('backup-go'), onPressed: () => Navigator.pop(ctx, true), child: Text(t['backup_now']))],
@@ -437,7 +437,7 @@ Future<void> _restore(BuildContext context, WidgetRef ref) async {
   final done = await showDialog<bool>(
     context: context,
     builder: (ctx) => StatefulBuilder(
-      builder: (ctx, setState) => AlertDialog(
+      builder: (ctx, setState) => AlertDialog(scrollable: true, 
         title: Text(t['restore']),
         content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(picked.name, style: const TextStyle(fontWeight: FontWeight.w600)),
