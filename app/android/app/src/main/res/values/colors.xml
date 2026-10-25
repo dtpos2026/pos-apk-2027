@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="splash_purple">#C92A2A</color>
+    <!-- Digital Target purple: the launch screen. The app itself is Restaurant Red. -->
+    <color name="splash_purple">#3C096C</color>
+    <color name="app_red">#C92A2A</color>
 </resources>

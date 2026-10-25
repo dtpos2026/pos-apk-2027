@@ -44,7 +44,7 @@ class AnimatedSplashScreen extends StatefulWidget {
 
 class _AnimatedSplashScreenState extends State<AnimatedSplashScreen> with TickerProviderStateMixin {
   static const _frames = 130.0; // length of dt_splash_logo.json (60 fps)
-  static const _lavender = Color(0xFFF7CFCF);
+  static const _lavender = Color(0xFFD9C8F2);
 
   late final AnimationController _logo = AnimationController(vsync: this);
   late final AnimationController _dots =
@@ -96,7 +96,7 @@ class _AnimatedSplashScreenState extends State<AnimatedSplashScreen> with Ticker
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFFC92A2A), Color(0xFF6E0F0F)],
+            colors: [Color(0xFF3C096C), Color(0xFF1E0538)],
           ),
         ),
         child: DecoratedBox(
@@ -105,7 +105,7 @@ class _AnimatedSplashScreenState extends State<AnimatedSplashScreen> with Ticker
             gradient: RadialGradient(
               center: const Alignment(-0.4, -0.5),
               radius: 0.9,
-              colors: [const Color(0xFFFF6B6B).withValues(alpha: 0.45), const Color(0x00FF6B6B)],
+              colors: [const Color(0xFF9B5DE5).withValues(alpha: 0.45), const Color(0x009B5DE5)],
             ),
           ),
           child: SafeArea(

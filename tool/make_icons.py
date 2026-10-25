@@ -1,4 +1,7 @@
-"""Draws the DT Food POS launcher icon (red + white, gold and black accents) for every Android density.
+"""NOTE: the shipped launcher icon is the Digital Target purple one (restored from git history, commit dfa357e^). This script draws the
+RED restaurant alternative; running it overwrites the icons, so it only runs with --write-red.
+
+Draws the DT Food POS launcher icon (red + white, gold and black accents) for every Android density.
 
 Run: python3 -I tool/make_icons.py   (needs Pillow). Layers follow the adaptive-icon grid: 108 units, safe zone 66 centred.
 """
@@ -147,4 +150,7 @@ def main():
     full.resize((512, 512), Image.LANCZOS).save(os.path.join(RES, '..', '..', '..', '..', '..', 'assets', 'brand', 'app_icon_512.png'))
 
 
-main()
+if '--write-red' in __import__('sys').argv:
+    main()
+else:
+    print('Not writing: the shipped icon is the Digital Target purple one. Use --write-red for the red alternative.')
