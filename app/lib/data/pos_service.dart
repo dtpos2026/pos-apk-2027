@@ -462,6 +462,11 @@ class PosService {
           await _exec("UPDATE dining_table SET status='free', updated_at=?, version=version+1 WHERE id=?", [now, o['table_id']]);
         }
         await _audit('bill.settle', staffId: staffId, entity: 'order', entityId: orderId, after: {'invoice': invoiceNo, 'total': bill.totalMinor});
+        // a paid bill's kitchen ticket is finished: it moves to Completed on its own (the history keeps every step)
+        final kitchen = await _select('SELECT status FROM kitchen_event WHERE order_id = ? ORDER BY at DESC, rowid DESC LIMIT 1', [orderId]);
+        if (kitchen.isNotEmpty && kitchen.first['status'] != 'served') {
+          await _exec('INSERT INTO kitchen_event(id, order_id, status, at, staff_id) VALUES (?,?,?,?,?)', [_newId(), orderId, 'served', _ts, staffId]);
+        }
         await _outbox('order', orderId, 'append', {'id': orderId, 'invoice_no': invoiceNo, 'total_minor': bill.totalMinor, 'tax_minor': bill.taxMinor, 'business_date': saleDate, 'status': 'paid'}, 'order:$orderId:settle');
         // food tokens (if the owner switched any on) are numbered in the same transaction as the sale: all or nothing
         await _tokens.issueForOrder(orderId);

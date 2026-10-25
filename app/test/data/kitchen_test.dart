@@ -47,18 +47,17 @@ void main() {
     expect(await kitchen.counts(), {'new': 0, 'preparing': 0, 'ready': 0, 'served': 1});
   });
 
-  test('paying the bill does not erase the kitchen: the order is still prepared and the history stays', () async {
+  test('paying the bill finishes its kitchen ticket by itself (Completed); the history stays and the bill stays paid', () async {
     final id = await draft(1000);
     await printSvc.sendToKitchen(id);
+    expect(await kitchen.tickets(), hasLength(1));
     await pos.settleOrder(orderId: id, payments: [const SettlePayment(methodId: 'cash', amountMinor: 45000)], staffId: 's1');
-    final t = (await kitchen.tickets()).single;
-    expect(t.paid, isTrue, reason: 'paid up front, still to be prepared');
-    await kitchen.advance(id);
-    await kitchen.advance(id);
-    await kitchen.advance(id);
-    expect((await kitchen.tickets(status: 'served')).single.paid, isTrue);
-    expect((await db.customSelect("SELECT COUNT(*) AS n FROM kitchen_event WHERE order_id = ?", variables: [Variable.withString(id)]).getSingle()).data['n'], 4, reason: 'new, preparing, ready, served');
+    expect(await kitchen.tickets(), isEmpty, reason: 'no longer waiting in the kitchen');
+    final done = (await kitchen.tickets(status: 'served')).single;
+    expect(done.paid, isTrue);
+    expect((await db.customSelect("SELECT COUNT(*) AS n FROM kitchen_event WHERE order_id = ?", variables: [Variable.withString(id)]).getSingle()).data['n'], 2, reason: 'new, then completed');
     expect((await db.customSelect('SELECT status FROM "order" WHERE id = ?', variables: [Variable.withString(id)]).getSingle()).data['status'], 'paid', reason: 'the bill stays paid');
+    await expectLater(kitchen.advance(id), throwsA(isA<PosException>()), reason: 'already completed');
   });
 
   test('an order that was never sent is not on the board; sending twice makes one ticket', () async {

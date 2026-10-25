@@ -48,6 +48,18 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
   late DateTime _from = ref.read(clockProvider)();
   late DateTime _to = _from;
 
+
+  @override
+  void initState() {
+    super.initState();
+    // after Close day, "today" is the next business day: start on it so new bills/expenses are visible at once
+    ref.read(dbHelperProvider).openBusinessDate().then((d) {
+      if (!mounted) return;
+      final p = d.split('-').map(int.parse).toList();
+      setState(() => _from = _to = DateTime(p[0], p[1], p[2]));
+    });
+  }
+
   @override
   void dispose() {
     _tabs.dispose();

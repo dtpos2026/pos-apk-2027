@@ -19,11 +19,13 @@ import 'cloud/firebase_gateway.dart';
 import 'cloud/location_consent.dart';
 import 'features/cloud/cloud_reporter.dart';
 import 'data/db/database.dart';
+import 'data/receipt_settings.dart';
 import 'data/restore.dart';
 import 'features/splash/animated_splash_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  ReceiptTemplateStore.defaultStyle = 'original'; // new installs print the original DT slip design until the owner picks another
   final dir = await getApplicationDocumentsDirectory();
   // NOTE: the database file is not yet encrypted. SQLCipher is planned (see PROGRESS.md) and needs on-device testing.
   final menuImages = Directory(p.join(dir.path, 'menu_images'));

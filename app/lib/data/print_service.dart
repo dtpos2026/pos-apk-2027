@@ -267,7 +267,10 @@ class PrintService {
       final slip = await svc.slip(t, paperMm: paper, reprint: again);
       final main = buildTokenSlipDoc(design, slip, paperMm: paper, copies: rule.copies);
       final stubs = buildStubLines(slip, rule.stubs, fallbackDepartment: rule.name);
-      final b = await EscPosRenderer(paperMm: paper, rasterizer: rasterizer).render(stubs.isEmpty ? main : ReceiptDoc([...main.lines, ...stubs], copies: main.copies));
+      // with the original bill design the token is printed as a picture too
+      final graphic = (await ReceiptTemplateStore(db).load()).style == 'original';
+      final full = stubs.isEmpty ? main : ReceiptDoc([...main.lines, ...stubs], copies: main.copies);
+      final b = await EscPosRenderer(paperMm: paper, rasterizer: rasterizer).render(graphic ? full.asGraphic() : full);
       EscPosRenderer.cut(b);
       ids.add(await _enqueue(printer['id'] as String, 'token', orderId, b.toBytes(), again));
       await svc.recordPrinted(t.id);

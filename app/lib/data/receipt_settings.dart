@@ -13,9 +13,14 @@ class ReceiptTemplateStore {
   final AppDatabase db;
   final DateTime Function() _now;
 
+  /// The look used until the owner saves a design. main() sets 'original' (the DT slip printed as a picture); tests keep 'classic'.
+  static String defaultStyle = 'classic';
+
   Future<BillDesign> load() async {
     final r = await db.customSelect("SELECT config FROM receipt_template WHERE id = 'bill'").get();
-    return BillDesign.decode(r.isEmpty ? null : r.first.data['config'] as String);
+    // nothing saved yet: the original DT design (printed as a picture)
+    if (r.isEmpty) return defaultStyle == 'classic' ? BillDesign.defaults : BillDesign.defaults.withStyle(defaultStyle);
+    return BillDesign.decode(r.first.data['config'] as String);
   }
 
   Future<void> save(BillDesign t) => db.customStatement(

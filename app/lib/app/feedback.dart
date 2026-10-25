@@ -142,7 +142,7 @@ class AndroidFeedback extends FeedbackPlayer {
   const AndroidFeedback(this.channel);
   final DeviceChannel channel;
   @override
-  Future<void> click() => SystemSound.play(SystemSoundType.click);
+  Future<void> click() => channel.tone('tap');
   @override
   Future<void> tone(String kind) => channel.tone(kind);
   @override

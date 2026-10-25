@@ -9,8 +9,6 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
-import android.media.AudioManager
-import android.media.ToneGenerator
 import android.net.Uri
 import android.content.Context
 import android.content.ContentValues
@@ -136,11 +134,25 @@ class MainActivity : FlutterActivity() {
             else -> true
         }
 
-    /** A short confirmation (success) or warning (error) tone on the notification volume; silent phones stay silent. */
+    private var sounds: android.media.SoundPool? = null
+    private val soundIds = HashMap<String, Int>()
+
+    /** The app's own tones (soft tap, rising "done" chime, low "no"), loaded once; they follow the phone's touch-sound volume. */
+    private fun loadSounds() {
+        if (sounds != null) return
+        val attrs = android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_ASSISTANCE_SONIFICATION).setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION).build()
+        val sp = android.media.SoundPool.Builder().setMaxStreams(4).setAudioAttributes(attrs).build()
+        for ((kind, res) in listOf("tap" to "dt_tap", "success" to "dt_success", "error" to "dt_error")) {
+            val id = resources.getIdentifier(res, "raw", packageName)
+            if (id != 0) soundIds[kind] = sp.load(this, id, 1)
+        }
+        sounds = sp
+    }
+
     private fun tone(kind: String) {
-        val g = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 85)
-        g.startTone(if (kind == "error") ToneGenerator.TONE_PROP_NACK else ToneGenerator.TONE_PROP_ACK, if (kind == "error") 300 else 220)
-        Handler(Looper.getMainLooper()).postDelayed({ g.release() }, 700)
+        loadSounds()
+        val id = soundIds[kind] ?: soundIds["success"] ?: return
+        sounds?.play(id, if (kind == "tap") 0.6f else 1f, if (kind == "tap") 0.6f else 1f, 1, 0, 1f)
     }
 
     /** Shows a notice in the phone's status bar. false = Android permission or the phone's notification switch is off. */

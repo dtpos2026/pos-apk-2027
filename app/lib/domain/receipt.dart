@@ -100,6 +100,7 @@ ReceiptDoc buildBillDoc(ReceiptData d, {BillDesign template = BillDesign.default
   final h = t.headerAlign;
   final body = L.rtl ? PrintAlign.right : PrintAlign.left;
   final style = t.style;
+  if (style == 'original') return _originalBill(d, t, L);
   final grid = style == 'grid';
   final RLine rule = switch (style) {
     'modern' => const RRule('- '),
@@ -256,6 +257,81 @@ ReceiptDoc buildBillDoc(ReceiptData d, {BillDesign template = BillDesign.default
   }
   if (t.showPoweredBy) lines.add(RText(dtr ? 'Powered by Digital Target · DT Food POS' : 'Powered by Digital Target', align: PrintAlign.center));
   return ReceiptDoc(lines, copies: t.copies);
+}
+
+/// The "original design" of the DT slips, printed as one picture: logo, big name, boxed TYPE / TABLE / TOKEN, order details,
+/// bold items, a black TOTAL bar, payment, amount in words, thanks.
+ReceiptDoc _originalBill(ReceiptData d, BillDesign t, BillLabels L) {
+  final rtl = L.rtl;
+  final h = t.headerAlign;
+  final lines = <RLine>[];
+  String money(int v) => _m(v, d.currency);
+  String typeLabel(String code) => switch (code) { 'Dine-in' => L['dine_in'], 'Takeaway' => L['takeaway'], 'Delivery' => L['delivery_type'], 'Counter' => L['counter'], _ => code };
+  RLine row(String label, String value, {bool bold = false, int height = 1}) => rtl ? RRow(value, label, bold: bold, height: height) : RRow(label, value, bold: bold, height: height);
+  final cur = d.currency.code == 'PKR' ? 'Rs.' : d.currency.code;
+
+  if (d.isDuplicate) lines.add(RText(L['duplicate'], align: PrintAlign.center, bold: true));
+  if (t.showLogo && d.logo != null) lines.add(RImage(d.logo!, align: t.logoAt));
+  lines.add(RText(d.businessName, align: t.nameAt, bold: true, width: t.nameSize, height: t.nameSize));
+  for (final l in t.headerLines.where((l) => l.trim().isNotEmpty)) {
+    lines.add(RText(l, align: h));
+  }
+  if (t.showAddress && (d.address?.trim().isNotEmpty ?? false)) lines.add(RText(d.address!, align: h));
+  if (t.showPhone && (d.phone?.trim().isNotEmpty ?? false)) lines.add(RText('${L['tel']}: ${d.phone}', align: h));
+  if (t.showTaxNumber && (d.taxNumber?.trim().isNotEmpty ?? false)) lines.add(RText('${d.taxLabel ?? 'Tax no'}: ${d.taxNumber}', align: h));
+  lines.add(const RFeed());
+  final hasTable = t.showTable && d.tableLabel != null;
+  final showToken = t.showToken && d.token != null;
+  lines.add(RCells([L['type'].toUpperCase(), if (hasTable) L['table'].toUpperCase(), if (showToken) L['token'].toUpperCase()], [typeLabel(d.orderTypeLabel).toUpperCase(), if (hasTable) d.tableLabel!, if (showToken) '#${d.token}']));
+  lines.add(row(L['invoice'], d.invoiceNo));
+  lines.add(row(L['date'], d.dateTime));
+  if (t.showCashier && d.cashier != null) lines.add(row(L['cashier'], d.cashier!));
+  for (final x in d.deliveryTo) {
+    lines.add(RText(x, align: rtl ? PrintAlign.right : PrintAlign.left));
+  }
+  lines.add(const RFeed());
+  for (final l in d.lines) {
+    final qty = formatQty(l.qtyMilli);
+    lines.add(row(rtl ? '${l.name} ×$qty' : '$qty× ${l.name}', money(l.totalMinor), bold: true));
+    for (final m in l.modifiers) {
+      lines.add(RText('   + $m', align: rtl ? PrintAlign.right : PrintAlign.left));
+    }
+    if (l.note != null) lines.add(RText('   * ${l.note}', align: rtl ? PrintAlign.right : PrintAlign.left));
+  }
+  lines.add(const RRule());
+  lines.add(row(L['subtotal'], money(d.subtotalMinor)));
+  if (d.discountMinor > 0) lines.add(row(L['discount'], '-${money(d.discountMinor)}'));
+  if (d.serviceChargeMinor > 0) lines.add(row(L['service'], money(d.serviceChargeMinor)));
+  if (d.deliveryChargeMinor > 0) lines.add(row(L['delivery'], money(d.deliveryChargeMinor)));
+  if (d.taxMinor > 0) lines.add(row(L['tax'], money(d.taxMinor)));
+  if (d.tipMinor > 0) lines.add(row(L['tip'], money(d.tipMinor)));
+  if (d.roundingMinor != 0) lines.add(row(L['rounding'], money(d.roundingMinor)));
+  final totalWord = L['total'].toUpperCase(), totalValue = '$cur ${money(d.totalMinor)}';
+  lines.add(rtl ? RRow(totalValue, totalWord, bold: true, height: 2, inverse: true) : RRow(totalWord, totalValue, bold: true, height: 2, inverse: true));
+  if (d.payments.isNotEmpty) {
+    lines.add(const RFeed());
+    for (final p in d.payments) {
+      final label = switch (p.label) { 'Cash' => L['cash'], 'Card' => L['card'], _ => p.label };
+      lines.add(row(L['payment'], label));
+      lines.add(row(L['paid'], money(p.amountMinor)));
+    }
+    if (d.changeMinor > 0) lines.add(row(L['change'], money(d.changeMinor)));
+  }
+  lines.add(const RRule('='));
+  if (t.language == 'en') lines.add(RText(_inWordsTitle(d.totalMinor, d.currency), align: PrintAlign.center));
+  for (final l in t.footerLines.map((l) => l == BillDesign.defaultFooter ? L['thanks'] : l).where((l) => l.trim().isNotEmpty)) {
+    lines.add(RText(l, align: PrintAlign.center));
+  }
+  final qr = t.qrText ?? d.qrData;
+  if (qr != null && qr.isNotEmpty) lines.add(RQr(qr));
+  if (t.showPoweredBy) lines.add(const RText('Powered by Digital Target', align: PrintAlign.center));
+  return ReceiptDoc(lines, copies: t.copies, graphic: true);
+}
+
+/// "Rupees Five Hundred Only" (title case, as on the original slips).
+String _inWordsTitle(int minor, Currency c) {
+  final w = amountInWords(minor, c).split(' ').map((x) => x.isEmpty ? x : x[0] + x.substring(1).toLowerCase()).join(' ');
+  return '${c.code == 'PKR' ? 'Rupees' : c.code} $w';
 }
 
 const _ones = ['ZERO', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'TEN', 'ELEVEN', 'TWELVE', 'THIRTEEN', 'FOURTEEN', 'FIFTEEN', 'SIXTEEN', 'SEVENTEEN', 'EIGHTEEN', 'NINETEEN'];

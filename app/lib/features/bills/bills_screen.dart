@@ -36,6 +36,18 @@ class _BillsScreenState extends ConsumerState<BillsScreen> {
 
   String get _key => '${_day.year}-${two(_day.month)}-${two(_day.day)}';
 
+
+  @override
+  void initState() {
+    super.initState();
+    // after Close day, "today" is the next business day: start on it so new bills/expenses are visible at once
+    ref.read(dbHelperProvider).openBusinessDate().then((d) {
+      if (!mounted) return;
+      final p = d.split('-').map(int.parse).toList();
+      setState(() => _day = DateTime(p[0], p[1], p[2]));
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = Strings.of(context);

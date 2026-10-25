@@ -355,7 +355,7 @@ class _ReceiptDialogState extends ConsumerState<_ReceiptDialog> {
     final doc = buildBillDoc(widget.data, template: widget.design);
     return AlertDialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 24),
-      title: Row(children: [const Icon(Icons.check_circle, color: Colors.green), const SizedBox(width: 8), Expanded(child: Text(widget.order.invoiceNo, key: const ValueKey('invoice-no'), style: const TextStyle(fontSize: 18)))]),
+      title: Row(children: [TweenAnimationBuilder<double>(key: const ValueKey('paid-tick'), tween: Tween(begin: 0.2, end: 1), duration: const Duration(milliseconds: 450), curve: Curves.elasticOut, builder: (_, v, child) => Transform.scale(scale: v, child: child), child: const Icon(Icons.check_circle, color: Color(0xFF1E9E4A), size: 40)), const SizedBox(width: 8), Expanded(child: Text(widget.order.invoiceNo, key: const ValueKey('invoice-no'), style: const TextStyle(fontSize: 18)))]),
       content: SizedBox(
         width: 380,
         child: SingleChildScrollView(

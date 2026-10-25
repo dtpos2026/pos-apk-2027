@@ -21,10 +21,10 @@ def u(v):
     return int(round(v * S))
 
 
-# Everything sits inside a circle of radius 31 around the centre (54, 54), so no launcher shape (circle, squircle, the
-# Android 12 splash circle) can cut any of it off. The coin with the fork and knife is printed ON the receipt.
-RX0, RX1, RY0, RY1, TIP = 38, 70, 26, 76, 81
-COIN = (54, 64.5, 9.2)
+# Everything sits inside a circle of radius 32 around the centre (54, 54), so no launcher shape (circle, squircle, the
+# Android 12 splash circle) can cut any of it off. The gold fork-and-knife coin sits on the receipt's lower-right corner.
+RX0, RX1, RY0, RY1, TIP = 36, 66, 28, 75, 80
+COIN = (64, 70, 9.5)
 
 
 def receipt_mask(d, fill):
@@ -62,11 +62,11 @@ def foreground(mono=False):
     im = Image.new('RGBA', (u(108), u(108)), (0, 0, 0, 0))
     d = ImageDraw.Draw(im)
     cx, cy, r = COIN
-    mx = (RX0 + RX1) / 2 - 7.5
+    mx = (RX0 + RX1) / 2 - 7
     if mono:
         receipt_mask(d, (0, 0, 0, 255))
-        im.paste((0, 0, 0, 0), (u(mx), u(RY0 + 4)), mark_mask(15))
-        for y0, x1 in ((RY0 + 22, RX1 - 6), (RY0 + 26.5, RX1 - 13)):
+        im.paste((0, 0, 0, 0), (u(mx), u(RY0 + 4)), mark_mask(14))
+        for y0, x1 in ((RY0 + 20, RX1 - 6), (RY0 + 24.5, RX1 - 13)):
             d.rounded_rectangle([u(RX0 + 6), u(y0), u(x1), u(y0 + 2)], radius=u(1), fill=(0, 0, 0, 0))
         d.ellipse([u(cx - r - 1.6), u(cy - r - 1.6), u(cx + r + 1.6), u(cy + r + 1.6)], fill=(0, 0, 0, 0))
         d.ellipse([u(cx - r), u(cy - r), u(cx + r), u(cy + r)], fill=(0, 0, 0, 255))
@@ -79,9 +79,10 @@ def foreground(mono=False):
     sh = sh.transform(sh.size, Image.AFFINE, (1, 0, 0, 0, 1, -u(1.3)))
     im.alpha_composite(sh)
     receipt_mask(d, WHITE)
-    im.paste(RED, (u(mx), u(RY0 + 4)), mark_mask(15))  # the brand mark in restaurant red
-    for y0, x1 in ((RY0 + 22, RX1 - 6), (RY0 + 26.5, RX1 - 13)):
+    im.paste(RED, (u(mx), u(RY0 + 4)), mark_mask(14))  # the brand mark in restaurant red
+    for y0, x1 in ((RY0 + 20, RX1 - 6), (RY0 + 24.5, RX1 - 13)):
         d.rounded_rectangle([u(RX0 + 6), u(y0), u(x1), u(y0 + 2)], radius=u(1), fill=TINT)
+    d.ellipse([u(cx - r - 1.7), u(cy - r - 1.7), u(cx + r + 1.7), u(cy + r + 1.7)], fill=WHITE)  # ring keeps the coin apart from the paper
     # the gold coin: drop shadow, dark rim, bright face with a soft highlight, black fork and knife
     d.ellipse([u(cx - r + 0.4), u(cy - r + 1.2), u(cx + r + 0.4), u(cy + r + 1.2)], fill=(0, 0, 0, 60))
     d.ellipse([u(cx - r), u(cy - r), u(cx + r), u(cy + r)], fill=(176, 120, 0))

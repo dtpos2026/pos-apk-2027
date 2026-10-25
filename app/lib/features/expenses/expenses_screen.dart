@@ -24,6 +24,18 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
   late DateTime _day = ref.read(clockProvider)();
   String get _key => '${_day.year}-${two(_day.month)}-${two(_day.day)}';
 
+
+  @override
+  void initState() {
+    super.initState();
+    // after Close day, "today" is the next business day: start on it so new bills/expenses are visible at once
+    ref.read(dbHelperProvider).openBusinessDate().then((d) {
+      if (!mounted) return;
+      final p = d.split('-').map(int.parse).toList();
+      setState(() => _day = DateTime(p[0], p[1], p[2]));
+    });
+  }
+
   Future<void> _add() async {
     final methods = (await ref.read(paymentMethodsProvider.future)).where((m) => m.kind != 'credit').toList();
     final cats = await ref.read(expenseServiceProvider).categories();
@@ -184,7 +196,6 @@ class _ExpenseSheetState extends ConsumerState<_ExpenseSheet> {
           TextField(
             key: const ValueKey('f-amount'),
             controller: _amount,
-            autofocus: true,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
             style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),

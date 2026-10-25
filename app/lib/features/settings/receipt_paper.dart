@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../../app/text_rasterizer.dart';
 import '../../domain/escpos.dart';
 import '../../domain/receipt_doc.dart';
 
@@ -22,6 +23,7 @@ class ReceiptPaper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (doc.graphic) return _GraphicPaper(doc: doc, paperMm: paperMm);
     final cols = columnsFor(paperMm);
     // a little slack: glyph advances are floating point and a line of exactly `cols` characters must never wrap or clip
     final textWidth = textWidthFor(cols);
@@ -113,6 +115,11 @@ class ReceiptPaper extends StatelessWidget {
           for (final line in layoutCols(l.cells, l.widths, cols, box: l.box))
             SizedBox(width: textWidth, child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(line, softWrap: false, style: TextStyle(fontWeight: weight)))),
         ]);
+      case RCells():
+        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          for (final line in [ruleText('+', cols), ...layoutCols(l.heads, [for (var i = 1; i < l.heads.length; i++) 9], cols, box: true), ...layoutCols(l.values, [for (var i = 1; i < l.heads.length; i++) 9], cols, box: true), ruleText('+', cols)])
+            SizedBox(width: textWidth, child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(line, softWrap: false))),
+        ]);
       case RRule():
         return SizedBox(width: textWidth, child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(ruleText(l.ch, cols), softWrap: false, style: const TextStyle(color: Colors.black45))));
       case RImage():
@@ -126,7 +133,7 @@ class ReceiptPaper extends StatelessWidget {
 }
 
 class _ImagePreview extends StatefulWidget {
-  const _ImagePreview({required this.image, required this.width});
+  const _ImagePreview({super.key, required this.image, required this.width});
   final RasterImage image;
   final double width;
   @override
@@ -161,5 +168,48 @@ class _ImagePreviewState extends State<_ImagePreview> {
     final i = _img;
     final h = widget.width * widget.image.heightPx / widget.image.widthPx;
     return SizedBox(height: h, width: widget.width, child: i == null ? null : RawImage(key: const ValueKey('logo-preview'), image: i, fit: BoxFit.fill, filterQuality: FilterQuality.none));
+  }
+}
+
+/// The "original design" preview: the very picture that is sent to the printer.
+class _GraphicPaper extends StatefulWidget {
+  const _GraphicPaper({required this.doc, required this.paperMm});
+  final ReceiptDoc doc;
+  final int paperMm;
+  @override
+  State<_GraphicPaper> createState() => _GraphicPaperState();
+}
+
+class _GraphicPaperState extends State<_GraphicPaper> {
+  RasterImage? _img;
+
+  @override
+  void initState() {
+    super.initState();
+    _render();
+  }
+
+  @override
+  void didUpdateWidget(covariant _GraphicPaper old) {
+    super.didUpdateWidget(old);
+    if (!identical(old.doc, widget.doc)) _render();
+  }
+
+  Future<void> _render() async {
+    final doc = widget.doc;
+    final img = await const FlutterTextRasterizer().document(doc, widthPx: dotsFor(widget.paperMm));
+    if (mounted && identical(doc, widget.doc)) setState(() => _img = img);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final w = ReceiptPaper.textWidthFor(columnsFor(widget.paperMm));
+    return Container(
+      key: const ValueKey('receipt-paper'),
+      width: w + 32,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4), boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 12, offset: Offset(0, 4))]),
+      child: _img == null ? const SizedBox(height: 120, child: Center(child: CircularProgressIndicator())) : _ImagePreview(key: const ValueKey('graphic-preview'), image: _img!, width: w),
+    );
   }
 }

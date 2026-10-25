@@ -103,6 +103,14 @@ class RCols extends RLine {
   final bool box;
 }
 
+/// Boxed cells with a small heading over a bold value ("TYPE / TAKEAWAY", "TOKEN / #004"), as on the original DT slips. Two cells are
+/// stacked, three or more sit side by side. Text printers draw them as a boxed table.
+class RCells extends RLine {
+  const RCells(this.heads, this.values);
+  final List<String> heads;
+  final List<String> values;
+}
+
 class RRule extends RLine {
   const RRule([this.ch = '-']);
   final String ch;
@@ -128,9 +136,19 @@ class RFeed extends RLine {
 /// What to print, independent of how: the printer (ESC/POS) and the on-screen preview are both rendered from this,
 /// so what the owner sees while designing the receipt is what comes out of the printer.
 class ReceiptDoc {
-  const ReceiptDoc(this.lines, {this.copies = 1});
+  const ReceiptDoc(this.lines, {this.copies = 1, this.graphic = false});
   final List<RLine> lines;
   final int copies;
+
+  /// Printed as ONE picture (smooth fonts, real boxes and bars, Urdu anywhere) instead of printer text: the "original design".
+  final bool graphic;
+
+  ReceiptDoc asGraphic() => ReceiptDoc(lines, copies: copies, graphic: true);
+}
+
+/// Draws a whole document as a single bitmap, [widthPx] dots wide. Implemented in the app layer (needs the Flutter canvas).
+abstract class DocumentRasterizer {
+  Future<RasterImage> document(ReceiptDoc doc, {required int widthPx});
 }
 
 /// Columns of text on the paper (font A): 32 for 58 mm, 48 for 80 mm.
@@ -207,6 +225,20 @@ class EscPosRenderer {
   Future<EscPosBuilder> render(ReceiptDoc doc) async {
     final b = _start();
     final dots = dotsFor(paperMm);
+    final whole = rasterizer;
+    if (doc.graphic && whole is DocumentRasterizer) {
+      final img = await (whole as DocumentRasterizer).document(doc, widthPx: dots);
+      for (var c = 0; c < doc.copies; c++) {
+        // sent in bands: many printers lose data on one very tall bitmap
+        const band = 192;
+        for (var y = 0; y < img.heightPx; y += band) {
+          final h = (img.heightPx - y) < band ? img.heightPx - y : band;
+          b.align(PrintAlign.left).raster(img.bits.sublist(y * img.widthBytes, (y + h) * img.widthBytes), widthBytes: img.widthBytes, heightPx: h);
+        }
+        b.feed(1);
+      }
+      return b;
+    }
     for (var c = 0; c < doc.copies; c++) {
       for (final l in doc.lines) {
         final r = rasterizer;
@@ -257,6 +289,17 @@ class EscPosRenderer {
           b.line(line);
         }
         b.bold(false);
+      case RCells():
+        final w = [for (var i = 1; i < l.heads.length; i++) 9];
+        b.align(PrintAlign.left).line(_rule('+', b.columns));
+        for (final line in layoutCols(l.heads, w, b.columns, box: true)) {
+          b.line(line);
+        }
+        b.bold(true);
+        for (final line in layoutCols(l.values, w, b.columns, box: true)) {
+          b.line(line);
+        }
+        b.bold(false).line(_rule('+', b.columns));
       case RRule():
         b.align(PrintAlign.left).line(_rule(l.ch, b.columns));
       case RImage():
@@ -305,6 +348,16 @@ String docToText(ReceiptDoc doc, int paperMm) {
         for (final line in layoutCols(l.cells, l.widths, cols, box: l.box)) {
           out.writeln(line);
         }
+      case RCells():
+        final w = [for (var i = 1; i < l.heads.length; i++) 9];
+        out.writeln(_rule('+', cols));
+        for (final line in layoutCols(l.heads, w, cols, box: true)) {
+          out.writeln(line);
+        }
+        for (final line in layoutCols(l.values, w, cols, box: true)) {
+          out.writeln(line);
+        }
+        out.writeln(_rule('+', cols));
       case RRule():
         out.writeln(_rule(l.ch, cols));
       case RImage():
