@@ -24,6 +24,7 @@ import '../data/menu_images.dart';
 import '../data/menu_import.dart';
 import '../data/menu_service.dart';
 import '../data/payment_method_service.dart';
+import '../data/bill_ops.dart';
 import '../data/pos_service.dart';
 import '../data/print_service.dart';
 import '../data/queries.dart';
@@ -52,6 +53,7 @@ final dbHelperProvider = Provider<DbHelper>((ref) => DbHelper(ref.watch(database
 final customerServiceProvider = Provider<CustomerService>((ref) => CustomerService(ref.watch(dbHelperProvider)));
 final expenseServiceProvider = Provider<ExpenseService>((ref) => ExpenseService(ref.watch(dbHelperProvider)));
 final inventoryServiceProvider = Provider<InventoryService>((ref) => InventoryService(ref.watch(dbHelperProvider)));
+final billOpsProvider = Provider<BillOps>((ref) => BillOps(ref.watch(dbHelperProvider), ref.watch(posServiceProvider)));
 final tableServiceProvider = Provider<TableService>((ref) => TableService(ref.watch(dbHelperProvider)));
 final attendanceServiceProvider = Provider<AttendanceService>((ref) => AttendanceService(ref.watch(dbHelperProvider)));
 final onlineOrderServiceProvider = Provider<OnlineOrderService>((ref) => OnlineOrderService(ref.watch(dbHelperProvider), ref.watch(posServiceProvider), ref.watch(customerServiceProvider)));

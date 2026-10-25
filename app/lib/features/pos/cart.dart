@@ -112,6 +112,17 @@ class CartNotifier extends Notifier<CartState> {
     await flush();
   }
 
+  /// A bill was merged / split behind the cart's back: show what is stored now (or an empty cart if this bill is gone).
+  Future<void> reloadAfterBillChange() async {
+    await flush();
+    final id = state.draftId;
+    if (id == null) return;
+    final d = await _pos.loadDraft(id);
+    state = d == null
+        ? CartState(orderType: state.orderType)
+        : CartState(items: d.items, orderType: d.orderType, draftId: id, config: d.config, customerId: d.customerId, tableId: d.tableId, deliveryAddress: d.deliveryAddress);
+  }
+
   /// Delivery details changed in the cart (phone, name, address).
   void setDelivery({String? name, String? phone, String? address}) {
     state = state.copyWith(deliveryName: name, deliveryPhone: phone, deliveryAddress: address);

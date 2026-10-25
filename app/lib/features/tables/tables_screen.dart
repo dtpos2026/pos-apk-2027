@@ -8,6 +8,7 @@ import '../../app/theme.dart' show BrandColorsX;
 import '../../data/pos_service.dart';
 import '../../data/table_service.dart';
 import '../common/dialogs.dart';
+import 'bill_split_dialogs.dart';
 import '../pos/cart.dart';
 
 final _areasProvider = FutureProvider.autoDispose<List<AreaRow>>((ref) => ref.watch(tableServiceProvider).areas());
@@ -54,6 +55,8 @@ class _TablesScreenState extends ConsumerState<TablesScreen> {
           if (t.orderId == null) ListTile(key: const ValueKey('act-free'), leading: const Icon(Icons.check_circle_outline), title: Text(s['mark_free']), onTap: () => Navigator.pop(ctx, 'free')),
           if (t.orderId == null) ListTile(key: const ValueKey('act-reserve'), leading: const Icon(Icons.bookmark_outline), title: Text(s['mark_reserved']), onTap: () => Navigator.pop(ctx, 'reserved')),
           if (t.orderId == null) ListTile(leading: const Icon(Icons.cleaning_services_outlined), title: Text(s['mark_cleaning']), onTap: () => Navigator.pop(ctx, 'cleaning')),
+          if (t.orderId != null) ListTile(key: const ValueKey('act-merge'), leading: const Icon(Icons.call_merge), title: Text(s['merge_bill']), onTap: () => Navigator.pop(ctx, 'merge')),
+          if (t.orderId != null) ListTile(key: const ValueKey('act-split'), leading: const Icon(Icons.call_split), title: Text(s['split_bill']), onTap: () => Navigator.pop(ctx, 'split')),
           if (t.orderId != null) ListTile(key: const ValueKey('act-transfer'), leading: const Icon(Icons.swap_horiz), title: Text(s['transfer']), onTap: () => Navigator.pop(ctx, 'transfer')),
           if (canManage && t.orderId == null) ListTile(key: const ValueKey('act-delete'), leading: const Icon(Icons.delete_outline), title: Text(s['delete']), onTap: () => Navigator.pop(ctx, 'delete')),
         ]),
@@ -61,7 +64,11 @@ class _TablesScreenState extends ConsumerState<TablesScreen> {
     );
     if (choice == null || !mounted) return;
     try {
-      if (choice == 'delete') {
+      if (choice == 'merge') {
+        await showMergeBill(context, ref, t);
+      } else if (choice == 'split') {
+        await showSplitBill(context, ref, t);
+      } else if (choice == 'delete') {
         await svc.deleteTable(t.id);
       } else if (choice == 'transfer') {
         final free = (await svc.tables()).where((x) => x.status == 'free').toList();
