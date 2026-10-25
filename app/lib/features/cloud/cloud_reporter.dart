@@ -20,6 +20,10 @@ final deviceDescriptionProvider = FutureProvider<({String model, String android}
 /// How many earlier days are re-sent each round, so days spent offline still reach the panel.
 const resendDays = 7;
 
+/// Days looked at for records that no longer have bills (they are removed from the panel), and how long the panel keeps daily totals at most.
+const cleanDays = 30;
+const keepDays = 90;
+
 /// Result of the last attempt to reach Digital Target's servers. Shown as the cloud icon in the app bar.
 class CloudSyncStatus {
   const CloudSyncStatus({this.lastOkAt, this.lastError, this.lastTryAt});
@@ -67,11 +71,19 @@ class CloudReporter {
       final today = await totalsFor(now);
       if (today != null) await gw.reportSales(uid, today, version);
       final past = <DayTotals>[];
-      for (var i = 1; i <= resendDays; i++) {
-        final t = await totalsFor(now.subtract(Duration(days: i)));
-        if (t != null && (t.bills > 0 || t.refundsMinor > 0)) past.add(t);
+      final empty = <String>[];
+      for (var i = 1; i <= cleanDays; i++) {
+        final day = now.subtract(Duration(days: i));
+        final t = await totalsFor(day);
+        if (t == null) continue;
+        if (t.bills > 0 || t.refundsMinor > 0) {
+          if (i <= resendDays) past.add(t);
+        } else {
+          empty.add(dateKey(day)); // no bills on this day any more (deleted, voided, data cleared): the panel's record goes too
+        }
       }
       await gw.reportPastDays(uid, past);
+      await gw.cleanDays(uid, empty, dateKey(now.subtract(const Duration(days: keepDays))));
       ref.read(cloudSyncStatusProvider.notifier).succeeded(now);
     } catch (e) {
       ref.read(cloudSyncStatusProvider.notifier).failed(now, e.toString());

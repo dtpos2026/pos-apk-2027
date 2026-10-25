@@ -156,7 +156,8 @@ export function RestaurantPage({ api, go, arg }: PageProps) {
           <table className="mini"><thead><tr><th>Date</th><th>Bills</th><th>Customers</th><th>Net sales</th></tr></thead><tbody>
             {(days.data ?? []).slice(0, 14).map(d => <tr key={d.date}><td>{d.date}</td><td>{d.bills}</td><td>{d.customers}</td><td>{money(d.netMinor, a.currency)}</td></tr>)}
           </tbody></table>)}
-        <p className="mut small">Totals only, sent by the restaurant's phone when it is online{a.todayAt ? `; last report ${ago(a.todayAt)}` : ''}.</p>
+        {(days.data ?? []).length > 0 && <div className="row"><button className="act sec" disabled={act.busy} onClick={() => { if (window.confirm('Delete every daily sales record of this restaurant from the panel? Their own data in the app is not touched.')) act.run(async () => { await api.clearSales(a.uid); days.reload(); }); }}>Clear sales records</button></div>}
+        <p className="mut small">Totals only, sent by the restaurant's phone when it is online; days with no bills left and records older than 90 days are removed by themselves{a.todayAt ? `; last report ${ago(a.todayAt)}` : ''}.</p>
       </div>
     </div>
     {a.status === 'pending' ? (

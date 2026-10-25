@@ -217,6 +217,11 @@ export function createFirebaseApi(cfg: FirebaseWebConfig, emulator?: { host: str
       await b.commit();
     },
     async markRead(uid) { await setDoc(doc(db, 'support', uid), { unreadForAdmin: false }, { merge: true }); },
+    async clearSales(uid) {
+      const s = await getDocs(collection(db, 'stats', uid, 'days'));
+      for (let i = 0; i < s.docs.length; i += 400) { const b = writeBatch(db); s.docs.slice(i, i + 400).forEach(d => b.delete(d.ref)); await b.commit(); }
+      await audited('sales.clear', uid, { days: s.docs.length }, b => b.set(doc(db, 'stats', uid), { todayNetMinor: 0, todayBills: 0, updatedAt: serverTimestamp() }, { merge: true }));
+    },
     async clearChat(uid) {
       const s = await getDocs(collection(db, 'support', uid, 'messages'));
       for (let i = 0; i < s.docs.length; i += 400) { const b = writeBatch(db); s.docs.slice(i, i + 400).forEach(d => b.delete(d.ref)); await b.commit(); }

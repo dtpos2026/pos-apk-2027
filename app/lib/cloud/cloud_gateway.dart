@@ -130,6 +130,9 @@ abstract class CloudGateway {
   /// was offline and refunds made after the day ended.
   Future<void> reportPastDays(String uid, List<DayTotals> days);
 
+  /// Removes the panel's record of these days (their bills are gone from the app), and every record older than [keepFrom] ('YYYY-MM-DD').
+  Future<void> cleanDays(String uid, List<String> emptyDates, String keepFrom);
+
 
   Stream<List<SupportMessage>> watchSupport(String uid);
 

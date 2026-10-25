@@ -105,6 +105,13 @@ class FakeCloud implements CloudGateway {
     pastDays.addAll(days);
   }
 
+  final cleaned = <String>[];
+  @override
+  Future<void> cleanDays(String uid, List<String> emptyDates, String keepFrom) async {
+    if (offline) throw const CloudException('No internet connection.');
+    cleaned.addAll(emptyDates);
+  }
+
   final notices = <AppNotice>[];
   final _noticeCtl = StreamController<List<AppNotice>>.broadcast();
   @override

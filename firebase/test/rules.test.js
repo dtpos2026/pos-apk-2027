@@ -119,6 +119,8 @@ describe('sales totals', () => {
     await assertFails(setDoc(doc(as('u1'), 'stats/u1/days/2026-10-24'), { ...day, customerNames: ['Ali'] }));
     await assertFails(setDoc(doc(as('u1'), 'stats/u1/days/2026-10-25'), { ...day, netMinor: 'lots' }));
     await assertFails(getDoc(doc(as('u2'), 'stats/u1/days/2026-10-23')));
+    await assertSucceeds(deleteDoc(doc(as('u1'), 'stats/u1/days/2026-10-23')));
+    await assertFails(deleteDoc(doc(as('u2'), 'stats/u1/days/2026-10-23')));
     await makeAdmin('adm');
     await assertSucceeds(getDoc(doc(as('adm'), 'stats/u1/days/2026-10-23')));
   });

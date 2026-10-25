@@ -339,6 +339,7 @@ void main() {
     final d = cloud.pastDays.singleWhere((x) => x.date == '2026-01-10');
     expect(d.bills, 1);
     expect(d.netMinor, greaterThanOrEqualTo(45000));
+    expect(cloud.cleaned, isNot(contains('2026-01-10')), reason: 'a day that still has bills is kept');
     await t.pumpWidget(const SizedBox());
     h.container.dispose();
   });

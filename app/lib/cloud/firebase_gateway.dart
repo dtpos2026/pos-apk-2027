@@ -144,6 +144,20 @@ class FirebaseGateway implements CloudGateway {
       });
 
   @override
+  Future<void> cleanDays(String uid, List<String> emptyDates, String keepFrom) => _guard(() async {
+        final days = _db.collection('stats').doc(uid).collection('days');
+        final batch = _db.batch();
+        for (final d in emptyDates) {
+          batch.delete(days.doc(d));
+        }
+        final old = await days.where('date', isLessThan: keepFrom).get();
+        for (final d in old.docs) {
+          batch.delete(d.reference);
+        }
+        await batch.commit();
+      });
+
+  @override
   Stream<List<SupportMessage>> watchSupport(String uid) => _db.collection('support').doc(uid).collection('messages').orderBy('at').snapshots().map((q) => [
         for (final d in q.docs) SupportMessage(id: d.id, fromAdmin: d.data()['sender'] == 'admin', text: (d.data()['text'] as String?) ?? '', at: _date(d.data()['at'])),
       ]);

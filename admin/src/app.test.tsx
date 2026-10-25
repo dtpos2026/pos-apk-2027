@@ -22,7 +22,7 @@ function fake(over: Partial<AdminApi> = {}): AdminApi {
     accounts: async () => [pending], account: async () => pending, approve: vi.fn(async () => {}), patchAccount: nope, setStatus: vi.fn(async () => {}), resetOwnerPin: vi.fn(async () => {}), approvePhone: nope, removePhone: nope,
     notes: async () => '', setNotes: nope, days: async () => [], devices: async () => [], setDeviceBlocked: nope, deleteDevice: nope, invoices: async () => [], invoice: async () => null,
     createInvoice: nope, recordPayment: nope, voidInvoice: nope, verifyInvoice: async () => null, threads: async () => [], messages: async () => [], sendMessage: nope, markRead: async () => {},
-    clearChat: nope, deleteChat: nope,
+    clearChat: nope, clearSales: nope, deleteChat: nope,
     getBranding: async () => ({ appName: '', contact: '', whatsapp: '', email: '', supportMessage: '' }), setBranding: nope,
     getAppControl: async () => ({ offlineDays: 7, notice: '', latestVersion: '', minVersion: '', updateLink: '' }), setAppControl: nope,
     getBilling: async () => ({ company: '', address: '', bank: '', accountTitle: '', accountNo: '', terms: '', paymentQr: '', signature: '', reminderTemplate: '', planPrices: { monthly: 250000 } }), setBilling: nope,

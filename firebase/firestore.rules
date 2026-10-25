@@ -66,6 +66,8 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['updatedAt', 'todayNetMinor', 'todayBills', 'currency', 'appVersion']);
       match /days/{date} {
         allow read: if isAdmin() || (signedIn() && uid == me());
+        // old or emptied days are cleaned away: by the restaurant's app (a day with no bills any more, records older than 90 days) or by the admin
+        allow delete: if (signedIn() && uid == me()) || can('restaurants');
         allow write: if signedIn() && uid == me()
           && request.resource.data.keys().hasOnly(['date', 'netMinor', 'grossMinor', 'refundsMinor', 'bills', 'customers', 'cashMinor', 'onlineMinor', 'creditMinor', 'updatedAt'])
           && request.resource.data.keys().hasAll(['date', 'netMinor', 'bills'])

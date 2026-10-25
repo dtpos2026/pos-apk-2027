@@ -70,6 +70,7 @@ export interface AdminApi {
   sendMessage(uid: string, text: string): Promise<void>;
   markRead(uid: string): Promise<void>;
   clearChat(uid: string): Promise<void>;
+  clearSales(uid: string): Promise<void>;
   deleteChat(uid: string): Promise<void>;
   getBranding(): Promise<Branding>; setBranding(b: Branding): Promise<void>;
   getAppControl(): Promise<AppControl>; setAppControl(a: AppControl): Promise<void>;
