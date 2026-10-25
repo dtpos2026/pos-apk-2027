@@ -1,11 +1,11 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import '../../app/theme.dart';
 import '../cloud/notices.dart';
 import '../help/help_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/menu_style.dart';
 import '../../app/providers.dart';
 import '../common/person_avatar.dart';
 import '../../app/strings.dart';
@@ -35,46 +35,50 @@ class AppDrawer extends ConsumerWidget {
       Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
     }
 
+    final mc = MenuColors(cs.primary, ref.watch(menuStyleProvider).value ?? const SideMenuStyle());
     final header = Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(20, MediaQuery.paddingOf(context).top + 20, 20, 20),
-      decoration: BoxDecoration(gradient: BrandBanner(cs.primary, darken: 0.45).gradient),
+      decoration: BoxDecoration(gradient: mc.gradient),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Container(
           padding: const EdgeInsets.all(3),
-          decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: BrandBanner(cs.primary).on, width: 2.5)),
+          decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: mc.on, width: 2.5)),
           child: CircleAvatar(
           radius: 34,
-          backgroundColor: BrandBanner(cs.primary).on,
+          backgroundColor: mc.on,
           backgroundImage: biz?.logoPath == null || !File(biz!.logoPath!).existsSync() ? null : FileImage(File(biz.logoPath!)),
           child: biz?.logoPath == null || !File(biz!.logoPath!).existsSync() ? Icon(Icons.storefront_outlined, size: 34, color: cs.primary) : null,
         ),
         ),
         const Spacer(),
-        const NoticeBell(onDark: true),
+        NoticeBell(onDark: mc.on.computeLuminance() > 0.5),
         ]),
         const SizedBox(height: 12),
-        Text(biz?.name ?? t['app_name'], key: const ValueKey('drawer-name'), style: TextStyle(color: BrandBanner(cs.primary).on, fontSize: 20, fontWeight: FontWeight.w800)),
-        if ((biz?.ownerName ?? '').isNotEmpty) Text(biz!.ownerName!, style: TextStyle(color: BrandBanner(cs.primary).soft)),
+        Text(biz?.name ?? t['app_name'], key: const ValueKey('drawer-name'), style: TextStyle(color: mc.on, fontSize: 20, fontWeight: FontWeight.w800)),
+        if ((biz?.ownerName ?? '').isNotEmpty) Text(biz!.ownerName!, style: TextStyle(color: mc.soft)),
         const SizedBox(height: 6),
         Row(children: [
           PersonAvatar(name: session.name, imagePath: ref.watch(staffListProvider).value?.where((x) => x.id == session.staffId).firstOrNull?.imagePath, radius: 13),
           const SizedBox(width: 8),
-          Flexible(child: Text(session.name, style: TextStyle(color: BrandBanner(cs.primary).on, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis)),
+          Flexible(child: Text(session.name, style: TextStyle(color: mc.on, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis)),
           if (status != null) ...[
             const SizedBox(width: 8),
-            Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: BrandBanner(cs.primary).chip, borderRadius: BorderRadius.circular(999)), child: Text(t['acc_status_$status'], style: TextStyle(color: BrandBanner(cs.primary).on, fontSize: 12, fontWeight: FontWeight.w700))),
+            Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: mc.chip, borderRadius: BorderRadius.circular(999)), child: Text(t['acc_status_$status'], style: TextStyle(color: mc.on, fontSize: 12, fontWeight: FontWeight.w700))),
           ],
         ]),
       ]),
     );
 
     return Drawer(
+      backgroundColor: mc.body,
       child: Column(children: [
         header,
         Expanded(
-          child: ListView(padding: EdgeInsets.zero, children: [
+          child: ListTileTheme(
+            data: ListTileThemeData(textColor: mc.listText, iconColor: mc.listText),
+            child: ListView(padding: EdgeInsets.zero, children: [
             if (session.can('settings.manage')) ListTile(key: const ValueKey('drawer-profile'), leading: const Icon(Icons.badge_outlined), title: Text(t['business_profile']), onTap: () => open(const BusinessProfileScreen())),
             if (ref.watch(activeModulesProvider).contains('staff')) _ClockTile(staffId: session.staffId),
             ListTile(key: const ValueKey('drawer-account'), leading: const Icon(Icons.verified_user_outlined), title: Text(t['account_licence']), onTap: () => open(const AccountScreen())),
@@ -89,7 +93,8 @@ class AppDrawer extends ConsumerWidget {
               }),
             ListTile(key: const ValueKey('drawer-help'), leading: const Icon(Icons.menu_book_outlined), title: Text(t['help_title']), onTap: () => open(const HelpScreen())),
             if (ref.watch(cloudGatewayProvider) != null) ListTile(key: const ValueKey('drawer-support'), leading: const Icon(Icons.support_agent), title: Text(t['support']), onTap: () => open(const SupportScreen())),
-          ]),
+            ]),
+          ),
         ),
         const Divider(height: 1),
         ListTile(key: const ValueKey('drawer-sign-out'), leading: const Icon(Icons.logout), title: Text(t['sign_out']), onTap: () {

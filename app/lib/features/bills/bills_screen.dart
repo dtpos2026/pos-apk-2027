@@ -122,9 +122,19 @@ class _RunningBillDialog extends ConsumerStatefulWidget {
 class _RunningBillDialogState extends ConsumerState<_RunningBillDialog> {
   List<Map<String, Object?>> _items = const [];
 
+  /// Table, area (Indoor / Outdoor...), waiter, rider and customer of the bill, shown above the items.
+  Map<String, Object?> _info = const {};
+
   @override
   void initState() {
     super.initState();
+    ref.read(dbHelperProvider).q(
+        'SELECT t.label AS tbl, a.name AS area, w.name AS waiter, r.name AS rider, c.name AS cname, c.phone AS cphone, o.delivery_address AS addr, o.order_type AS ty '
+        'FROM "order" o LEFT JOIN dining_table t ON t.id = o.table_id LEFT JOIN area a ON a.id = t.area_id LEFT JOIN team_member w ON w.id = o.waiter_member_id '
+        'LEFT JOIN team_member r ON r.id = o.rider_id LEFT JOIN customer c ON c.id = o.customer_id WHERE o.id = ?',
+        [widget.bill.id]).then((r) {
+      if (mounted && r.isNotEmpty) setState(() => _info = r.first);
+    });
     ref.read(dbHelperProvider).q("SELECT name, qty_milli, line_total_minor FROM order_item WHERE order_id = ? AND status = 'active' ORDER BY rowid", [widget.bill.id]).then((r) {
       if (mounted) setState(() => _items = r);
     });
@@ -163,7 +173,13 @@ class _RunningBillDialogState extends ConsumerState<_RunningBillDialog> {
       content: SizedBox(
         width: 320,
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          if (b.table != null) Text('${s['table']}: ${b.table}'),
+          if (b.table != null) Text('${s['table']}: ${b.table}${((_info['area'] as String?) ?? '').isEmpty ? '' : '  (${_info['area']})'}', key: const ValueKey('running-table'), style: const TextStyle(fontWeight: FontWeight.w700)),
+          if (((_info['waiter'] as String?) ?? '').isNotEmpty) Text('${s['waiter']}: ${_info['waiter']}', key: const ValueKey('running-waiter')),
+          if (_info['ty'] == 'delivery') ...[
+            if (((_info['cname'] as String?) ?? '').isNotEmpty) Text('${_info['cname']}${((_info['cphone'] as String?) ?? '').isEmpty ? '' : '  ·  ${_info['cphone']}'}'),
+            if (((_info['addr'] as String?) ?? '').isNotEmpty) Text('${_info['addr']}'),
+            if (((_info['rider'] as String?) ?? '').isNotEmpty) Text('${s['rider']}: ${_info['rider']}', key: const ValueKey('running-rider')),
+          ],
           const SizedBox(height: 6),
           for (final i in _items) Text('${formatQty(i['qty_milli'] as int)} x ${i['name']}   ${ref.money(i['line_total_minor'] as int)}'),
           const Divider(),

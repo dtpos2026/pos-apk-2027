@@ -318,7 +318,21 @@ class _ItemEditorState extends ConsumerState<_ItemEditor> {
             const SizedBox(height: 12),
             TextField(key: const ValueKey('item-name'), controller: name, textCapitalization: TextCapitalization.words, decoration: InputDecoration(labelText: t['product_name'])),
             const SizedBox(height: 10),
-            TextField(key: const ValueKey('item-category'), controller: category, decoration: InputDecoration(labelText: t['category'])),
+            TextField(key: const ValueKey('item-category'), controller: category, onChanged: (_) => setState(() {}), decoration: InputDecoration(labelText: '${t['category']} (${t['optional']})', helperText: t['category_pick_hint'])),
+            if ((ref.watch(categoriesProvider).value ?? const []).isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Wrap(spacing: 8, runSpacing: 0, children: [
+                  for (final c in ref.watch(categoriesProvider).value ?? const <MenuCategory>[])
+                    ChoiceChip(
+                      key: ValueKey('item-cat-${c.name}'),
+                      label: Text(c.name),
+                      selected: category.text.trim().toLowerCase() == c.name.toLowerCase(),
+                      showCheckmark: false,
+                      onSelected: (on) => setState(() => category.text = on ? c.name : ''),
+                    ),
+                ]),
+              ),
             const SizedBox(height: 14),
             Text(t['sold_as'], style: const TextStyle(fontWeight: FontWeight.w800)),
             const SizedBox(height: 6),

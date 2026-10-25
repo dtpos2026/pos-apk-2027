@@ -161,6 +161,13 @@ Future<void> tapKey(WidgetTester t, String key) async {
   await t.pumpAndSettle();
 }
 
+/// Like [tapKey], for a button inside a form that scrolls: it is brought into view first.
+Future<void> tapScrolled(WidgetTester t, String key) async {
+  await t.ensureVisible(find.byKey(ValueKey(key)));
+  await t.pumpAndSettle();
+  await tapKey(t, key);
+}
+
 Future<void> signIn(WidgetTester t, String name, String pin) async {
   await t.tap(find.byKey(ValueKey('staff-$name')));
   await t.pumpAndSettle();

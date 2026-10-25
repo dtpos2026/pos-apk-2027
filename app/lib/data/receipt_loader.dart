@@ -46,6 +46,8 @@ Future<ReceiptData> loadReceipt(AppDatabase db, String orderId, {bool duplicate 
   final pays = await q('SELECT pm.name AS name, p.amount_minor AS amount, p.tendered_minor AS tendered, p.change_minor AS change FROM payment p JOIN payment_method pm ON pm.id = p.method_id WHERE p.order_id = ? ORDER BY p.rowid', [orderId]);
   final cashier = o['cashier_id'] == null ? null : (await q('SELECT name FROM staff WHERE id = ?', [o['cashier_id'] as String])).firstOrNull?['name'] as String?;
   final table = o['table_id'] == null ? null : (await q('SELECT label FROM dining_table WHERE id = ?', [o['table_id'] as String])).firstOrNull?['label'] as String?;
+  final area = o['table_id'] == null ? null : (await q('SELECT a.name AS n FROM dining_table t JOIN area a ON a.id = t.area_id WHERE t.id = ?', [o['table_id'] as String])).firstOrNull?['n'] as String?;
+  final waiter = o['waiter_member_id'] == null ? null : (await q('SELECT name FROM team_member WHERE id = ?', [o['waiter_member_id'] as String])).firstOrNull?['name'] as String?;
   final when = DateTime.fromMillisecondsSinceEpoch((o['settled_at'] ?? o['created_at']) as int);
   final deliveryTo = await deliveryLinesFor(q, o);
 
@@ -72,6 +74,8 @@ Future<ReceiptData> loadReceipt(AppDatabase db, String orderId, {bool duplicate 
     orderTypeLabel: orderTypeLabels[o['order_type']] ?? '${o['order_type']}',
     tableLabel: table,
     deliveryTo: deliveryTo,
+    waiter: waiter,
+    area: area,
     cashier: cashier,
     lines: lines,
     subtotalMinor: o['subtotal_minor'] as int,

@@ -52,7 +52,13 @@ class ReceiptData {
     this.logo,
     this.token,
     this.deliveryTo = const [],
+    this.waiter,
+    this.area,
   });
+
+  /// Dine-in only: the waiter and the area of the table (Indoor, Outdoor, Roof...), printed at the end of the bill.
+  final String? waiter;
+  final String? area;
 
   /// Who the delivery is for (name, phone, address); empty for other order types.
   final List<String> deliveryTo;
@@ -94,6 +100,12 @@ String _m(int minor, Currency c) => formatMinor(minor, currency: c, symbol: fals
 /// Builds the customer bill as a [ReceiptDoc]: logo, name, address, phone and tax number centred by default,
 /// then the invoice details, items, totals, payments and footer. Which blocks appear, and the look ([BillDesign.style]),
 /// is up to the [template].
+/// "Table T4 (Outdoor)" and "Waiter: Sara" for a dine-in bill, printed at the very end so the customer and the floor know whose bill it is.
+List<RLine> _dineInEnd(ReceiptData d, BillLabels L, PrintAlign body, {bool showTable = true}) => [
+      if (showTable && d.tableLabel != null) RText('${L['table']}: ${d.tableLabel}${(d.area ?? '').isEmpty ? '' : '  (${d.area})'}', align: body, bold: true),
+      if ((d.waiter ?? '').isNotEmpty) RText('${L['waiter']}: ${d.waiter}', align: body, bold: true),
+    ];
+
 ReceiptDoc buildBillDoc(ReceiptData d, {BillDesign template = BillDesign.defaults}) {
   final t = template;
   final L = BillLabels.of(t.language);
@@ -245,6 +257,7 @@ ReceiptDoc buildBillDoc(ReceiptData d, {BillDesign template = BillDesign.default
   }
   if (d.changeMinor > 0) lines.add(row(L['change'], money(d.changeMinor)));
   lines.add(rule);
+  lines.addAll(_dineInEnd(d, L, body, showTable: t.showTable));
   final footers = t.footerLines.map((l) => l == BillDesign.defaultFooter ? L['thanks'] : l).where((l) => l.trim().isNotEmpty);
   for (final l in footers) {
     lines.add(RText(l, align: PrintAlign.center));
@@ -322,6 +335,7 @@ ReceiptDoc _originalBill(ReceiptData d, BillDesign t, BillLabels L) {
     }
     if (d.changeMinor > 0) lines.add(row(L['change'], money(d.changeMinor)));
   }
+  lines.addAll(_dineInEnd(d, L, rtl ? PrintAlign.right : PrintAlign.left, showTable: t.showTable));
   lines.add(const RRule('='));
   if (t.language == 'en') lines.add(RText(_inWordsTitle(d.totalMinor, d.currency), align: PrintAlign.center));
   for (final l in t.footerLines.map((l) => l == BillDesign.defaultFooter ? L['thanks'] : l).where((l) => l.trim().isNotEmpty)) {

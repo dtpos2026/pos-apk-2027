@@ -283,11 +283,6 @@ class CartPanel extends ConsumerWidget {
                   },
                   child: Text(t['hold']),
                 ),
-                Badge(
-                  isLabelVisible: (ref.watch(heldOrdersProvider).value?.length ?? 0) > 0,
-                  label: Text('${ref.watch(heldOrdersProvider).value?.length ?? 0}'),
-                  child: OutlinedButton(key: const ValueKey('held'), onPressed: () => _heldSheet(context, ref), child: Text(t['held_orders'])),
-                ),
                 if (ref.watch(activeModulesProvider).contains('kitchen'))
                   Row(mainAxisSize: MainAxisSize.min, children: [
                     OutlinedButton.icon(
@@ -321,27 +316,6 @@ class CartPanel extends ConsumerWidget {
     );
   }
 
-  Future<void> _heldSheet(BuildContext context, WidgetRef ref) async {
-    final t = Strings.of(context);
-    final held = await ref.read(posServiceProvider).listHeld();
-    if (!context.mounted) return;
-    final picked = await showModalBottomSheet<String>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: held.isEmpty
-            ? Padding(padding: const EdgeInsets.all(28), child: Text(t['no_held'], textAlign: TextAlign.center))
-            : ListView(shrinkWrap: true, children: [
-                ListTile(title: Text(t['held_orders'], style: const TextStyle(fontWeight: FontWeight.w700))),
-                for (final h in held)
-                  ListTile(key: ValueKey('held-${h.id}'), leading: const Icon(Icons.pause_circle_outline), title: Text(ref.money(h.totalMinor), style: const TextStyle(fontWeight: FontWeight.w800)), subtitle: Text('${h.itemCount} · ${t[h.orderType]}${h.table != null ? ' ${h.table}' : ''}'), trailing: Text(t['resume']), onTap: () => Navigator.pop(ctx, h.id)),
-              ]),
-      ),
-    );
-    if (picked != null) {
-      await ref.read(cartProvider.notifier).resume(picked);
-      ref.invalidate(heldOrdersProvider);
-    }
-  }
 
   Future<void> _discountDialog(BuildContext context, WidgetRef ref) async {
     final t = Strings.of(context);

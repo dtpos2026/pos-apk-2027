@@ -106,11 +106,13 @@ void main() {
     expect(h.container.read(cartProvider).isEmpty, isTrue);
     expect(await n(h, "SELECT COUNT(*) AS n FROM \"order\" WHERE status = 'held'"), 1);
     await add(t, 'Cola 500ml');
-    await tapKey(t, 'held');
+    // a running bill is found in Bills > Running (there is no separate "Held orders" list any more)
+    await openTab(t, 'bills', 'Bills');
+    await tapKey(t, 'billtab-running');
     await shot(t, '41_held');
-    final heldTile = find.byWidgetPredicate((w) => w.key is ValueKey && (w.key as ValueKey).value.toString().startsWith('held-'));
-    await t.tap(heldTile);
+    await t.tap(find.byWidgetPredicate((w) => w.key is ValueKey && (w.key as ValueKey).value.toString().startsWith('bill-#')));
     await t.pumpAndSettle();
+    await tapKey(t, 'running-resume');
     // the held order is back; the cola order we were in the middle of was put on hold, not lost
     expect(h.container.read(cartProvider).items.single.name, 'Fries');
     expect(await n(h, "SELECT COUNT(*) AS n FROM \"order\" WHERE status = 'held'"), 1);

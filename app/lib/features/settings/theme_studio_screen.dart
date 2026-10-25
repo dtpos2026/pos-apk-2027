@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/menu_style.dart';
 import '../../app/providers.dart';
 import '../../app/strings.dart';
 import '../../app/theme.dart';
@@ -86,6 +87,20 @@ class _ThemeStudioState extends ConsumerState<ThemeStudioScreen> {
     if (picked != null) _set(apply(picked.color));
   }
 
+  /// A colour for the side menu: picked with the same palette and #hex window, saved at once, "automatic" clears it.
+  Widget _menuColorTile(String keyId, String label, Color? value, Future<void> Function(Color?) save) => ListTile(
+        key: ValueKey('studio-$keyId'),
+        dense: true,
+        contentPadding: EdgeInsets.zero,
+        title: Text(label),
+        trailing: Container(width: 34, height: 34, decoration: BoxDecoration(color: value ?? Colors.transparent, shape: BoxShape.circle, border: Border.all(color: Colors.black38))),
+        subtitle: value == null ? Text(Strings.of(context)['studio_auto']) : null,
+        onTap: () => _pick(label, value, nullable: true, apply: (c) {
+          save(c);
+          return d; // the studio theme itself is not changed
+        }),
+      );
+
   Widget _colorTile(String keyId, String label, Color? value, ThemeStyle Function(Color?) apply, {bool nullable = false, Color? shown}) => ListTile(
         key: ValueKey('studio-$keyId'),
         dense: true,
@@ -154,6 +169,18 @@ class _ThemeStudioState extends ConsumerState<ThemeStudioScreen> {
           _colorTile('total', t['studio_total'], s.total, (c) => c == null ? s.copyWith(clearTotal: true) : s.copyWith(total: c), nullable: true),
           _colorTile('icon', t['studio_icon'], s.icon, (c) => c == null ? s.copyWith(clearIcon: true) : s.copyWith(icon: c), nullable: true),
           _colorTile('border', t['studio_border_color'], s.border, (c) => c == null ? s.copyWith(clearBorder: true) : s.copyWith(border: c), nullable: true),
+        ]),
+        group(t['menu_style'], [
+          SegmentedButton<bool>(
+            key: const ValueKey('menu-light'),
+            showSelectedIcon: false,
+            segments: [ButtonSegment(value: false, label: Text(t['menu_dark'])), ButtonSegment(value: true, label: Text(t['menu_light']))],
+            selected: {ref.watch(menuStyleProvider).value?.light ?? false},
+            onSelectionChanged: (v) => ref.read(menuStyleProvider.notifier).setLight(v.first),
+          ),
+          const SizedBox(height: 4),
+          _menuColorTile('menu-text', t['menu_text'], ref.watch(menuStyleProvider).value?.text, (c) => ref.read(menuStyleProvider.notifier).setText(c)),
+          _menuColorTile('menu-bg', t['menu_bg'], ref.watch(menuStyleProvider).value?.bg, (c) => ref.read(menuStyleProvider.notifier).setBg(c)),
         ]),
         group(t['studio_boxes'], [
           SwitchListTile(key: const ValueKey('studio-card-border'), contentPadding: EdgeInsets.zero, dense: true, title: Text(t['studio_show_borders']), value: s.cardBorder, onChanged: (v) => _set(s.copyWith(cardBorder: v))),

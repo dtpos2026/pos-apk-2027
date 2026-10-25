@@ -19,7 +19,7 @@ void main() {
     await tapKey(t, 'add-item');
     await typeInto(t, find.byKey(const ValueKey('item-name')), 'Pizza');
     await typeInto(t, find.byKey(const ValueKey('item-category')), 'Pizza');
-    await tapKey(t, 'mode-size');
+    await tapScrolled(t, 'mode-size');
     await typeInto(t, find.byKey(const ValueKey('size-price-0')), '600');
     await typeInto(t, find.byKey(const ValueKey('size-price-2')), '1100');
     await tapKey(t, 'size-del-3');

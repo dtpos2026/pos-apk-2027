@@ -18,7 +18,7 @@ void main() {
       await tapKey(t, 'add-item');
       await typeInto(t, find.byKey(const ValueKey('item-name')), name);
       await typeInto(t, find.byKey(const ValueKey('item-category')), 'Menu');
-      if (mode != 'fixed') await tapKey(t, 'mode-$mode');
+      if (mode != 'fixed') await tapScrolled(t, 'mode-$mode');
       for (final e in fields.entries) {
         await typeInto(t, find.byKey(ValueKey(e.key)), e.value);
       }
@@ -92,7 +92,7 @@ void main() {
     // switch the item to sizes and back to one price
     await t.tap(find.byKey(const ValueKey('menu-Wrap')));
     await t.pumpAndSettle();
-    await tapKey(t, 'mode-size');
+    await tapScrolled(t, 'mode-size');
     await typeInto(t, find.byKey(const ValueKey('size-price-0')), '250');
     await tapKey(t, 'size-del-3');
     await tapKey(t, 'size-del-2');
@@ -102,7 +102,7 @@ void main() {
     await t.tap(find.byKey(const ValueKey('menu-Wrap')));
     await t.pumpAndSettle();
     expect(find.byKey(const ValueKey('size-name-0')), findsOneWidget, reason: 'its sizes show as rows');
-    await tapKey(t, 'mode-fixed');
+    await tapScrolled(t, 'mode-fixed');
     await typeInto(t, find.byKey(const ValueKey('item-price')), '320');
     await tapKey(t, 'item-save');
     expect((await db.customSelect("SELECT COUNT(*) n FROM product_variant WHERE deleted_at IS NULL").getSingle()).data['n'], 0, reason: 'back to one price: no sizes left');
