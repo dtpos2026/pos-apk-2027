@@ -64,7 +64,7 @@ class HomeShell extends ConsumerWidget {
     final modules = ref.watch(activeModulesProvider);
     // the Tokens screen only appears once the owner has set up at least one token type
     final hasTokens = ref.watch(tokenConfigProvider).value?.active.isNotEmpty ?? false;
-    final dests = _destinations.where((d) => session.can(d.permission) && (d.module == null || modules.contains(d.module)) && (d.key != 'tokens' || hasTokens)).toList();
+    final dests = _destinations.where((d) => session.canOpen(d.key, d.permission) && (d.module == null || modules.contains(d.module)) && (d.key != 'tokens' || hasTokens)).toList();
     final tab = ref.watch(shellTabProvider);
     final current = dests.firstWhere((d) => d.key == tab, orElse: () => dests.first);
     final index = dests.indexOf(current);

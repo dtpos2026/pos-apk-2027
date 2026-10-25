@@ -7616,6 +7616,556 @@ class ProductModifierGroupCompanion
   }
 }
 
+class TeamMember extends Table with TableInfo<TeamMember, TeamMemberData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  TeamMember(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'PRIMARY KEY',
+  );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints:
+        'NOT NULL DEFAULT \'rider\' CHECK (kind IN (\'rider\'))',
+    defaultValue: const CustomExpression('\'rider\''),
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  static const VerificationMeta _phoneMeta = const VerificationMeta('phone');
+  late final GeneratedColumn<String> phone = GeneratedColumn<String>(
+    'phone',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: '',
+  );
+  static const VerificationMeta _bikeNoMeta = const VerificationMeta('bikeNo');
+  late final GeneratedColumn<String> bikeNo = GeneratedColumn<String>(
+    'bike_no',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: '',
+  );
+  static const VerificationMeta _activeMeta = const VerificationMeta('active');
+  late final GeneratedColumn<int> active = GeneratedColumn<int>(
+    'active',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT 1',
+    defaultValue: const CustomExpression('1'),
+  );
+  static const VerificationMeta _versionMeta = const VerificationMeta(
+    'version',
+  );
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+    'version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT 1',
+    defaultValue: const CustomExpression('1'),
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  late final GeneratedColumn<int> deletedAt = GeneratedColumn<int>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: '',
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    kind,
+    name,
+    phone,
+    bikeNo,
+    active,
+    version,
+    updatedAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'team_member';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<TeamMemberData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('phone')) {
+      context.handle(
+        _phoneMeta,
+        phone.isAcceptableOrUnknown(data['phone']!, _phoneMeta),
+      );
+    }
+    if (data.containsKey('bike_no')) {
+      context.handle(
+        _bikeNoMeta,
+        bikeNo.isAcceptableOrUnknown(data['bike_no']!, _bikeNoMeta),
+      );
+    }
+    if (data.containsKey('active')) {
+      context.handle(
+        _activeMeta,
+        active.isAcceptableOrUnknown(data['active']!, _activeMeta),
+      );
+    }
+    if (data.containsKey('version')) {
+      context.handle(
+        _versionMeta,
+        version.isAcceptableOrUnknown(data['version']!, _versionMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  TeamMemberData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TeamMemberData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      ),
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      phone: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}phone'],
+      ),
+      bikeNo: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}bike_no'],
+      ),
+      active: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}active'],
+      )!,
+      version: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}version'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  TeamMember createAlias(String alias) {
+    return TeamMember(attachedDatabase, alias);
+  }
+
+  @override
+  bool get dontWriteConstraints => true;
+}
+
+class TeamMemberData extends DataClass implements Insertable<TeamMemberData> {
+  /// delivery riders (no PIN, they do not sign in): assigned to delivery orders
+  final String? id;
+  final String kind;
+  final String name;
+  final String? phone;
+  final String? bikeNo;
+  final int active;
+  final int version;
+  final int updatedAt;
+  final int? deletedAt;
+  const TeamMemberData({
+    this.id,
+    required this.kind,
+    required this.name,
+    this.phone,
+    this.bikeNo,
+    required this.active,
+    required this.version,
+    required this.updatedAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (!nullToAbsent || id != null) {
+      map['id'] = Variable<String>(id);
+    }
+    map['kind'] = Variable<String>(kind);
+    map['name'] = Variable<String>(name);
+    if (!nullToAbsent || phone != null) {
+      map['phone'] = Variable<String>(phone);
+    }
+    if (!nullToAbsent || bikeNo != null) {
+      map['bike_no'] = Variable<String>(bikeNo);
+    }
+    map['active'] = Variable<int>(active);
+    map['version'] = Variable<int>(version);
+    map['updated_at'] = Variable<int>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<int>(deletedAt);
+    }
+    return map;
+  }
+
+  TeamMemberCompanion toCompanion(bool nullToAbsent) {
+    return TeamMemberCompanion(
+      id: id == null && nullToAbsent ? const Value.absent() : Value(id),
+      kind: Value(kind),
+      name: Value(name),
+      phone: phone == null && nullToAbsent
+          ? const Value.absent()
+          : Value(phone),
+      bikeNo: bikeNo == null && nullToAbsent
+          ? const Value.absent()
+          : Value(bikeNo),
+      active: Value(active),
+      version: Value(version),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory TeamMemberData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TeamMemberData(
+      id: serializer.fromJson<String?>(json['id']),
+      kind: serializer.fromJson<String>(json['kind']),
+      name: serializer.fromJson<String>(json['name']),
+      phone: serializer.fromJson<String?>(json['phone']),
+      bikeNo: serializer.fromJson<String?>(json['bike_no']),
+      active: serializer.fromJson<int>(json['active']),
+      version: serializer.fromJson<int>(json['version']),
+      updatedAt: serializer.fromJson<int>(json['updated_at']),
+      deletedAt: serializer.fromJson<int?>(json['deleted_at']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String?>(id),
+      'kind': serializer.toJson<String>(kind),
+      'name': serializer.toJson<String>(name),
+      'phone': serializer.toJson<String?>(phone),
+      'bike_no': serializer.toJson<String?>(bikeNo),
+      'active': serializer.toJson<int>(active),
+      'version': serializer.toJson<int>(version),
+      'updated_at': serializer.toJson<int>(updatedAt),
+      'deleted_at': serializer.toJson<int?>(deletedAt),
+    };
+  }
+
+  TeamMemberData copyWith({
+    Value<String?> id = const Value.absent(),
+    String? kind,
+    String? name,
+    Value<String?> phone = const Value.absent(),
+    Value<String?> bikeNo = const Value.absent(),
+    int? active,
+    int? version,
+    int? updatedAt,
+    Value<int?> deletedAt = const Value.absent(),
+  }) => TeamMemberData(
+    id: id.present ? id.value : this.id,
+    kind: kind ?? this.kind,
+    name: name ?? this.name,
+    phone: phone.present ? phone.value : this.phone,
+    bikeNo: bikeNo.present ? bikeNo.value : this.bikeNo,
+    active: active ?? this.active,
+    version: version ?? this.version,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  TeamMemberData copyWithCompanion(TeamMemberCompanion data) {
+    return TeamMemberData(
+      id: data.id.present ? data.id.value : this.id,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      name: data.name.present ? data.name.value : this.name,
+      phone: data.phone.present ? data.phone.value : this.phone,
+      bikeNo: data.bikeNo.present ? data.bikeNo.value : this.bikeNo,
+      active: data.active.present ? data.active.value : this.active,
+      version: data.version.present ? data.version.value : this.version,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TeamMemberData(')
+          ..write('id: $id, ')
+          ..write('kind: $kind, ')
+          ..write('name: $name, ')
+          ..write('phone: $phone, ')
+          ..write('bikeNo: $bikeNo, ')
+          ..write('active: $active, ')
+          ..write('version: $version, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    kind,
+    name,
+    phone,
+    bikeNo,
+    active,
+    version,
+    updatedAt,
+    deletedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TeamMemberData &&
+          other.id == this.id &&
+          other.kind == this.kind &&
+          other.name == this.name &&
+          other.phone == this.phone &&
+          other.bikeNo == this.bikeNo &&
+          other.active == this.active &&
+          other.version == this.version &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class TeamMemberCompanion extends UpdateCompanion<TeamMemberData> {
+  final Value<String?> id;
+  final Value<String> kind;
+  final Value<String> name;
+  final Value<String?> phone;
+  final Value<String?> bikeNo;
+  final Value<int> active;
+  final Value<int> version;
+  final Value<int> updatedAt;
+  final Value<int?> deletedAt;
+  final Value<int> rowid;
+  const TeamMemberCompanion({
+    this.id = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.name = const Value.absent(),
+    this.phone = const Value.absent(),
+    this.bikeNo = const Value.absent(),
+    this.active = const Value.absent(),
+    this.version = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  TeamMemberCompanion.insert({
+    this.id = const Value.absent(),
+    this.kind = const Value.absent(),
+    required String name,
+    this.phone = const Value.absent(),
+    this.bikeNo = const Value.absent(),
+    this.active = const Value.absent(),
+    this.version = const Value.absent(),
+    required int updatedAt,
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : name = Value(name),
+       updatedAt = Value(updatedAt);
+  static Insertable<TeamMemberData> custom({
+    Expression<String>? id,
+    Expression<String>? kind,
+    Expression<String>? name,
+    Expression<String>? phone,
+    Expression<String>? bikeNo,
+    Expression<int>? active,
+    Expression<int>? version,
+    Expression<int>? updatedAt,
+    Expression<int>? deletedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (kind != null) 'kind': kind,
+      if (name != null) 'name': name,
+      if (phone != null) 'phone': phone,
+      if (bikeNo != null) 'bike_no': bikeNo,
+      if (active != null) 'active': active,
+      if (version != null) 'version': version,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  TeamMemberCompanion copyWith({
+    Value<String?>? id,
+    Value<String>? kind,
+    Value<String>? name,
+    Value<String?>? phone,
+    Value<String?>? bikeNo,
+    Value<int>? active,
+    Value<int>? version,
+    Value<int>? updatedAt,
+    Value<int?>? deletedAt,
+    Value<int>? rowid,
+  }) {
+    return TeamMemberCompanion(
+      id: id ?? this.id,
+      kind: kind ?? this.kind,
+      name: name ?? this.name,
+      phone: phone ?? this.phone,
+      bikeNo: bikeNo ?? this.bikeNo,
+      active: active ?? this.active,
+      version: version ?? this.version,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (phone.present) {
+      map['phone'] = Variable<String>(phone.value);
+    }
+    if (bikeNo.present) {
+      map['bike_no'] = Variable<String>(bikeNo.value);
+    }
+    if (active.present) {
+      map['active'] = Variable<int>(active.value);
+    }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<int>(deletedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TeamMemberCompanion(')
+          ..write('id: $id, ')
+          ..write('kind: $kind, ')
+          ..write('name: $name, ')
+          ..write('phone: $phone, ')
+          ..write('bikeNo: $bikeNo, ')
+          ..write('active: $active, ')
+          ..write('version: $version, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class ComboItem extends Table with TableInfo<ComboItem, ComboItemData> {
   @override
   final GeneratedDatabase attachedDatabase;
@@ -11397,6 +11947,17 @@ class Order extends Table with TableInfo<Order, OrderRow> {
     requiredDuringInsert: false,
     $customConstraints: 'REFERENCES shift(id)',
   );
+  static const VerificationMeta _riderIdMeta = const VerificationMeta(
+    'riderId',
+  );
+  late final GeneratedColumn<String> riderId = GeneratedColumn<String>(
+    'rider_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'REFERENCES team_member(id)',
+  );
   static const VerificationMeta _guestsMeta = const VerificationMeta('guests');
   late final GeneratedColumn<int> guests = GeneratedColumn<int>(
     'guests',
@@ -11620,6 +12181,7 @@ class Order extends Table with TableInfo<Order, OrderRow> {
     waiterId,
     cashierId,
     shiftId,
+    riderId,
     guests,
     note,
     deliveryAddress,
@@ -11705,6 +12267,12 @@ class Order extends Table with TableInfo<Order, OrderRow> {
       context.handle(
         _shiftIdMeta,
         shiftId.isAcceptableOrUnknown(data['shift_id']!, _shiftIdMeta),
+      );
+    }
+    if (data.containsKey('rider_id')) {
+      context.handle(
+        _riderIdMeta,
+        riderId.isAcceptableOrUnknown(data['rider_id']!, _riderIdMeta),
       );
     }
     if (data.containsKey('guests')) {
@@ -11893,6 +12461,10 @@ class Order extends Table with TableInfo<Order, OrderRow> {
         DriftSqlType.string,
         data['${effectivePrefix}shift_id'],
       ),
+      riderId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}rider_id'],
+      ),
       guests: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}guests'],
@@ -11993,6 +12565,7 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
   final String? waiterId;
   final String? cashierId;
   final String? shiftId;
+  final String? riderId;
   final int? guests;
   final String? note;
   final String? deliveryAddress;
@@ -12026,6 +12599,7 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
     this.waiterId,
     this.cashierId,
     this.shiftId,
+    this.riderId,
     this.guests,
     this.note,
     this.deliveryAddress,
@@ -12071,6 +12645,9 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
     }
     if (!nullToAbsent || shiftId != null) {
       map['shift_id'] = Variable<String>(shiftId);
+    }
+    if (!nullToAbsent || riderId != null) {
+      map['rider_id'] = Variable<String>(riderId);
     }
     if (!nullToAbsent || guests != null) {
       map['guests'] = Variable<int>(guests);
@@ -12127,6 +12704,9 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
       shiftId: shiftId == null && nullToAbsent
           ? const Value.absent()
           : Value(shiftId),
+      riderId: riderId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(riderId),
       guests: guests == null && nullToAbsent
           ? const Value.absent()
           : Value(guests),
@@ -12172,6 +12752,7 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
       waiterId: serializer.fromJson<String?>(json['waiter_id']),
       cashierId: serializer.fromJson<String?>(json['cashier_id']),
       shiftId: serializer.fromJson<String?>(json['shift_id']),
+      riderId: serializer.fromJson<String?>(json['rider_id']),
       guests: serializer.fromJson<int?>(json['guests']),
       note: serializer.fromJson<String?>(json['note']),
       deliveryAddress: serializer.fromJson<String?>(json['delivery_address']),
@@ -12210,6 +12791,7 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
       'waiter_id': serializer.toJson<String?>(waiterId),
       'cashier_id': serializer.toJson<String?>(cashierId),
       'shift_id': serializer.toJson<String?>(shiftId),
+      'rider_id': serializer.toJson<String?>(riderId),
       'guests': serializer.toJson<int?>(guests),
       'note': serializer.toJson<String?>(note),
       'delivery_address': serializer.toJson<String?>(deliveryAddress),
@@ -12242,6 +12824,7 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
     Value<String?> waiterId = const Value.absent(),
     Value<String?> cashierId = const Value.absent(),
     Value<String?> shiftId = const Value.absent(),
+    Value<String?> riderId = const Value.absent(),
     Value<int?> guests = const Value.absent(),
     Value<String?> note = const Value.absent(),
     Value<String?> deliveryAddress = const Value.absent(),
@@ -12271,6 +12854,7 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
     waiterId: waiterId.present ? waiterId.value : this.waiterId,
     cashierId: cashierId.present ? cashierId.value : this.cashierId,
     shiftId: shiftId.present ? shiftId.value : this.shiftId,
+    riderId: riderId.present ? riderId.value : this.riderId,
     guests: guests.present ? guests.value : this.guests,
     note: note.present ? note.value : this.note,
     deliveryAddress: deliveryAddress.present
@@ -12306,6 +12890,7 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
       waiterId: data.waiterId.present ? data.waiterId.value : this.waiterId,
       cashierId: data.cashierId.present ? data.cashierId.value : this.cashierId,
       shiftId: data.shiftId.present ? data.shiftId.value : this.shiftId,
+      riderId: data.riderId.present ? data.riderId.value : this.riderId,
       guests: data.guests.present ? data.guests.value : this.guests,
       note: data.note.present ? data.note.value : this.note,
       deliveryAddress: data.deliveryAddress.present
@@ -12358,6 +12943,7 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
           ..write('waiterId: $waiterId, ')
           ..write('cashierId: $cashierId, ')
           ..write('shiftId: $shiftId, ')
+          ..write('riderId: $riderId, ')
           ..write('guests: $guests, ')
           ..write('note: $note, ')
           ..write('deliveryAddress: $deliveryAddress, ')
@@ -12392,6 +12978,7 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
     waiterId,
     cashierId,
     shiftId,
+    riderId,
     guests,
     note,
     deliveryAddress,
@@ -12425,6 +13012,7 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
           other.waiterId == this.waiterId &&
           other.cashierId == this.cashierId &&
           other.shiftId == this.shiftId &&
+          other.riderId == this.riderId &&
           other.guests == this.guests &&
           other.note == this.note &&
           other.deliveryAddress == this.deliveryAddress &&
@@ -12456,6 +13044,7 @@ class OrderCompanion extends UpdateCompanion<OrderRow> {
   final Value<String?> waiterId;
   final Value<String?> cashierId;
   final Value<String?> shiftId;
+  final Value<String?> riderId;
   final Value<int?> guests;
   final Value<String?> note;
   final Value<String?> deliveryAddress;
@@ -12486,6 +13075,7 @@ class OrderCompanion extends UpdateCompanion<OrderRow> {
     this.waiterId = const Value.absent(),
     this.cashierId = const Value.absent(),
     this.shiftId = const Value.absent(),
+    this.riderId = const Value.absent(),
     this.guests = const Value.absent(),
     this.note = const Value.absent(),
     this.deliveryAddress = const Value.absent(),
@@ -12517,6 +13107,7 @@ class OrderCompanion extends UpdateCompanion<OrderRow> {
     this.waiterId = const Value.absent(),
     this.cashierId = const Value.absent(),
     this.shiftId = const Value.absent(),
+    this.riderId = const Value.absent(),
     this.guests = const Value.absent(),
     this.note = const Value.absent(),
     this.deliveryAddress = const Value.absent(),
@@ -12552,6 +13143,7 @@ class OrderCompanion extends UpdateCompanion<OrderRow> {
     Expression<String>? waiterId,
     Expression<String>? cashierId,
     Expression<String>? shiftId,
+    Expression<String>? riderId,
     Expression<int>? guests,
     Expression<String>? note,
     Expression<String>? deliveryAddress,
@@ -12583,6 +13175,7 @@ class OrderCompanion extends UpdateCompanion<OrderRow> {
       if (waiterId != null) 'waiter_id': waiterId,
       if (cashierId != null) 'cashier_id': cashierId,
       if (shiftId != null) 'shift_id': shiftId,
+      if (riderId != null) 'rider_id': riderId,
       if (guests != null) 'guests': guests,
       if (note != null) 'note': note,
       if (deliveryAddress != null) 'delivery_address': deliveryAddress,
@@ -12618,6 +13211,7 @@ class OrderCompanion extends UpdateCompanion<OrderRow> {
     Value<String?>? waiterId,
     Value<String?>? cashierId,
     Value<String?>? shiftId,
+    Value<String?>? riderId,
     Value<int?>? guests,
     Value<String?>? note,
     Value<String?>? deliveryAddress,
@@ -12649,6 +13243,7 @@ class OrderCompanion extends UpdateCompanion<OrderRow> {
       waiterId: waiterId ?? this.waiterId,
       cashierId: cashierId ?? this.cashierId,
       shiftId: shiftId ?? this.shiftId,
+      riderId: riderId ?? this.riderId,
       guests: guests ?? this.guests,
       note: note ?? this.note,
       deliveryAddress: deliveryAddress ?? this.deliveryAddress,
@@ -12701,6 +13296,9 @@ class OrderCompanion extends UpdateCompanion<OrderRow> {
     }
     if (shiftId.present) {
       map['shift_id'] = Variable<String>(shiftId.value);
+    }
+    if (riderId.present) {
+      map['rider_id'] = Variable<String>(riderId.value);
     }
     if (guests.present) {
       map['guests'] = Variable<int>(guests.value);
@@ -12777,6 +13375,7 @@ class OrderCompanion extends UpdateCompanion<OrderRow> {
           ..write('waiterId: $waiterId, ')
           ..write('cashierId: $cashierId, ')
           ..write('shiftId: $shiftId, ')
+          ..write('riderId: $riderId, ')
           ..write('guests: $guests, ')
           ..write('note: $note, ')
           ..write('deliveryAddress: $deliveryAddress, ')
@@ -28735,6 +29334,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final ProductModifierGroup productModifierGroup = ProductModifierGroup(
     this,
   );
+  late final TeamMember teamMember = TeamMember(this);
   late final ComboItem comboItem = ComboItem(this);
   late final DealItem dealItem = DealItem(this);
   late final Index dealItemIx = Index(
@@ -28897,6 +29497,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     modifierGroup,
     modifierOption,
     productModifierGroup,
+    teamMember,
     comboItem,
     dealItem,
     dealItemIx,
@@ -36629,6 +37230,377 @@ typedef $ProductModifierGroupProcessedTableManager =
       ProductModifierGroupData,
       PrefetchHooks Function({bool productId, bool groupId})
     >;
+typedef $TeamMemberCreateCompanionBuilder =
+    TeamMemberCompanion Function({
+      Value<String?> id,
+      Value<String> kind,
+      required String name,
+      Value<String?> phone,
+      Value<String?> bikeNo,
+      Value<int> active,
+      Value<int> version,
+      required int updatedAt,
+      Value<int?> deletedAt,
+      Value<int> rowid,
+    });
+typedef $TeamMemberUpdateCompanionBuilder =
+    TeamMemberCompanion Function({
+      Value<String?> id,
+      Value<String> kind,
+      Value<String> name,
+      Value<String?> phone,
+      Value<String?> bikeNo,
+      Value<int> active,
+      Value<int> version,
+      Value<int> updatedAt,
+      Value<int?> deletedAt,
+      Value<int> rowid,
+    });
+
+final class $TeamMemberReferences
+    extends BaseReferences<_$AppDatabase, TeamMember, TeamMemberData> {
+  $TeamMemberReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<Order, List<OrderRow>> _orderRefsTable(
+    _$AppDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.order,
+    aliasName: $_aliasNameGenerator(db.teamMember.id, db.order.riderId),
+  );
+
+  $OrderProcessedTableManager get orderRefs {
+    final manager = $OrderTableManager(
+      $_db,
+      $_db.order,
+    ).filter((f) => f.riderId.id.sqlEquals($_itemColumn<String>('id')));
+
+    final cache = $_typedResult.readTableOrNull(_orderRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $TeamMemberFilterComposer extends Composer<_$AppDatabase, TeamMember> {
+  $TeamMemberFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get phone => $composableBuilder(
+    column: $table.phone,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get bikeNo => $composableBuilder(
+    column: $table.bikeNo,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get active => $composableBuilder(
+    column: $table.active,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> orderRefs(
+    Expression<bool> Function($OrderFilterComposer f) f,
+  ) {
+    final $OrderFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.order,
+      getReferencedColumn: (t) => t.riderId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $OrderFilterComposer(
+            $db: $db,
+            $table: $db.order,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $TeamMemberOrderingComposer extends Composer<_$AppDatabase, TeamMember> {
+  $TeamMemberOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get phone => $composableBuilder(
+    column: $table.phone,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get bikeNo => $composableBuilder(
+    column: $table.bikeNo,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get active => $composableBuilder(
+    column: $table.active,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $TeamMemberAnnotationComposer
+    extends Composer<_$AppDatabase, TeamMember> {
+  $TeamMemberAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get phone =>
+      $composableBuilder(column: $table.phone, builder: (column) => column);
+
+  GeneratedColumn<String> get bikeNo =>
+      $composableBuilder(column: $table.bikeNo, builder: (column) => column);
+
+  GeneratedColumn<int> get active =>
+      $composableBuilder(column: $table.active, builder: (column) => column);
+
+  GeneratedColumn<int> get version =>
+      $composableBuilder(column: $table.version, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  Expression<T> orderRefs<T extends Object>(
+    Expression<T> Function($OrderAnnotationComposer a) f,
+  ) {
+    final $OrderAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.order,
+      getReferencedColumn: (t) => t.riderId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $OrderAnnotationComposer(
+            $db: $db,
+            $table: $db.order,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $TeamMemberTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          TeamMember,
+          TeamMemberData,
+          $TeamMemberFilterComposer,
+          $TeamMemberOrderingComposer,
+          $TeamMemberAnnotationComposer,
+          $TeamMemberCreateCompanionBuilder,
+          $TeamMemberUpdateCompanionBuilder,
+          (TeamMemberData, $TeamMemberReferences),
+          TeamMemberData,
+          PrefetchHooks Function({bool orderRefs})
+        > {
+  $TeamMemberTableManager(_$AppDatabase db, TeamMember table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $TeamMemberFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $TeamMemberOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $TeamMemberAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String?> id = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String?> phone = const Value.absent(),
+                Value<String?> bikeNo = const Value.absent(),
+                Value<int> active = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => TeamMemberCompanion(
+                id: id,
+                kind: kind,
+                name: name,
+                phone: phone,
+                bikeNo: bikeNo,
+                active: active,
+                version: version,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                Value<String?> id = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                required String name,
+                Value<String?> phone = const Value.absent(),
+                Value<String?> bikeNo = const Value.absent(),
+                Value<int> active = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                required int updatedAt,
+                Value<int?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => TeamMemberCompanion.insert(
+                id: id,
+                kind: kind,
+                name: name,
+                phone: phone,
+                bikeNo: bikeNo,
+                active: active,
+                version: version,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) =>
+                    (e.readTable(table), $TeamMemberReferences(db, table, e)),
+              )
+              .toList(),
+          prefetchHooksCallback: ({orderRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [if (orderRefs) db.order],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (orderRefs)
+                    await $_getPrefetchedData<
+                      TeamMemberData,
+                      TeamMember,
+                      OrderRow
+                    >(
+                      currentTable: table,
+                      referencedTable: $TeamMemberReferences._orderRefsTable(
+                        db,
+                      ),
+                      managerFromTypedResult: (p0) =>
+                          $TeamMemberReferences(db, table, p0).orderRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.riderId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $TeamMemberProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      TeamMember,
+      TeamMemberData,
+      $TeamMemberFilterComposer,
+      $TeamMemberOrderingComposer,
+      $TeamMemberAnnotationComposer,
+      $TeamMemberCreateCompanionBuilder,
+      $TeamMemberUpdateCompanionBuilder,
+      (TeamMemberData, $TeamMemberReferences),
+      TeamMemberData,
+      PrefetchHooks Function({bool orderRefs})
+    >;
 typedef $ComboItemCreateCompanionBuilder =
     ComboItemCompanion Function({
       required String comboId,
@@ -40267,6 +41239,7 @@ typedef $OrderCreateCompanionBuilder =
       Value<String?> waiterId,
       Value<String?> cashierId,
       Value<String?> shiftId,
+      Value<String?> riderId,
       Value<int?> guests,
       Value<String?> note,
       Value<String?> deliveryAddress,
@@ -40299,6 +41272,7 @@ typedef $OrderUpdateCompanionBuilder =
       Value<String?> waiterId,
       Value<String?> cashierId,
       Value<String?> shiftId,
+      Value<String?> riderId,
       Value<int?> guests,
       Value<String?> note,
       Value<String?> deliveryAddress,
@@ -40407,6 +41381,23 @@ final class $OrderReferences
       $_db.shift,
     ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_shiftIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static TeamMember _riderIdTable(_$AppDatabase db) => db.teamMember
+      .createAlias($_aliasNameGenerator(db.order.riderId, db.teamMember.id));
+
+  $TeamMemberProcessedTableManager? get riderId {
+    final $_column = $_itemColumn<String>('rider_id');
+    if ($_column == null) return null;
+    final manager = $TeamMemberTableManager(
+      $_db,
+      $_db.teamMember,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_riderIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
@@ -40754,6 +41745,29 @@ class $OrderFilterComposer extends Composer<_$AppDatabase, Order> {
           }) => $ShiftFilterComposer(
             $db: $db,
             $table: $db.shift,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $TeamMemberFilterComposer get riderId {
+    final $TeamMemberFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.riderId,
+      referencedTable: $db.teamMember,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $TeamMemberFilterComposer(
+            $db: $db,
+            $table: $db.teamMember,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -41151,6 +42165,29 @@ class $OrderOrderingComposer extends Composer<_$AppDatabase, Order> {
     );
     return composer;
   }
+
+  $TeamMemberOrderingComposer get riderId {
+    final $TeamMemberOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.riderId,
+      referencedTable: $db.teamMember,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $TeamMemberOrderingComposer(
+            $db: $db,
+            $table: $db.teamMember,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $OrderAnnotationComposer extends Composer<_$AppDatabase, Order> {
@@ -41363,6 +42400,29 @@ class $OrderAnnotationComposer extends Composer<_$AppDatabase, Order> {
     return composer;
   }
 
+  $TeamMemberAnnotationComposer get riderId {
+    final $TeamMemberAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.riderId,
+      referencedTable: $db.teamMember,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $TeamMemberAnnotationComposer(
+            $db: $db,
+            $table: $db.teamMember,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
   Expression<T> orderItemRefs<T extends Object>(
     Expression<T> Function($OrderItemAnnotationComposer a) f,
   ) {
@@ -41533,6 +42593,7 @@ class $OrderTableManager
             bool waiterId,
             bool cashierId,
             bool shiftId,
+            bool riderId,
             bool orderItemRefs,
             bool paymentRefs,
             bool refundRefs,
@@ -41563,6 +42624,7 @@ class $OrderTableManager
                 Value<String?> waiterId = const Value.absent(),
                 Value<String?> cashierId = const Value.absent(),
                 Value<String?> shiftId = const Value.absent(),
+                Value<String?> riderId = const Value.absent(),
                 Value<int?> guests = const Value.absent(),
                 Value<String?> note = const Value.absent(),
                 Value<String?> deliveryAddress = const Value.absent(),
@@ -41593,6 +42655,7 @@ class $OrderTableManager
                 waiterId: waiterId,
                 cashierId: cashierId,
                 shiftId: shiftId,
+                riderId: riderId,
                 guests: guests,
                 note: note,
                 deliveryAddress: deliveryAddress,
@@ -41625,6 +42688,7 @@ class $OrderTableManager
                 Value<String?> waiterId = const Value.absent(),
                 Value<String?> cashierId = const Value.absent(),
                 Value<String?> shiftId = const Value.absent(),
+                Value<String?> riderId = const Value.absent(),
                 Value<int?> guests = const Value.absent(),
                 Value<String?> note = const Value.absent(),
                 Value<String?> deliveryAddress = const Value.absent(),
@@ -41655,6 +42719,7 @@ class $OrderTableManager
                 waiterId: waiterId,
                 cashierId: cashierId,
                 shiftId: shiftId,
+                riderId: riderId,
                 guests: guests,
                 note: note,
                 deliveryAddress: deliveryAddress,
@@ -41686,6 +42751,7 @@ class $OrderTableManager
                 waiterId = false,
                 cashierId = false,
                 shiftId = false,
+                riderId = false,
                 orderItemRefs = false,
                 paymentRefs = false,
                 refundRefs = false,
@@ -41780,6 +42846,19 @@ class $OrderTableManager
                                         ._shiftIdTable(db),
                                     referencedColumn: $OrderReferences
                                         ._shiftIdTable(db)
+                                        .id,
+                                  )
+                                  as T;
+                        }
+                        if (riderId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.riderId,
+                                    referencedTable: $OrderReferences
+                                        ._riderIdTable(db),
+                                    referencedColumn: $OrderReferences
+                                        ._riderIdTable(db)
                                         .id,
                                   )
                                   as T;
@@ -41909,6 +42988,7 @@ typedef $OrderProcessedTableManager =
         bool waiterId,
         bool cashierId,
         bool shiftId,
+        bool riderId,
         bool orderItemRefs,
         bool paymentRefs,
         bool refundRefs,
@@ -55329,6 +56409,8 @@ class $AppDatabaseManager {
       $ModifierOptionTableManager(_db, _db.modifierOption);
   $ProductModifierGroupTableManager get productModifierGroup =>
       $ProductModifierGroupTableManager(_db, _db.productModifierGroup);
+  $TeamMemberTableManager get teamMember =>
+      $TeamMemberTableManager(_db, _db.teamMember);
   $ComboItemTableManager get comboItem =>
       $ComboItemTableManager(_db, _db.comboItem);
   $DealItemTableManager get dealItem =>

@@ -7,7 +7,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -16,6 +16,7 @@ class AppDatabase extends _$AppDatabase {
           if (from < 3) await migrateToV3(this);
           if (from < 4) await migrateToV4(this);
           if (from < 5) await migrateToV5(this);
+          if (from < 6) await migrateToV6(this);
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
@@ -49,6 +50,17 @@ Future<void> migrateToV2(AppDatabase db) async {
   ]) {
     await db.customStatement(sql);
   }
+}
+
+/// Version 6: delivery riders and the rider on an order. Mirrors docs/schema/local.sql.
+Future<void> migrateToV6(AppDatabase db) async {
+  await db.customStatement("""CREATE TABLE IF NOT EXISTS team_member (
+  id TEXT PRIMARY KEY, kind TEXT NOT NULL DEFAULT 'rider' CHECK (kind IN ('rider')),
+  name TEXT NOT NULL, phone TEXT, bike_no TEXT, active INTEGER NOT NULL DEFAULT 1,
+  version INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL, deleted_at INTEGER
+)""");
+  final cols = await db.customSelect('PRAGMA table_info("order")').get();
+  if (!cols.any((c) => c.data['name'] == 'rider_id')) await db.customStatement('ALTER TABLE "order" ADD COLUMN rider_id TEXT REFERENCES team_member(id)');
 }
 
 /// Version 5: a photo for each customer. Mirrors docs/schema/local.sql.
@@ -124,13 +136,21 @@ Future<void> _allowCancelledOrders(AppDatabase db) async {
   business_date TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, settled_at INTEGER,
   version INTEGER NOT NULL DEFAULT 1
 )''',
-    'INSERT INTO order_v3 SELECT * FROM "order"',
+    // copied by column name, so a table that already has newer columns (or an older one with fewer) still copies safely
+    'COPY_ORDERS',
     'DROP TABLE "order"',
     'ALTER TABLE order_v3 RENAME TO "order"',
     'CREATE INDEX IF NOT EXISTS order_date_ix ON "order"(business_date, status)',
     'CREATE INDEX IF NOT EXISTS order_table_ix ON "order"(table_id, status)',
   ]) {
-    await db.customStatement(stmt);
+    if (stmt == 'COPY_ORDERS') {
+      final oldCols = {for (final r in await db.customSelect('PRAGMA table_info("order")').get()) r.data['name'] as String};
+      final newCols = [for (final r in await db.customSelect('PRAGMA table_info(order_v3)').get()) r.data['name'] as String];
+      final common = newCols.where(oldCols.contains).map((c) => '"$c"').join(', ');
+      await db.customStatement('INSERT INTO order_v3($common) SELECT $common FROM "order"');
+    } else {
+      await db.customStatement(stmt);
+    }
   }
 }
 

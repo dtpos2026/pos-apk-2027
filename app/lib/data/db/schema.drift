@@ -119,6 +119,12 @@ CREATE TABLE product_modifier_group (
   PRIMARY KEY (product_id, group_id)
 );
 
+CREATE TABLE team_member (                 -- delivery riders (no PIN, they do not sign in): assigned to delivery orders
+  id TEXT PRIMARY KEY, kind TEXT NOT NULL DEFAULT 'rider' CHECK (kind IN ('rider')),
+  name TEXT NOT NULL, phone TEXT, bike_no TEXT, active INTEGER NOT NULL DEFAULT 1,
+  version INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL, deleted_at INTEGER
+);
+
 CREATE TABLE combo_item (                   -- components of a product with kind = 'combo'
   combo_id TEXT NOT NULL REFERENCES product(id),
   product_id TEXT NOT NULL REFERENCES product(id),
@@ -182,7 +188,7 @@ CREATE TABLE "order" (
   order_type TEXT NOT NULL CHECK (order_type IN ('dine_in','takeaway','delivery','counter')),
   status TEXT NOT NULL CHECK (status IN ('draft','held','new','preparing','ready','served','paid','void','refunded','cancelled')),
   table_id TEXT REFERENCES dining_table(id), customer_id TEXT REFERENCES customer(id),
-  waiter_id TEXT REFERENCES staff(id), cashier_id TEXT REFERENCES staff(id), shift_id TEXT REFERENCES shift(id),
+  waiter_id TEXT REFERENCES staff(id), cashier_id TEXT REFERENCES staff(id), shift_id TEXT REFERENCES shift(id), rider_id TEXT REFERENCES team_member(id),
   guests INTEGER, note TEXT, delivery_address TEXT, source TEXT NOT NULL DEFAULT 'pos',  -- pos | online
   bill_config TEXT,                         -- JSON of discount/service/delivery/tip/rounding so the bill can be recomputed exactly
   subtotal_minor INTEGER NOT NULL DEFAULT 0, discount_minor INTEGER NOT NULL DEFAULT 0,

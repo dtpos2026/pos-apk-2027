@@ -69,6 +69,7 @@ class DraftOrder {
     this.held = false,
     this.source = 'pos',
     this.deliveryAddress,
+    this.riderId,
   });
   final String? id;
   final String orderType;
@@ -84,6 +85,7 @@ class DraftOrder {
   /// Where the order came from: 'pos' (taken at the counter) or 'online' (WhatsApp / phone / delivery app, typed in by staff).
   final String source;
   final String? deliveryAddress;
+  final String? riderId;
 }
 
 class SettlePayment {
@@ -235,12 +237,12 @@ class PosService {
         final status = d.held ? 'held' : (prior != null && const {'new', 'preparing', 'ready', 'served'}.contains(prior) ? prior : 'draft');
         if (existing.isEmpty) {
           await _exec(
-              'INSERT INTO "order"(id, order_type, status, table_id, customer_id, waiter_id, guests, note, bill_config, subtotal_minor, discount_minor, service_charge_minor, delivery_charge_minor, tax_minor, tip_minor, rounding_minor, total_minor, business_date, created_at, updated_at, source, delivery_address) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-              [id, d.orderType, status, d.tableId, d.customerId, d.waiterId, d.guests, d.note, jsonEncode(_configToJson(d.config)), bill.subtotalMinor, bill.discountMinor, bill.serviceChargeMinor, bill.deliveryChargeMinor, bill.taxMinor, bill.tipMinor, bill.roundingMinor, bill.totalMinor, await _openBusinessDate(), now, now, d.source, d.deliveryAddress]);
+              'INSERT INTO "order"(id, order_type, status, table_id, customer_id, waiter_id, guests, note, bill_config, subtotal_minor, discount_minor, service_charge_minor, delivery_charge_minor, tax_minor, tip_minor, rounding_minor, total_minor, business_date, created_at, updated_at, source, delivery_address, rider_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+              [id, d.orderType, status, d.tableId, d.customerId, d.waiterId, d.guests, d.note, jsonEncode(_configToJson(d.config)), bill.subtotalMinor, bill.discountMinor, bill.serviceChargeMinor, bill.deliveryChargeMinor, bill.taxMinor, bill.tipMinor, bill.roundingMinor, bill.totalMinor, await _openBusinessDate(), now, now, d.source, d.deliveryAddress, d.riderId]);
         } else {
           await _exec(
-              'UPDATE "order" SET order_type=?, status=?, table_id=?, customer_id=?, waiter_id=?, guests=?, note=COALESCE(?, note), delivery_address=COALESCE(?, delivery_address), bill_config=?, subtotal_minor=?, discount_minor=?, service_charge_minor=?, delivery_charge_minor=?, tax_minor=?, tip_minor=?, rounding_minor=?, total_minor=?, updated_at=?, version=version+1 WHERE id=?',
-              [d.orderType, status, d.tableId, d.customerId, d.waiterId, d.guests, d.note, d.deliveryAddress, jsonEncode(_configToJson(d.config)), bill.subtotalMinor, bill.discountMinor, bill.serviceChargeMinor, bill.deliveryChargeMinor, bill.taxMinor, bill.tipMinor, bill.roundingMinor, bill.totalMinor, now, id]);
+              'UPDATE "order" SET order_type=?, status=?, table_id=?, customer_id=?, waiter_id=?, guests=?, note=COALESCE(?, note), delivery_address=COALESCE(?, delivery_address), rider_id=COALESCE(?, rider_id), bill_config=?, subtotal_minor=?, discount_minor=?, service_charge_minor=?, delivery_charge_minor=?, tax_minor=?, tip_minor=?, rounding_minor=?, total_minor=?, updated_at=?, version=version+1 WHERE id=?',
+              [d.orderType, status, d.tableId, d.customerId, d.waiterId, d.guests, d.note, d.deliveryAddress, d.riderId, jsonEncode(_configToJson(d.config)), bill.subtotalMinor, bill.discountMinor, bill.serviceChargeMinor, bill.deliveryChargeMinor, bill.taxMinor, bill.tipMinor, bill.roundingMinor, bill.totalMinor, now, id]);
           await _exec('DELETE FROM order_item_modifier WHERE order_item_id IN (SELECT id FROM order_item WHERE order_id = ?)', [id]);
           await _exec('DELETE FROM order_item WHERE order_id = ?', [id]);
         }
@@ -311,6 +313,7 @@ class PosService {
       note: o['note'] as String?,
       held: o['status'] == 'held',
       deliveryAddress: o['delivery_address'] as String?,
+      riderId: o['rider_id'] as String?,
     );
   }
 

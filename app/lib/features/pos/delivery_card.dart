@@ -8,6 +8,8 @@ import 'cart.dart';
 
 /// Delivery details inside the cart: phone, name and address. Typing a phone number or name searches the saved customers;
 /// tapping one fills everything in. A new customer is saved automatically with the order, so next time it is one search.
+final _activeRidersProvider = FutureProvider.autoDispose((ref) => ref.watch(teamServiceProvider).riders(activeOnly: true));
+
 class DeliveryCard extends ConsumerStatefulWidget {
   const DeliveryCard({super.key});
   @override
@@ -121,6 +123,22 @@ class _DeliveryCardState extends ConsumerState<DeliveryCard> {
           decoration: InputDecoration(isDense: true, prefixIcon: const Icon(Icons.location_on_outlined, size: 18), labelText: t['address']),
           onChanged: (_) => _changed(),
         ),
+        const SizedBox(height: 8),
+        Builder(builder: (context) {
+          final riders = ref.watch(_activeRidersProvider).value ?? const [];
+          if (riders.isEmpty) return const SizedBox.shrink();
+          return DropdownButtonFormField<String?>(
+            key: const ValueKey('dlv-rider'),
+            initialValue: riders.any((r) => r.id == cart.riderId) ? cart.riderId : null,
+            isExpanded: true,
+            decoration: InputDecoration(isDense: true, prefixIcon: const Icon(Icons.two_wheeler_outlined, size: 18), labelText: t['rider']),
+            items: [
+              DropdownMenuItem<String?>(value: null, child: Text(t['rider_none'])),
+              for (final r in riders) DropdownMenuItem<String?>(value: r.id, child: Text(r.name)),
+            ],
+            onChanged: (v) => ref.read(cartProvider.notifier).setRider(v),
+          );
+        }),
       ]),
     );
   }

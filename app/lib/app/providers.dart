@@ -28,6 +28,7 @@ import '../data/bill_ops.dart';
 import '../data/deal_import.dart';
 import '../data/deal_service.dart';
 import '../data/pos_service.dart';
+import '../data/team_service.dart';
 import '../data/print_service.dart';
 import '../data/queries.dart';
 import '../data/receipt_settings.dart';
@@ -56,6 +57,7 @@ final customerServiceProvider = Provider<CustomerService>((ref) => CustomerServi
 final expenseServiceProvider = Provider<ExpenseService>((ref) => ExpenseService(ref.watch(dbHelperProvider)));
 final inventoryServiceProvider = Provider<InventoryService>((ref) => InventoryService(ref.watch(dbHelperProvider)));
 final billOpsProvider = Provider<BillOps>((ref) => BillOps(ref.watch(dbHelperProvider), ref.watch(posServiceProvider)));
+final teamServiceProvider = Provider<TeamService>((ref) => TeamService(ref.watch(dbHelperProvider)));
 final tableServiceProvider = Provider<TableService>((ref) => TableService(ref.watch(dbHelperProvider)));
 final attendanceServiceProvider = Provider<AttendanceService>((ref) => AttendanceService(ref.watch(dbHelperProvider)));
 final onlineOrderServiceProvider = Provider<OnlineOrderService>((ref) => OnlineOrderService(ref.watch(dbHelperProvider), ref.watch(posServiceProvider), ref.watch(customerServiceProvider)));

@@ -7,7 +7,7 @@ import '../../data/queries.dart';
 import '../../domain/bill.dart';
 
 class CartState {
-  const CartState({this.items = const [], this.orderType = 'counter', this.draftId, this.config = const BillConfig(), this.customerId, this.tableId, this.deliveryAddress, this.deliveryName, this.deliveryPhone});
+  const CartState({this.items = const [], this.orderType = 'counter', this.draftId, this.config = const BillConfig(), this.customerId, this.tableId, this.deliveryAddress, this.deliveryName, this.deliveryPhone, this.riderId, this.waiterId});
   final List<CartItem> items;
   final String orderType;
   final String? draftId;
@@ -19,6 +19,8 @@ class CartState {
   final String? deliveryAddress;
   final String? deliveryName;
   final String? deliveryPhone;
+  final String? riderId;
+  final String? waiterId;
 
   bool get isEmpty => items.isEmpty;
   BillResult get bill => calculateBill([
@@ -33,7 +35,7 @@ class CartState {
               taxInclusive: items[i].taxInclusive)
       ], config);
 
-  CartState copyWith({List<CartItem>? items, String? orderType, String? draftId, bool clearDraft = false, BillConfig? config, String? customerId, bool clearCustomer = false, String? tableId, bool clearTable = false, String? deliveryAddress, String? deliveryName, String? deliveryPhone, bool clearDelivery = false}) => CartState(
+  CartState copyWith({List<CartItem>? items, String? orderType, String? draftId, bool clearDraft = false, BillConfig? config, String? customerId, bool clearCustomer = false, String? tableId, bool clearTable = false, String? deliveryAddress, String? deliveryName, String? deliveryPhone, bool clearDelivery = false, String? riderId, bool clearRider = false, String? waiterId, bool clearWaiter = false}) => CartState(
       items: items ?? this.items,
       orderType: orderType ?? this.orderType,
       draftId: clearDraft ? null : (draftId ?? this.draftId),
@@ -42,7 +44,9 @@ class CartState {
       tableId: clearTable ? null : (tableId ?? this.tableId),
       deliveryAddress: clearDelivery ? null : (deliveryAddress ?? this.deliveryAddress),
       deliveryName: clearDelivery ? null : (deliveryName ?? this.deliveryName),
-      deliveryPhone: clearDelivery ? null : (deliveryPhone ?? this.deliveryPhone));
+      deliveryPhone: clearDelivery ? null : (deliveryPhone ?? this.deliveryPhone),
+      riderId: clearRider ? null : (riderId ?? this.riderId),
+      waiterId: clearWaiter ? null : (waiterId ?? this.waiterId));
 }
 
 /// The order being rung up. Every change is written to the database (as a draft), so a crash, kill or dead battery
@@ -70,7 +74,7 @@ class CartNotifier extends Notifier<CartState> {
         return;
       }
       final id = await _pos.saveDraft(
-          DraftOrder(id: s.draftId, orderType: s.orderType, items: s.items, config: s.config, tableId: s.tableId, customerId: s.customerId, deliveryAddress: s.deliveryAddress),
+          DraftOrder(id: s.draftId, orderType: s.orderType, items: s.items, config: s.config, tableId: s.tableId, customerId: s.customerId, deliveryAddress: s.deliveryAddress, riderId: s.riderId, waiterId: s.waiterId),
           staffId: staffId);
       if (state.draftId == null) state = state.copyWith(draftId: id);
     }).catchError((Object _) {
@@ -120,7 +124,7 @@ class CartNotifier extends Notifier<CartState> {
     final d = await _pos.loadDraft(id);
     state = d == null
         ? CartState(orderType: state.orderType)
-        : CartState(items: d.items, orderType: d.orderType, draftId: id, config: d.config, customerId: d.customerId, tableId: d.tableId, deliveryAddress: d.deliveryAddress);
+        : CartState(items: d.items, orderType: d.orderType, draftId: id, config: d.config, customerId: d.customerId, tableId: d.tableId, deliveryAddress: d.deliveryAddress, riderId: d.riderId, waiterId: d.waiterId);
   }
 
   /// Delivery details changed in the cart (phone, name, address).
@@ -143,7 +147,7 @@ class CartNotifier extends Notifier<CartState> {
     if (id == null) return;
     final d = await _pos.loadDraft(id);
     if (d == null) return;
-    state = CartState(items: d.items, orderType: d.orderType, draftId: id, config: d.config, customerId: d.customerId, tableId: d.tableId, deliveryAddress: d.deliveryAddress);
+    state = CartState(items: d.items, orderType: d.orderType, draftId: id, config: d.config, customerId: d.customerId, tableId: d.tableId, deliveryAddress: d.deliveryAddress, riderId: d.riderId, waiterId: d.waiterId);
   }
 
   /// A fixed discount can become larger than the bill after an item is removed; drop it instead of crashing.
@@ -232,6 +236,16 @@ class CartNotifier extends Notifier<CartState> {
     if (!state.isEmpty) _persist();
   }
 
+  void setRider(String? id) {
+    state = id == null ? state.copyWith(clearRider: true) : state.copyWith(riderId: id);
+    if (!state.isEmpty) _persist();
+  }
+
+  void setWaiter(String? id) {
+    state = id == null ? state.copyWith(clearWaiter: true) : state.copyWith(waiterId: id);
+    if (!state.isEmpty) _persist();
+  }
+
   void setTable(String? id) {
     state = id == null ? state.copyWith(clearTable: true) : state.copyWith(tableId: id, orderType: 'dine_in');
     if (!state.isEmpty) _persist();
@@ -243,7 +257,7 @@ class CartNotifier extends Notifier<CartState> {
     if (orderId != null) {
       final d = await _pos.loadDraft(orderId);
       if (d != null) {
-        state = CartState(items: d.items, orderType: d.orderType, draftId: orderId, config: d.config, customerId: d.customerId, tableId: d.tableId, deliveryAddress: d.deliveryAddress);
+        state = CartState(items: d.items, orderType: d.orderType, draftId: orderId, config: d.config, customerId: d.customerId, tableId: d.tableId, deliveryAddress: d.deliveryAddress, riderId: d.riderId, waiterId: d.waiterId);
         return;
       }
     }
@@ -281,7 +295,7 @@ class CartNotifier extends Notifier<CartState> {
     await finalizeDelivery();
     final s = state;
     if (s.isEmpty) return;
-    await _pos.saveDraft(DraftOrder(id: s.draftId, orderType: s.orderType, items: s.items, config: s.config, tableId: s.tableId, customerId: s.customerId, deliveryAddress: s.deliveryAddress, held: true), staffId: ref.read(sessionProvider)?.staffId);
+    await _pos.saveDraft(DraftOrder(id: s.draftId, orderType: s.orderType, items: s.items, config: s.config, tableId: s.tableId, customerId: s.customerId, deliveryAddress: s.deliveryAddress, riderId: s.riderId, waiterId: s.waiterId, held: true), staffId: ref.read(sessionProvider)?.staffId);
     state = CartState(orderType: s.orderType);
   }
 
@@ -290,7 +304,7 @@ class CartNotifier extends Notifier<CartState> {
     if (!state.isEmpty) await hold();
     final d = await _pos.loadDraft(orderId);
     if (d == null) return;
-    state = CartState(items: d.items, orderType: d.orderType, draftId: orderId, config: d.config, customerId: d.customerId, tableId: d.tableId, deliveryAddress: d.deliveryAddress);
+    state = CartState(items: d.items, orderType: d.orderType, draftId: orderId, config: d.config, customerId: d.customerId, tableId: d.tableId, deliveryAddress: d.deliveryAddress, riderId: d.riderId, waiterId: d.waiterId);
     _persist(); // back to a normal (non-held) draft
   }
 

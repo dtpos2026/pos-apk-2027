@@ -21,6 +21,9 @@ import 'weight_dialog.dart';
 final heldOrdersProvider = FutureProvider.autoDispose<List<HeldOrder>>((ref) => ref.watch(posServiceProvider).listHeld());
 final productUnitProvider = FutureProvider.family<String, String>((ref, id) async => (await ref.watch(dbHelperProvider).one('SELECT unit FROM product WHERE id = ?', [id]))?['unit'] as String? ?? 'pc');
 
+final _waitersProvider = FutureProvider.autoDispose((ref) async => (await ref.watch(staffServiceProvider).list()).where((s) => s.active && s.roleName == 'Waiter').toList());
+final _waiterNameProvider = FutureProvider.autoDispose.family<String?, String?>((ref, id) async => id == null ? null : (await ref.watch(dbHelperProvider).one('SELECT name FROM staff WHERE id = ?', [id]))?['name'] as String?);
+
 final _customerNameProvider = FutureProvider.autoDispose.family<String?, String?>((ref, id) async {
   if (id == null) return null;
   return (await ref.watch(dbHelperProvider).one('SELECT name FROM customer WHERE id = ?', [id]))?['name'] as String?;
@@ -124,6 +127,19 @@ class CartPanel extends ConsumerWidget {
                     if (picked != null) notifier.setTable(picked);
                   },
                 ),
+                if ((ref.watch(_waitersProvider).value ?? const []).isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  PopupMenuButton<String>(
+                    key: const ValueKey('pick-waiter'),
+                    tooltip: t['waiter'],
+                    onSelected: (v) => notifier.setWaiter(v.isEmpty ? null : v),
+                    itemBuilder: (_) => [
+                      PopupMenuItem(value: '', child: Text(t['waiter_none'])),
+                      for (final w in ref.read(_waitersProvider).value ?? const []) PopupMenuItem(key: ValueKey('waiter-${w.name}'), value: w.id, child: Text(w.name)),
+                    ],
+                    child: Chip(avatar: const Icon(Icons.room_service_outlined, size: 18), label: Text(ref.watch(_waiterNameProvider(cart.waiterId)).value ?? t['waiter'])),
+                  ),
+                ],
               ],
             ]),
           ),

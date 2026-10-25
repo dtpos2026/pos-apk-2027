@@ -39,6 +39,7 @@ class BillOps {
             guests: into.guests,
             held: into.held,
             deliveryAddress: into.deliveryAddress ?? from.deliveryAddress,
+            riderId: into.riderId ?? from.riderId,
           ),
           staffId: staffId,
         );
@@ -81,7 +82,7 @@ class BillOps {
           if (to == null) throw PosException('not_editable', 'Only unpaid bills can receive items');
           target = toOrderId;
           await pos.saveDraft(
-            DraftOrder(id: to.id, orderType: to.orderType, items: _combine([...to.items, ...go]), config: to.config, tableId: to.tableId, customerId: to.customerId, waiterId: to.waiterId, guests: to.guests, held: to.held, deliveryAddress: to.deliveryAddress),
+            DraftOrder(id: to.id, orderType: to.orderType, items: _combine([...to.items, ...go]), config: to.config, tableId: to.tableId, customerId: to.customerId, waiterId: to.waiterId, guests: to.guests, held: to.held, deliveryAddress: to.deliveryAddress, riderId: to.riderId),
             staffId: staffId,
           );
         } else {
@@ -91,7 +92,7 @@ class BillOps {
             if (t['status'] != 'free' && toTableId != from.tableId) throw PosException('table_busy', 'The table is not free');
           }
           target = await pos.saveDraft(
-            DraftOrder(orderType: toTableId != null ? 'dine_in' : from.orderType, items: go, tableId: toTableId, customerId: from.customerId, waiterId: from.waiterId, deliveryAddress: from.deliveryAddress),
+            DraftOrder(orderType: toTableId != null ? 'dine_in' : from.orderType, items: go, tableId: toTableId, customerId: from.customerId, waiterId: from.waiterId, deliveryAddress: from.deliveryAddress, riderId: from.riderId),
             staffId: staffId,
           );
           // items the kitchen already has keep that status on the new bill
@@ -108,7 +109,7 @@ class BillOps {
           await _retire(fromOrderId, 'All items moved to another bill');
         } else {
           await pos.saveDraft(
-            DraftOrder(id: fromOrderId, orderType: from.orderType, items: stay, config: from.config, tableId: from.tableId, customerId: from.customerId, waiterId: from.waiterId, guests: from.guests, held: from.held, deliveryAddress: from.deliveryAddress),
+            DraftOrder(id: fromOrderId, orderType: from.orderType, items: stay, config: from.config, tableId: from.tableId, customerId: from.customerId, waiterId: from.waiterId, guests: from.guests, held: from.held, deliveryAddress: from.deliveryAddress, riderId: from.riderId),
             staffId: staffId,
           );
         }

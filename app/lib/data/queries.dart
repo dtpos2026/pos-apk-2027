@@ -71,6 +71,14 @@ class Session {
   final String roleName;
   final Set<String> permissions;
   bool can(String p) => permissions.contains('*') || permissions.contains(p);
+
+  /// May this person open [screen]? A role with its own screen list (set per staff member) opens exactly those screens; every other
+  /// role keeps the permission each screen always needed ([legacy]).
+  bool canOpen(String screen, String legacy) {
+    if (permissions.contains('*')) return true;
+    if (permissions.any((p) => p.startsWith('screen.'))) return permissions.contains('screen.$screen');
+    return permissions.contains(legacy);
+  }
 }
 
 Future<List<Map<String, Object?>>> _rows(AppDatabase db, String sql, [List<Object?> args = const []]) async =>

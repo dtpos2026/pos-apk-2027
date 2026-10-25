@@ -175,6 +175,7 @@ class PrintService {
     final kotDesign = await ReceiptTemplateStore(db).loadKot();
     final token = await TokenService(db, now: _now).orderTokenLabel(orderId);
     final deliveryTo = await deliveryLinesFor((sql, a) => _select(sql, a), o);
+    final waiterName = o['waiter_id'] == null ? null : (await _select('SELECT name FROM staff WHERE id = ?', [o['waiter_id'] as String])).firstOrNull?['name'] as String?;
     for (final p in printers) {
       final station = (p['station'] as String?) ?? '';
       final lines = byStation[station];
@@ -202,6 +203,7 @@ class PrintService {
         lines: kotLines,
         token: token,
         deliveryTo: deliveryTo,
+        waiter: waiterName,
         isReprint: reprint,
         design: kotDesign,
       );

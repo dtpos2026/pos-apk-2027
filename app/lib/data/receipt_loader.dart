@@ -89,9 +89,11 @@ Future<List<String>> deliveryLinesFor(Future<List<Map<String, Object?>>> Functio
   if (o['order_type'] != 'delivery') return const [];
   final c = o['customer_id'] == null ? null : (await q('SELECT name, phone, address FROM customer WHERE id = ?', [o['customer_id'] as String])).firstOrNull;
   final address = ((o['delivery_address'] as String?)?.trim().isNotEmpty ?? false) ? (o['delivery_address'] as String).trim() : (c?['address'] as String?)?.trim();
+  final rider = o['rider_id'] == null ? null : (await q('SELECT name FROM team_member WHERE id = ?', [o['rider_id'] as String])).firstOrNull?['name'] as String?;
   return [
     if ((c?['name'] as String?)?.isNotEmpty ?? false) c!['name'] as String,
     if ((c?['phone'] as String?)?.isNotEmpty ?? false) 'Tel: ${c!['phone']}',
     if (address != null && address.isNotEmpty) address,
+    if (rider != null) 'Rider: $rider',
   ];
 }

@@ -9,6 +9,7 @@ import '../../domain/money.dart';
 import '../../app/format.dart';
 import '../../data/receipt_loader.dart' show two;
 import '../../data/staff_service.dart';
+import '../../data/team_service.dart';
 import '../common/dialogs.dart';
 
 final _staffProvider = FutureProvider.autoDispose<List<StaffRow>>((ref) => ref.watch(staffServiceProvider).list());
@@ -21,10 +22,10 @@ class StaffScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = Strings.of(context);
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Column(children: [
-        TabBar(tabs: [Tab(key: const ValueKey('tab-staff'), text: s['staff']), Tab(key: const ValueKey('tab-attendance'), text: s['attendance'])]),
-        const Expanded(child: TabBarView(children: [_StaffList(), AttendanceTab()])),
+        TabBar(tabs: [Tab(key: const ValueKey('tab-staff'), text: s['staff']), Tab(key: const ValueKey('tab-riders'), text: s['riders']), Tab(key: const ValueKey('tab-attendance'), text: s['attendance'])]),
+        const Expanded(child: TabBarView(children: [_StaffList(), RidersTab(), AttendanceTab()])),
       ]),
     );
   }
@@ -48,14 +49,18 @@ class _StaffList extends ConsumerWidget {
     final roles = await ref.read(staffServiceProvider).roles();
     if (!context.mounted) return;
     var role = roles.firstWhere((r) => r.name == 'Cashier', orElse: () => roles.first).id;
+    var custom = false;
+    String? newId;
     final v = await showFormDialog(
       context,
       title: s['add_staff'],
       fields: [FieldSpec('name', s['name']), FieldSpec('pin', s['pin'], number: true, obscure: true), FieldSpec('phone', s['phone'], required: false)],
-      extra: (set) => DropdownButtonFormField<String>(key: const ValueKey('staff-role'), initialValue: role, decoration: InputDecoration(labelText: s['role']), items: [for (final r in roles) DropdownMenuItem(value: r.id, child: Text(r.name))], onChanged: (x) => set(() => role = x ?? role)),
+      extra: (set) => Column(children: [DropdownButtonFormField<String>(key: const ValueKey('staff-role'), initialValue: role, decoration: InputDecoration(labelText: s['role']), items: [for (final r in roles) DropdownMenuItem(value: r.id, child: Text(r.name))], onChanged: (x) => set(() => role = x ?? role)),
+        SwitchListTile(key: const ValueKey('staff-custom'), contentPadding: EdgeInsets.zero, dense: true, title: Text(s['access_choose']), value: custom, onChanged: (v) => set(() => custom = v)),
+      ]),
       validate: (v) async {
         try {
-          await ref.read(staffServiceProvider).add(actor: ref.read(sessionProvider)!.staffId, name: v['name']!, roleId: role, pin: v['pin']!, phone: v['phone']);
+          newId = await ref.read(staffServiceProvider).add(actor: ref.read(sessionProvider)!.staffId, name: v['name']!, roleId: role, pin: v['pin']!, phone: v['phone']);
           return null;
         } on PosException catch (e) {
           return e.message;
@@ -64,7 +69,21 @@ class _StaffList extends ConsumerWidget {
         }
       },
     );
-    if (v != null) ref.invalidate(_staffProvider);
+    if (v != null) {
+      ref.invalidate(_staffProvider);
+      if (custom && newId != null && context.mounted) await _editAccess(context, ref, newId!, v['name']!);
+    }
+  }
+
+  /// The screens and actions one person may use. Starts from what their role gives today.
+  Future<void> _editAccess(BuildContext context, WidgetRef ref, String staffId, String name) async {
+    final svc = ref.read(staffServiceProvider);
+    final cur = await svc.accessOf(staffId);
+    if (!context.mounted) return;
+    final r = await showDialog<({Set<String> screens, Set<String> actions})>(context: context, builder: (_) => _AccessDialog(name: name, screens: cur.screens, actions: cur.actions));
+    if (r == null || !context.mounted) return;
+    await _guard(context, () => svc.setAccess(actor: ref.read(sessionProvider)!.staffId, staffId: staffId, screens: r.screens, actions: r.actions));
+    ref.invalidate(_staffProvider);
   }
 
   @override
@@ -98,6 +117,8 @@ class _StaffList extends ConsumerWidget {
                     } else if (a == 'pin') {
                       final v = await showFormDialog(context, title: s['reset_pin'], fields: [FieldSpec('pin', s['pin'], number: true, obscure: true)]);
                       if (v != null) await svc.resetPin(actor: me, staffId: r.id, newPin: v['pin']!);
+                    } else if (a == 'access') {
+                      await _editAccess(context, ref, r.id, r.name);
                     } else if (a == 'wage') {
                       final cur = await svc.dailyWage(r.id);
                       if (!context.mounted) return;
@@ -106,7 +127,7 @@ class _StaffList extends ConsumerWidget {
                     }
                     ref.invalidate(_staffProvider);
                   }),
-                  itemBuilder: (_) => [PopupMenuItem(value: 'toggle', child: Text(r.active ? s['deactivate'] : s['activate'])), PopupMenuItem(value: 'pin', child: Text(s['reset_pin'])), PopupMenuItem(value: 'wage', child: Text(s['daily_wage']))],
+                  itemBuilder: (_) => [PopupMenuItem(key: ValueKey('staff-access-${r.name}'), value: 'access', child: Text(s['access_title'])), PopupMenuItem(value: 'toggle', child: Text(r.active ? s['deactivate'] : s['activate'])), PopupMenuItem(value: 'pin', child: Text(s['reset_pin'])), PopupMenuItem(value: 'wage', child: Text(s['daily_wage']))],
                 ),
               ),
             );
@@ -172,5 +193,132 @@ class AttendanceTab extends ConsumerWidget {
           ),
         ),
     ]);
+  }
+}
+
+/// Tick the screens this person can open and the things they may do. Staff and Settings are never offered: they stay with owner and manager.
+class _AccessDialog extends StatefulWidget {
+  const _AccessDialog({required this.name, required this.screens, required this.actions});
+  final String name;
+  final Set<String> screens;
+  final Set<String> actions;
+  @override
+  State<_AccessDialog> createState() => _AccessDialogState();
+}
+
+class _AccessDialogState extends State<_AccessDialog> {
+  late final Set<String> _screens = {...widget.screens};
+  late final Set<String> _actions = {...widget.actions};
+
+  @override
+  Widget build(BuildContext context) {
+    final s = Strings.of(context);
+    Widget box(String key, String label, Set<String> set, String value) => CheckboxListTile(
+          key: ValueKey(key),
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          controlAffinity: ListTileControlAffinity.leading,
+          title: Text(label),
+          value: set.contains(value),
+          onChanged: (v) => setState(() => v == true ? set.add(value) : set.remove(value)),
+        );
+    return AlertDialog(
+      title: Text('${s['access_title']}: ${widget.name}'),
+      scrollable: true,
+      content: SizedBox(
+        width: 340,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(s['access_screens'], style: const TextStyle(fontWeight: FontWeight.w800)),
+          for (final sc in accessScreens) box('acc-screen-$sc', s['acc_screen_$sc'], _screens, sc),
+          const Divider(),
+          Text(s['access_actions'], style: const TextStyle(fontWeight: FontWeight.w800)),
+          for (final a in accessActions) box('acc-act-$a', s['acc_act_$a'], _actions, a),
+        ]),
+      ),
+      actions: [
+        DialogActions([
+          TextButton(onPressed: () => Navigator.pop(context), child: Text(s['cancel'])),
+          FilledButton(key: const ValueKey('access-save'), onPressed: _screens.isEmpty ? null : () => Navigator.pop(context, (screens: _screens, actions: _actions)), child: Text(s['save'])),
+        ]),
+      ],
+    );
+  }
+}
+
+final _ridersProvider = FutureProvider.autoDispose<List<RiderRow>>((ref) {
+  final now = ref.watch(clockProvider)();
+  return ref.watch(teamServiceProvider).riders(day: '${now.year}-${two(now.month)}-${two(now.day)}');
+});
+
+/// Delivery riders: add, edit, hide. Each card shows today's deliveries so the owner sees who did what.
+class RidersTab extends ConsumerWidget {
+  const RidersTab({super.key});
+
+  Future<void> _edit(BuildContext context, WidgetRef ref, RiderRow? r) async {
+    final s = Strings.of(context);
+    final v = await showFormDialog(
+      context,
+      title: r == null ? s['add_rider'] : r.name,
+      fields: [
+        FieldSpec('name', s['name'], initial: r?.name ?? ''),
+        FieldSpec('phone', s['phone'], initial: r?.phone ?? '', required: false),
+        FieldSpec('bike', s['rider_bike'], initial: r?.bikeNo ?? '', required: false),
+      ],
+      validate: (v) async {
+        try {
+          await ref.read(teamServiceProvider).saveRider(id: r?.id, name: v['name']!, phone: v['phone'], bikeNo: v['bike'], staffId: ref.read(sessionProvider)!.staffId);
+          return null;
+        } on PosException catch (e) {
+          return e.message;
+        }
+      },
+    );
+    if (v != null) ref.invalidate(_ridersProvider);
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = Strings.of(context);
+    final list = ref.watch(_ridersProvider);
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      floatingActionButton: FloatingActionButton.extended(key: const ValueKey('add-rider'), onPressed: () => _edit(context, ref, null), icon: const Icon(Icons.two_wheeler_outlined), label: Text(s['add_rider'])),
+      body: list.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('$e')),
+        data: (rows) => rows.isEmpty
+            ? Center(child: Padding(padding: const EdgeInsets.all(28), child: Text(s['riders_none'], textAlign: TextAlign.center)))
+            : ListView.builder(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 90),
+                itemCount: rows.length,
+                itemBuilder: (_, i) {
+                  final r = rows[i];
+                  return Card(
+                    child: ListTile(
+                      key: ValueKey('rider-${r.name}'),
+                      leading: CircleAvatar(child: Icon(Icons.two_wheeler_outlined, color: r.active ? null : Theme.of(context).colorScheme.outline)),
+                      title: Text(r.name, style: TextStyle(fontWeight: FontWeight.w600, decoration: r.active ? null : TextDecoration.lineThrough)),
+                      subtitle: Text([if ((r.phone ?? '').isNotEmpty) r.phone!, if ((r.bikeNo ?? '').isNotEmpty) r.bikeNo!, '${r.deliveries} ${s['rider_today']}${r.deliveries > 0 ? ' · ${ref.money(r.totalMinor)}' : ''}'].join('  ·  ')),
+                      onTap: () => _edit(context, ref, r),
+                      trailing: PopupMenuButton<String>(
+                        key: ValueKey('rider-menu-${r.name}'),
+                        onSelected: (a) async {
+                          final svc = ref.read(teamServiceProvider);
+                          final me = ref.read(sessionProvider)!.staffId;
+                          if (a == 'toggle') await svc.setActive(r.id, !r.active, staffId: me);
+                          if (a == 'delete') await svc.delete(r.id, staffId: me);
+                          ref.invalidate(_ridersProvider);
+                        },
+                        itemBuilder: (_) => [
+                          PopupMenuItem(value: 'toggle', child: Text(r.active ? s['deactivate'] : s['activate'])),
+                          PopupMenuItem(key: ValueKey('rider-delete-${r.name}'), value: 'delete', child: Text(s['delete'])),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+      ),
+    );
   }
 }
