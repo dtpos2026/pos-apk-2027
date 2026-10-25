@@ -21,16 +21,18 @@ def u(v):
     return int(round(v * S))
 
 
-# Everything sits inside a circle of radius 32 around the centre (54, 54), so no launcher shape (circle, squircle, the
-# Android 12 splash circle) can cut any of it off. The gold fork-and-knife coin sits on the receipt's lower-right corner.
-RX0, RX1, RY0, RY1, TIP = 36, 66, 28, 75, 80
-COIN = (64, 70, 9.5)
+# Everything sits inside a circle of radius ~34 around the centre (54, 54), so no launcher shape (circle, squircle, the
+# Android 12 splash circle) can cut any of it off. A wide receipt with the DT mark and a burger; the gold fork-and-knife coin sits on its
+# lower-right corner.
+OX, OY = -2, -3
+RX0, RX1, RY0, RY1, TIP = 34 + OX, 68 + OX, 30 + OY, 72 + OY, 77 + OY
+COIN = (66 + OX, 68 + OY, 10.5)
 
 
 def receipt_mask(d, fill):
     """The paper: rounded top, zig-zag torn bottom."""
     d.rounded_rectangle([u(RX0), u(RY0), u(RX1), u(RY1)], radius=u(4), fill=fill)
-    d.rectangle([u(RX0), u(RY0 + 12), u(RX1), u(RY1 + 2)], fill=fill)
+    d.rectangle([u(RX0), u(RY0 + 10), u(RX1), u(RY1 + 2)], fill=fill)
     pts = [(RX0, RY1)]
     n = 8
     w = (RX1 - RX0) / n
@@ -40,7 +42,17 @@ def receipt_mask(d, fill):
     d.polygon([(u(a), u(b)) for a, b in pts], fill=fill)
 
 
-def cutlery(d, cx, cy, color, k=0.62):
+def burger(d, cx, cy, w, color, accent=None):
+    """A simple burger: top bun, lettuce, patty, bottom bun, centred on (cx, cy), w wide."""
+    h = w * 0.78
+    x0, top = cx - w / 2, cy - h / 2
+    d.pieslice([u(x0), u(top), u(x0 + w), u(top + h * 0.62)], 180, 360, fill=color)
+    d.rounded_rectangle([u(x0 - w * 0.04), u(top + h * 0.36), u(x0 + w * 1.04), u(top + h * 0.50)], radius=u(h * 0.07), fill=accent or color)
+    d.rounded_rectangle([u(x0), u(top + h * 0.54), u(x0 + w), u(top + h * 0.70)], radius=u(h * 0.08), fill=color)
+    d.rounded_rectangle([u(x0 + w * 0.03), u(top + h * 0.74), u(x0 + w * 0.97), u(top + h * 0.98)], radius=u(h * 0.1), fill=color)
+
+
+def cutlery(d, cx, cy, color, k=0.7):
     """Fork and knife, centred on (cx, cy), scaled by k."""
     def X(v):
         return u(cx + v * k)
@@ -63,11 +75,11 @@ def foreground(mono=False):
     d = ImageDraw.Draw(im)
     cx, cy, r = COIN
     mx = (RX0 + RX1) / 2 - 7
+    bx, by, bw = (RX0 + RX1) / 2 - 1, RY0 + 29, 18
     if mono:
         receipt_mask(d, (0, 0, 0, 255))
         im.paste((0, 0, 0, 0), (u(mx), u(RY0 + 4)), mark_mask(14))
-        for y0, x1 in ((RY0 + 20, RX1 - 6), (RY0 + 24.5, RX1 - 13)):
-            d.rounded_rectangle([u(RX0 + 6), u(y0), u(x1), u(y0 + 2)], radius=u(1), fill=(0, 0, 0, 0))
+        burger(d, bx, by, bw, (0, 0, 0, 0))
         d.ellipse([u(cx - r - 1.6), u(cy - r - 1.6), u(cx + r + 1.6), u(cy + r + 1.6)], fill=(0, 0, 0, 0))
         d.ellipse([u(cx - r), u(cy - r), u(cx + r), u(cy + r)], fill=(0, 0, 0, 255))
         cutlery(d, cx, cy, (0, 0, 0, 0))
@@ -80,8 +92,7 @@ def foreground(mono=False):
     im.alpha_composite(sh)
     receipt_mask(d, WHITE)
     im.paste(RED, (u(mx), u(RY0 + 4)), mark_mask(14))  # the brand mark in restaurant red
-    for y0, x1 in ((RY0 + 20, RX1 - 6), (RY0 + 24.5, RX1 - 13)):
-        d.rounded_rectangle([u(RX0 + 6), u(y0), u(x1), u(y0 + 2)], radius=u(1), fill=TINT)
+    burger(d, bx, by, bw, RED, (240, 170, 170))
     d.ellipse([u(cx - r - 1.7), u(cy - r - 1.7), u(cx + r + 1.7), u(cy + r + 1.7)], fill=WHITE)  # ring keeps the coin apart from the paper
     # the gold coin: drop shadow, dark rim, bright face with a soft highlight, black fork and knife
     d.ellipse([u(cx - r + 0.4), u(cy - r + 1.2), u(cx + r + 0.4), u(cy + r + 1.2)], fill=(0, 0, 0, 60))
