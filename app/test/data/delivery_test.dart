@@ -2,6 +2,7 @@ import 'package:drift/native.dart';
 import 'package:dt_food_pos/data/customer_service.dart';
 import 'package:dt_food_pos/data/db/database.dart';
 import 'package:dt_food_pos/data/db_helper.dart';
+import 'package:dt_food_pos/data/kitchen_service.dart';
 import 'package:dt_food_pos/data/online_order_service.dart';
 import 'package:dt_food_pos/data/pos_service.dart';
 import 'package:dt_food_pos/data/print_service.dart';
@@ -140,5 +141,41 @@ void main() {
     await migrateToV9(db);
     expect((await db.customSelect("SELECT COUNT(*) n FROM pragma_table_info('customer') WHERE name = 'city'").getSingle()).data['n'], 1);
     expect((await db.customSelect("SELECT COUNT(*) n FROM pragma_table_info('product') WHERE name = 'description'").getSingle()).data['n'], 1);
+  });
+
+  test('modules work together: the kitchen moves the delivery status, delivered finishes the kitchen ticket, paying finishes it too', () async {
+    final kitchen = KitchenService(DbHelper(db, now: () => clock));
+    final prints = PrintService(db, now: () => clock);
+
+    // kitchen steps carry the delivery status along (forward only)
+    final a = await svc.create(customerName: 'A', phone: '0300', address: 'x', items: burgers, staffId: 's1');
+    await prints.queueKot(a, onlyNew: true);
+    expect((await kitchen.tickets()).map((t) => t.orderId), contains(a));
+    await kitchen.advance(a, staffId: 's1'); // new -> preparing
+    expect((await svc.byId(a))!.deliveryStatus, 'preparing');
+    await kitchen.advance(a, staffId: 's1'); // preparing -> ready
+    expect((await svc.byId(a))!.deliveryStatus, 'ready');
+    await svc.setStatus(a, 'dispatched', riderId: 'rd', staffId: 's1');
+    await kitchen.advance(a, staffId: 's1'); // ready -> served: dispatched must not go back
+    expect((await svc.byId(a))!.deliveryStatus, 'dispatched');
+    expect((await svc.history(a)).map((x) => x.status), containsAllInOrder(['preparing', 'ready', 'dispatched']));
+
+    // delivered finishes a ticket that is still open on the board
+    final b = await svc.create(customerName: 'B', phone: '0301', address: 'y', items: burgers, staffId: 's1');
+    await prints.queueKot(b, onlyNew: true);
+    await svc.setStatus(b, 'confirmed', staffId: 's1');
+    await svc.setStatus(b, 'preparing', staffId: 's1');
+    await svc.setStatus(b, 'ready', staffId: 's1');
+    await svc.setStatus(b, 'dispatched', riderId: 'rd', staffId: 's1');
+    await svc.setStatus(b, 'delivered', staffId: 's1');
+    expect((await kitchen.tickets()).map((t) => t.orderId), isNot(contains(b)));
+    expect((await kitchen.tickets(status: 'served')).map((t) => t.orderId), contains(b));
+
+    // paying a delivery order finishes its kitchen ticket by itself
+    final c = await svc.create(customerName: 'C', phone: '0302', address: 'z', items: burgers, staffId: 's1');
+    await prints.queueKot(c, onlyNew: true);
+    await pos.settleOrder(orderId: c, payments: [const SettlePayment(methodId: 'cash', amountMinor: 90000)], staffId: 's1');
+    expect((await kitchen.tickets()).map((t) => t.orderId), isNot(contains(c)));
+    expect((await kitchen.tickets(status: 'served')).map((t) => t.orderId), contains(c));
   });
 }

@@ -89,6 +89,22 @@ class KitchenService {
     await h.db.transaction(() async {
       await h.exec('INSERT INTO kitchen_event(id, order_id, status, at, staff_id) VALUES (?,?,?,?,?)', [h.id, orderId, next, h.ts, staffId]);
       await h.exec("UPDATE \"order\" SET status = ?, updated_at = ?, version = version + 1 WHERE id = ? AND status IN ('new','preparing','ready','served')", [next, h.ts, orderId]);
+      await _followInDelivery(orderId, next, staffId);
     });
+  }
+
+  /// A delivery / online order follows its kitchen ticket: Preparing and Ready in the kitchen move the delivery status the same way, so the
+  /// cashier never has to tap the same step twice. It only ever moves forward, and never past Ready (the rider / hand-over steps stay manual).
+  Future<void> _followInDelivery(String orderId, String kitchenStatus, String? staffId) async {
+    const order = ['pending', 'confirmed', 'preparing', 'ready'];
+    final target = switch (kitchenStatus) { 'preparing' => 'preparing', 'ready' => 'ready', _ => null };
+    if (target == null) return;
+    final d = await h.one('SELECT status FROM delivery_info WHERE order_id = ?', [orderId]);
+    if (d == null) return;
+    final now = d['status'] as String;
+    final at = order.indexOf(now);
+    if (at < 0 || at >= order.indexOf(target)) return;
+    await h.exec('UPDATE delivery_info SET status = ?, updated_at = ? WHERE order_id = ?', [target, h.ts, orderId]);
+    await h.exec('INSERT INTO delivery_status_log(id, order_id, status, staff_id, created_at) VALUES (?,?,?,?,?)', [h.id, orderId, target, staffId, h.ts]);
   }
 }

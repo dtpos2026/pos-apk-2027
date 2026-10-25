@@ -395,6 +395,13 @@ class OnlineOrderService {
         }
         await h.exec('INSERT INTO delivery_status_log(id, order_id, status, staff_id, created_at) VALUES (?,?,?,?,?)', [h.id, orderId, status, staffId, h.ts]);
         await h.audit('delivery.$status', staffId: staffId, entity: 'order', entityId: orderId);
+        if (status == 'delivered') {
+          // the food has reached the customer: whatever is still open on the kitchen board is finished
+          final k = await h.one('SELECT status FROM kitchen_event WHERE order_id = ? ORDER BY at DESC, rowid DESC LIMIT 1', [orderId]);
+          if (k != null && k['status'] != 'served') {
+            await h.exec('INSERT INTO kitchen_event(id, order_id, status, at, staff_id) VALUES (?,?,?,?,?)', [h.id, orderId, 'served', h.ts, staffId]);
+          }
+        }
       });
 
   /// The bill is kept (as cancelled) so history and reports still show it. A waiting order never reached the kitchen, so anyone may
