@@ -49,6 +49,9 @@ Future<void> repointPictures(AppDatabase db, {required Directory menuImages, req
 
   await fix('product', 'image_path', menuImages, '');
   await fix('category', 'image_path', menuImages, '');
+  await fix('staff', 'image_path', menuImages, '');
+  await fix('team_member', 'image_path', menuImages, '');
+  await fix('customer', 'image_path', menuImages, '');
   await fix('business_profile', 'logo_path', logo, '');
 }
 

@@ -7,6 +7,7 @@ import '../help/help_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../common/person_avatar.dart';
 import '../../app/strings.dart';
 import '../../cloud/access_controller.dart';
 import '../cloud/support_screen.dart';
@@ -58,6 +59,8 @@ class AppDrawer extends ConsumerWidget {
         if ((biz?.ownerName ?? '').isNotEmpty) Text(biz!.ownerName!, style: TextStyle(color: BrandBanner(cs.primary).soft)),
         const SizedBox(height: 6),
         Row(children: [
+          PersonAvatar(name: session.name, imagePath: ref.watch(staffListProvider).value?.where((x) => x.id == session.staffId).firstOrNull?.imagePath, radius: 13),
+          const SizedBox(width: 8),
           Flexible(child: Text(session.name, style: TextStyle(color: BrandBanner(cs.primary).on, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis)),
           if (status != null) ...[
             const SizedBox(width: 8),

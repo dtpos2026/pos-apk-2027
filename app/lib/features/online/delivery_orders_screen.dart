@@ -16,7 +16,7 @@ import '../../domain/csv.dart';
 import '../../domain/delivery_messages.dart';
 import '../common/dialogs.dart';
 import '../menu/share/menu_share_screen.dart';
-import '../pos/cart.dart';
+import '../pos/checkout_sheet.dart' show payOrder;
 import 'new_delivery_order_screen.dart';
 import 'order_sources_screen.dart';
 
@@ -111,8 +111,7 @@ class _DeliveryState extends ConsumerState<OnlineOrdersScreen> with SingleTicker
       });
 
   Future<void> _pay(OnlineOrder o) async {
-    await ref.read(cartProvider.notifier).resume(o.id);
-    ref.read(shellTabProvider.notifier).go('pos');
+    await payOrder(Navigator.of(context, rootNavigator: true).context, ref, o.id);
   }
 
   Future<void> _history(OnlineOrder o) async {

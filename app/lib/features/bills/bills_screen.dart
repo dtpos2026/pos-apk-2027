@@ -19,6 +19,7 @@ import '../../domain/receipt_doc.dart';
 import '../settings/receipt_paper.dart';
 import '../common/dialogs.dart';
 import '../pos/cart.dart';
+import '../pos/checkout_sheet.dart' show payOrder;
 
 final _billsProvider = FutureProvider.autoDispose.family<List<BillRow>, (String, String, String)>((ref, k) => ref.watch(billHistoryProvider).forDate(k.$1, search: k.$2, tab: k.$3));
 
@@ -130,9 +131,14 @@ class _RunningBillDialogState extends ConsumerState<_RunningBillDialog> {
   }
 
   Future<void> _resume({required bool pay}) async {
-    await ref.read(cartProvider.notifier).resume(widget.bill.id);
-    ref.read(shellTabProvider.notifier).go('pos');
+    final root = Navigator.of(context, rootNavigator: true).context;
     if (mounted) Navigator.pop(context);
+    if (pay) {
+      await payOrder(root, ref, widget.bill.id);
+    } else {
+      await ref.read(cartProvider.notifier).resume(widget.bill.id);
+      ref.read(shellTabProvider.notifier).go('pos');
+    }
   }
 
   Future<void> _cancel() async {

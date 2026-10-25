@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../common/person_avatar.dart';
 import '../../app/whatsapp.dart';
 import '../../cloud/access_controller.dart';
 import '../../app/strings.dart';
@@ -48,7 +49,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final t = Strings.of(context);
     final staff = ref.watch(staffListProvider);
-    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -85,7 +85,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               Card(
                                 child: ListTile(
                                   key: ValueKey('staff-${s.name}'),
-                                  leading: CircleAvatar(backgroundColor: scheme.primaryContainer, child: Text(s.name.characters.first.toUpperCase())),
+                                  leading: PersonAvatar(name: s.name, imagePath: s.imagePath),
                                   title: Text(s.name),
                                   subtitle: Text(s.roleName),
                                   onTap: () => setState(() => _who = s),

@@ -11,8 +11,28 @@ import '../../data/receipt_loader.dart' show two;
 import '../../data/staff_service.dart';
 import '../../data/team_service.dart';
 import '../common/dialogs.dart';
+import '../common/person_avatar.dart';
+import '../../data/menu_images.dart';
 
 final _staffProvider = FutureProvider.autoDispose<List<StaffRow>>((ref) => ref.watch(staffServiceProvider).list());
+
+/// Takes (camera) or picks (gallery) a profile picture for a staff member, rider or waiter and saves it, cut square and small, on the phone.
+Future<void> _setPhoto(BuildContext context, WidgetRef ref, String id, {required bool camera, required bool member}) async {
+  final picker = ref.read(logoPickerProvider);
+  final b = camera ? await picker.capture() : await picker.pick();
+  if (b == null) return;
+  try {
+    final store = ref.read(menuImageStoreProvider);
+    if (member) {
+      await store.setMember(id, b);
+    } else {
+      await store.setStaff(id, b);
+    }
+    ref.invalidate(staffListProvider);
+  } on MenuImageException catch (e) {
+    if (context.mounted) showMessage(context, e.message);
+  }
+}
 
 /// Staff list and attendance (clock in / out, hours and wages per month).
 class StaffScreen extends StatelessWidget {
@@ -105,7 +125,7 @@ class _StaffList extends ConsumerWidget {
             return Card(
               child: ListTile(
                 key: ValueKey('staff-row-${r.name}'),
-                leading: CircleAvatar(child: Text(r.name.characters.first.toUpperCase())),
+                leading: PersonAvatar(name: r.name, imagePath: r.imagePath),
                 title: Text(r.name, style: TextStyle(fontWeight: FontWeight.w600, decoration: r.active ? null : TextDecoration.lineThrough)),
                 subtitle: Text('${r.roleName}${r.active ? '' : '  ·  ${s['inactive']}'}'),
                 trailing: PopupMenuButton<String>(
@@ -117,6 +137,10 @@ class _StaffList extends ConsumerWidget {
                     } else if (a == 'pin') {
                       final v = await showFormDialog(context, title: s['reset_pin'], fields: [FieldSpec('pin', s['pin'], number: true, obscure: true)]);
                       if (v != null) await svc.resetPin(actor: me, staffId: r.id, newPin: v['pin']!);
+                    } else if (a == 'photo-camera' || a == 'photo-gallery') {
+                      await _setPhoto(context, ref, r.id, camera: a == 'photo-camera', member: false);
+                    } else if (a == 'photo-remove') {
+                      await ref.read(menuImageStoreProvider).removeStaff(r.id);
                     } else if (a == 'access') {
                       await _editAccess(context, ref, r.id, r.name);
                     } else if (a == 'wage') {
@@ -127,7 +151,7 @@ class _StaffList extends ConsumerWidget {
                     }
                     ref.invalidate(_staffProvider);
                   }),
-                  itemBuilder: (_) => [PopupMenuItem(key: ValueKey('staff-access-${r.name}'), value: 'access', child: Text(s['access_title'])), PopupMenuItem(value: 'toggle', child: Text(r.active ? s['deactivate'] : s['activate'])), PopupMenuItem(value: 'pin', child: Text(s['reset_pin'])), PopupMenuItem(value: 'wage', child: Text(s['daily_wage']))],
+                  itemBuilder: (_) => [PopupMenuItem(key: ValueKey('staff-photo-${r.name}'), value: 'photo-gallery', child: Text(s['choose_photo'])), PopupMenuItem(value: 'photo-camera', child: Text(s['take_photo'])), if (r.imagePath != null) PopupMenuItem(value: 'photo-remove', child: Text(s['remove_photo'])), PopupMenuItem(key: ValueKey('staff-access-${r.name}'), value: 'access', child: Text(s['access_title'])), PopupMenuItem(value: 'toggle', child: Text(r.active ? s['deactivate'] : s['activate'])), PopupMenuItem(value: 'pin', child: Text(s['reset_pin'])), PopupMenuItem(value: 'wage', child: Text(s['daily_wage']))],
                 ),
               ),
             );
@@ -298,7 +322,7 @@ class RidersTab extends ConsumerWidget {
                   return Card(
                     child: ListTile(
                       key: ValueKey('${_waiter ? 'waiter' : 'rider'}-${r.name}'),
-                      leading: CircleAvatar(child: Icon(_waiter ? Icons.room_service_outlined : Icons.two_wheeler_outlined, color: r.active ? null : Theme.of(context).colorScheme.outline)),
+                      leading: PersonAvatar(name: r.name, imagePath: r.imagePath, icon: _waiter ? Icons.room_service_outlined : Icons.two_wheeler_outlined),
                       title: Text(r.name, style: TextStyle(fontWeight: FontWeight.w600, decoration: r.active ? null : TextDecoration.lineThrough)),
                       subtitle: Text([if ((r.phone ?? '').isNotEmpty) r.phone!, if ((r.bikeNo ?? '').isNotEmpty) r.bikeNo!, '${r.deliveries} ${s[_waiter ? 'waiter_today' : 'rider_today']}${r.deliveries > 0 ? ' · ${ref.money(r.totalMinor)}' : ''}'].join('  ·  ')),
                       onTap: () => _edit(context, ref, r),
@@ -309,9 +333,14 @@ class RidersTab extends ConsumerWidget {
                           final me = ref.read(sessionProvider)!.staffId;
                           if (a == 'toggle') await svc.setActive(r.id, !r.active, staffId: me);
                           if (a == 'delete') await svc.delete(r.id, staffId: me);
+                          if ((a == 'photo-camera' || a == 'photo-gallery') && context.mounted) await _setPhoto(context, ref, r.id, camera: a == 'photo-camera', member: true);
+                          if (a == 'photo-remove') await ref.read(menuImageStoreProvider).removeMember(r.id);
                           ref.invalidate(_ridersProvider(kind));
                         },
                         itemBuilder: (_) => [
+                          PopupMenuItem(key: ValueKey('${_waiter ? 'waiter' : 'rider'}-photo-${r.name}'), value: 'photo-gallery', child: Text(s['choose_photo'])),
+                          PopupMenuItem(value: 'photo-camera', child: Text(s['take_photo'])),
+                          if (r.imagePath != null) PopupMenuItem(value: 'photo-remove', child: Text(s['remove_photo'])),
                           PopupMenuItem(value: 'toggle', child: Text(r.active ? s['deactivate'] : s['activate'])),
                           PopupMenuItem(key: ValueKey('${_waiter ? 'waiter' : 'rider'}-delete-${r.name}'), value: 'delete', child: Text(s['delete'])),
                         ],

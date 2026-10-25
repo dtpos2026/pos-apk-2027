@@ -7,7 +7,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -20,6 +20,7 @@ class AppDatabase extends _$AppDatabase {
           if (from < 7) await migrateToV7(this);
           if (from < 8) await migrateToV8(this);
           if (from < 9) await migrateToV9(this);
+          if (from < 10) await migrateToV10(this);
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
@@ -52,6 +53,14 @@ Future<void> migrateToV2(AppDatabase db) async {
 )""",
   ]) {
     await db.customStatement(sql);
+  }
+}
+
+/// Version 10: a profile picture for staff, riders and waiters. Mirrors docs/schema/local.sql.
+Future<void> migrateToV10(AppDatabase db) async {
+  for (final t in const ['staff', 'team_member']) {
+    final cols = await db.customSelect('PRAGMA table_info($t)').get();
+    if (!cols.any((c) => c.data['name'] == 'image_path')) await db.customStatement('ALTER TABLE $t ADD COLUMN image_path TEXT');
   }
 }
 

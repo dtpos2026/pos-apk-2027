@@ -31,6 +31,14 @@ import '../settings/receipt_paper.dart';
 
 /// [closeParent]: when the cart is shown in a bottom sheet (phones), close it once the sale is done so the
 /// receipt appears over the menu and the next customer can be served straight away.
+/// Takes payment for a bill that is waiting (held, running, a delivery order): puts it in the cart, goes to the sell screen and opens the
+/// payment sheet at once, so one tap on "Take payment" is all it needs. [root] must be a context that outlives the dialog it is called from.
+Future<void> payOrder(BuildContext root, WidgetRef ref, String orderId) async {
+  await ref.read(cartProvider.notifier).resume(orderId);
+  ref.read(shellTabProvider.notifier).go('pos');
+  if (root.mounted) await showCheckout(root, ref);
+}
+
 Future<void> showCheckout(BuildContext context, WidgetRef ref, {bool closeParent = false}) async {
   final methods = await ref.read(paymentMethodsProvider.future);
   if (!context.mounted) return;

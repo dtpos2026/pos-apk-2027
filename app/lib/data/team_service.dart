@@ -2,7 +2,8 @@ import 'db_helper.dart';
 import 'pos_service.dart' show PosException;
 
 class RiderRow {
-  const RiderRow({required this.id, required this.name, this.phone, this.bikeNo, required this.active, this.deliveries = 0, this.totalMinor = 0});
+  const RiderRow({required this.id, required this.name, this.phone, this.bikeNo, required this.active, this.deliveries = 0, this.totalMinor = 0, this.imagePath});
+  final String? imagePath;
   final String id;
   final String name;
   final String? phone;
@@ -27,14 +28,14 @@ class TeamService {
   Future<List<RiderRow>> members(String kind, {String? day, bool activeOnly = false}) async {
     final col = kind == 'waiter' ? 'waiter_member_id' : 'rider_id';
     final rows = await h.q(
-        'SELECT m.id, m.name, m.phone, m.bike_no, m.active, '
+        'SELECT m.id, m.name, m.phone, m.bike_no, m.active, m.image_path, '
         "(SELECT COUNT(*) FROM \"order\" o WHERE o.$col = m.id AND o.business_date = ? AND o.status NOT IN ('void','cancelled')) AS n, "
         "(SELECT COALESCE(SUM(o.total_minor),0) FROM \"order\" o WHERE o.$col = m.id AND o.business_date = ? AND o.status NOT IN ('void','cancelled')) AS total "
         "FROM team_member m WHERE m.deleted_at IS NULL AND m.kind = '$kind' ${activeOnly ? 'AND m.active = 1' : ''} ORDER BY m.active DESC, m.name",
         [day ?? '', day ?? '']);
     return [
       for (final r in rows)
-        RiderRow(id: r['id'] as String, name: r['name'] as String, phone: r['phone'] as String?, bikeNo: r['bike_no'] as String?, active: (r['active'] as int) == 1, deliveries: r['n'] as int, totalMinor: r['total'] as int),
+        RiderRow(id: r['id'] as String, name: r['name'] as String, phone: r['phone'] as String?, bikeNo: r['bike_no'] as String?, active: (r['active'] as int) == 1, deliveries: r['n'] as int, totalMinor: r['total'] as int, imagePath: r['image_path'] as String?),
     ];
   }
 

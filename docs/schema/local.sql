@@ -55,7 +55,7 @@ CREATE TABLE staff (
   role_id TEXT NOT NULL REFERENCES role(id),
   pin_hash TEXT NOT NULL, pin_salt TEXT NOT NULL,   -- Argon2id/PBKDF2 of the PIN, never the PIN
   failed_pins INTEGER NOT NULL DEFAULT 0, locked_until INTEGER,
-  daily_wage_minor INTEGER NOT NULL DEFAULT 0, active INTEGER NOT NULL DEFAULT 1,
+  daily_wage_minor INTEGER NOT NULL DEFAULT 0, active INTEGER NOT NULL DEFAULT 1, image_path TEXT,   -- profile picture
   version INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL, deleted_at INTEGER
 );
 
@@ -123,7 +123,7 @@ CREATE TABLE product_modifier_group (
 
 CREATE TABLE team_member (                 -- delivery riders and dine-in waiters (no PIN, they do not sign in): assigned to orders
   id TEXT PRIMARY KEY, kind TEXT NOT NULL DEFAULT 'rider' CHECK (kind IN ('rider','waiter')),
-  name TEXT NOT NULL, phone TEXT, bike_no TEXT, active INTEGER NOT NULL DEFAULT 1,
+  name TEXT NOT NULL, phone TEXT, bike_no TEXT, active INTEGER NOT NULL DEFAULT 1, image_path TEXT,
   version INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL, deleted_at INTEGER
 );
 

@@ -81,11 +81,13 @@ void main() {
     await db.customStatement('PRAGMA foreign_keys = OFF');
     await db.customStatement('ALTER TABLE team_member RENAME TO tm_new');
     await db.customStatement("CREATE TABLE team_member (id TEXT PRIMARY KEY, kind TEXT NOT NULL DEFAULT 'rider' CHECK (kind IN ('rider')), name TEXT NOT NULL, phone TEXT, bike_no TEXT, active INTEGER NOT NULL DEFAULT 1, version INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL, deleted_at INTEGER)");
-    await db.customStatement('INSERT INTO team_member SELECT * FROM tm_new');
+    await db.customStatement('INSERT INTO team_member(id, kind, name, phone, bike_no, active, version, updated_at, deleted_at) SELECT id, kind, name, phone, bike_no, active, version, updated_at, deleted_at FROM tm_new');
     await db.customStatement('DROP TABLE tm_new');
     await db.customStatement('PRAGMA foreign_keys = ON');
     await migrateToV7(db);
     await migrateToV7(db);
+    await migrateToV10(db); // the picture column, as the real upgrade adds it after version 7
+    await migrateToV10(db);
     expect((await team.riders()).map((x) => x.name), contains('Ali Bike'));
     await team.saveWaiter(name: 'Bilal', staffId: 's1');
     expect((await team.waiters()).single.name, 'Bilal');

@@ -23,7 +23,8 @@ class StaffAccess {
 }
 
 class StaffRow {
-  const StaffRow({required this.id, required this.name, required this.roleId, required this.roleName, this.phone, required this.active});
+  const StaffRow({required this.id, required this.name, required this.roleId, required this.roleName, this.phone, required this.active, this.imagePath});
+  final String? imagePath;
   final String id;
   final String name;
   final String roleId;
@@ -47,8 +48,8 @@ class StaffService {
   Future<List<RoleRow>> roles() async => [for (final r in await h.q('SELECT id, name FROM role WHERE deleted_at IS NULL AND is_system = 1 ORDER BY name')) RoleRow(r['id'] as String, r['name'] as String)];
 
   Future<List<StaffRow>> list() async => [
-        for (final r in await h.q('SELECT s.id, s.name, s.phone, s.active, s.role_id, r.name AS role FROM staff s JOIN role r ON r.id = s.role_id WHERE s.deleted_at IS NULL ORDER BY s.active DESC, s.name'))
-          StaffRow(id: r['id'] as String, name: r['name'] as String, roleId: r['role_id'] as String, roleName: r['role'] as String, phone: r['phone'] as String?, active: (r['active'] as int) == 1)
+        for (final r in await h.q('SELECT s.id, s.name, s.phone, s.active, s.image_path, s.role_id, r.name AS role FROM staff s JOIN role r ON r.id = s.role_id WHERE s.deleted_at IS NULL ORDER BY s.active DESC, s.name'))
+          StaffRow(id: r['id'] as String, name: r['name'] as String, roleId: r['role_id'] as String, roleName: r['role'] as String, phone: r['phone'] as String?, active: (r['active'] as int) == 1, imagePath: r['image_path'] as String?)
       ];
 
   Future<String> add({required String actor, required String name, required String roleId, required String pin, String? phone}) async {

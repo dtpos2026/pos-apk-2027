@@ -67,7 +67,8 @@ class PaymentMethodInfo {
 }
 
 class StaffEntry {
-  const StaffEntry(this.id, this.name, this.roleName);
+  const StaffEntry(this.id, this.name, this.roleName, [this.imagePath]);
+  final String? imagePath;
   final String id;
   final String name;
   final String roleName;
@@ -110,8 +111,8 @@ Future<Business?> loadBusiness(AppDatabase db) async {
 }
 
 Future<List<StaffEntry>> loadStaff(AppDatabase db) async => [
-      for (final r in await _rows(db, 'SELECT s.id, s.name, r.name AS role FROM staff s JOIN role r ON r.id = s.role_id WHERE s.active = 1 AND s.deleted_at IS NULL ORDER BY s.name'))
-        StaffEntry(r['id'] as String, r['name'] as String, r['role'] as String)
+      for (final r in await _rows(db, 'SELECT s.id, s.name, s.image_path, r.name AS role FROM staff s JOIN role r ON r.id = s.role_id WHERE s.active = 1 AND s.deleted_at IS NULL ORDER BY s.name'))
+        StaffEntry(r['id'] as String, r['name'] as String, r['role'] as String, r['image_path'] as String?)
     ];
 
 Future<Session?> loadSession(AppDatabase db, String staffId) async {

@@ -157,6 +157,8 @@ class CartPanel extends ConsumerWidget {
               if (inSheet) IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
             ]),
           ),
+          // everything between the header and the totals scrolls together, so the totals, Hold / Send and the Pay button are always on screen
+          Expanded(child: SingleChildScrollView(child: Column(children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: SegmentedButton<String>(
@@ -216,10 +218,11 @@ class CartPanel extends ConsumerWidget {
             ]),
           ),
           const SizedBox(height: 6),
-          Expanded(
-            child: cart.isEmpty
+          cart.isEmpty
                 ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(t['empty_cart'], textAlign: TextAlign.center, style: TextStyle(color: scheme.onSurfaceVariant))))
                 : ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     itemCount: cart.items.length,
                     separatorBuilder: (_, _) => const Divider(height: 1),
@@ -261,7 +264,7 @@ class CartPanel extends ConsumerWidget {
                       );
                     },
                   ),
-          ),
+          ]))),
           Container(
             padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
             decoration: BoxDecoration(border: Border(top: BorderSide(color: scheme.outlineVariant))),

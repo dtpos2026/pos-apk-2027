@@ -2995,6 +2995,17 @@ class Staff extends Table with TableInfo<Staff, StaffData> {
     $customConstraints: 'NOT NULL DEFAULT 1',
     defaultValue: const CustomExpression('1'),
   );
+  static const VerificationMeta _imagePathMeta = const VerificationMeta(
+    'imagePath',
+  );
+  late final GeneratedColumn<String> imagePath = GeneratedColumn<String>(
+    'image_path',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: '',
+  );
   static const VerificationMeta _versionMeta = const VerificationMeta(
     'version',
   );
@@ -3041,6 +3052,7 @@ class Staff extends Table with TableInfo<Staff, StaffData> {
     lockedUntil,
     dailyWageMinor,
     active,
+    imagePath,
     version,
     updatedAt,
     deletedAt,
@@ -3128,6 +3140,12 @@ class Staff extends Table with TableInfo<Staff, StaffData> {
         active.isAcceptableOrUnknown(data['active']!, _activeMeta),
       );
     }
+    if (data.containsKey('image_path')) {
+      context.handle(
+        _imagePathMeta,
+        imagePath.isAcceptableOrUnknown(data['image_path']!, _imagePathMeta),
+      );
+    }
     if (data.containsKey('version')) {
       context.handle(
         _versionMeta,
@@ -3197,6 +3215,10 @@ class Staff extends Table with TableInfo<Staff, StaffData> {
         DriftSqlType.int,
         data['${effectivePrefix}active'],
       )!,
+      imagePath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}image_path'],
+      ),
       version: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}version'],
@@ -3234,6 +3256,9 @@ class StaffData extends DataClass implements Insertable<StaffData> {
   final int? lockedUntil;
   final int dailyWageMinor;
   final int active;
+  final String? imagePath;
+
+  /// profile picture
   final int version;
   final int updatedAt;
   final int? deletedAt;
@@ -3248,6 +3273,7 @@ class StaffData extends DataClass implements Insertable<StaffData> {
     this.lockedUntil,
     required this.dailyWageMinor,
     required this.active,
+    this.imagePath,
     required this.version,
     required this.updatedAt,
     this.deletedAt,
@@ -3271,6 +3297,9 @@ class StaffData extends DataClass implements Insertable<StaffData> {
     }
     map['daily_wage_minor'] = Variable<int>(dailyWageMinor);
     map['active'] = Variable<int>(active);
+    if (!nullToAbsent || imagePath != null) {
+      map['image_path'] = Variable<String>(imagePath);
+    }
     map['version'] = Variable<int>(version);
     map['updated_at'] = Variable<int>(updatedAt);
     if (!nullToAbsent || deletedAt != null) {
@@ -3295,6 +3324,9 @@ class StaffData extends DataClass implements Insertable<StaffData> {
           : Value(lockedUntil),
       dailyWageMinor: Value(dailyWageMinor),
       active: Value(active),
+      imagePath: imagePath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(imagePath),
       version: Value(version),
       updatedAt: Value(updatedAt),
       deletedAt: deletedAt == null && nullToAbsent
@@ -3319,6 +3351,7 @@ class StaffData extends DataClass implements Insertable<StaffData> {
       lockedUntil: serializer.fromJson<int?>(json['locked_until']),
       dailyWageMinor: serializer.fromJson<int>(json['daily_wage_minor']),
       active: serializer.fromJson<int>(json['active']),
+      imagePath: serializer.fromJson<String?>(json['image_path']),
       version: serializer.fromJson<int>(json['version']),
       updatedAt: serializer.fromJson<int>(json['updated_at']),
       deletedAt: serializer.fromJson<int?>(json['deleted_at']),
@@ -3338,6 +3371,7 @@ class StaffData extends DataClass implements Insertable<StaffData> {
       'locked_until': serializer.toJson<int?>(lockedUntil),
       'daily_wage_minor': serializer.toJson<int>(dailyWageMinor),
       'active': serializer.toJson<int>(active),
+      'image_path': serializer.toJson<String?>(imagePath),
       'version': serializer.toJson<int>(version),
       'updated_at': serializer.toJson<int>(updatedAt),
       'deleted_at': serializer.toJson<int?>(deletedAt),
@@ -3355,6 +3389,7 @@ class StaffData extends DataClass implements Insertable<StaffData> {
     Value<int?> lockedUntil = const Value.absent(),
     int? dailyWageMinor,
     int? active,
+    Value<String?> imagePath = const Value.absent(),
     int? version,
     int? updatedAt,
     Value<int?> deletedAt = const Value.absent(),
@@ -3369,6 +3404,7 @@ class StaffData extends DataClass implements Insertable<StaffData> {
     lockedUntil: lockedUntil.present ? lockedUntil.value : this.lockedUntil,
     dailyWageMinor: dailyWageMinor ?? this.dailyWageMinor,
     active: active ?? this.active,
+    imagePath: imagePath.present ? imagePath.value : this.imagePath,
     version: version ?? this.version,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
@@ -3391,6 +3427,7 @@ class StaffData extends DataClass implements Insertable<StaffData> {
           ? data.dailyWageMinor.value
           : this.dailyWageMinor,
       active: data.active.present ? data.active.value : this.active,
+      imagePath: data.imagePath.present ? data.imagePath.value : this.imagePath,
       version: data.version.present ? data.version.value : this.version,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
@@ -3410,6 +3447,7 @@ class StaffData extends DataClass implements Insertable<StaffData> {
           ..write('lockedUntil: $lockedUntil, ')
           ..write('dailyWageMinor: $dailyWageMinor, ')
           ..write('active: $active, ')
+          ..write('imagePath: $imagePath, ')
           ..write('version: $version, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt')
@@ -3429,6 +3467,7 @@ class StaffData extends DataClass implements Insertable<StaffData> {
     lockedUntil,
     dailyWageMinor,
     active,
+    imagePath,
     version,
     updatedAt,
     deletedAt,
@@ -3447,6 +3486,7 @@ class StaffData extends DataClass implements Insertable<StaffData> {
           other.lockedUntil == this.lockedUntil &&
           other.dailyWageMinor == this.dailyWageMinor &&
           other.active == this.active &&
+          other.imagePath == this.imagePath &&
           other.version == this.version &&
           other.updatedAt == this.updatedAt &&
           other.deletedAt == this.deletedAt);
@@ -3463,6 +3503,7 @@ class StaffCompanion extends UpdateCompanion<StaffData> {
   final Value<int?> lockedUntil;
   final Value<int> dailyWageMinor;
   final Value<int> active;
+  final Value<String?> imagePath;
   final Value<int> version;
   final Value<int> updatedAt;
   final Value<int?> deletedAt;
@@ -3478,6 +3519,7 @@ class StaffCompanion extends UpdateCompanion<StaffData> {
     this.lockedUntil = const Value.absent(),
     this.dailyWageMinor = const Value.absent(),
     this.active = const Value.absent(),
+    this.imagePath = const Value.absent(),
     this.version = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
@@ -3494,6 +3536,7 @@ class StaffCompanion extends UpdateCompanion<StaffData> {
     this.lockedUntil = const Value.absent(),
     this.dailyWageMinor = const Value.absent(),
     this.active = const Value.absent(),
+    this.imagePath = const Value.absent(),
     this.version = const Value.absent(),
     required int updatedAt,
     this.deletedAt = const Value.absent(),
@@ -3514,6 +3557,7 @@ class StaffCompanion extends UpdateCompanion<StaffData> {
     Expression<int>? lockedUntil,
     Expression<int>? dailyWageMinor,
     Expression<int>? active,
+    Expression<String>? imagePath,
     Expression<int>? version,
     Expression<int>? updatedAt,
     Expression<int>? deletedAt,
@@ -3530,6 +3574,7 @@ class StaffCompanion extends UpdateCompanion<StaffData> {
       if (lockedUntil != null) 'locked_until': lockedUntil,
       if (dailyWageMinor != null) 'daily_wage_minor': dailyWageMinor,
       if (active != null) 'active': active,
+      if (imagePath != null) 'image_path': imagePath,
       if (version != null) 'version': version,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (deletedAt != null) 'deleted_at': deletedAt,
@@ -3548,6 +3593,7 @@ class StaffCompanion extends UpdateCompanion<StaffData> {
     Value<int?>? lockedUntil,
     Value<int>? dailyWageMinor,
     Value<int>? active,
+    Value<String?>? imagePath,
     Value<int>? version,
     Value<int>? updatedAt,
     Value<int?>? deletedAt,
@@ -3564,6 +3610,7 @@ class StaffCompanion extends UpdateCompanion<StaffData> {
       lockedUntil: lockedUntil ?? this.lockedUntil,
       dailyWageMinor: dailyWageMinor ?? this.dailyWageMinor,
       active: active ?? this.active,
+      imagePath: imagePath ?? this.imagePath,
       version: version ?? this.version,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
@@ -3604,6 +3651,9 @@ class StaffCompanion extends UpdateCompanion<StaffData> {
     if (active.present) {
       map['active'] = Variable<int>(active.value);
     }
+    if (imagePath.present) {
+      map['image_path'] = Variable<String>(imagePath.value);
+    }
     if (version.present) {
       map['version'] = Variable<int>(version.value);
     }
@@ -3632,6 +3682,7 @@ class StaffCompanion extends UpdateCompanion<StaffData> {
           ..write('lockedUntil: $lockedUntil, ')
           ..write('dailyWageMinor: $dailyWageMinor, ')
           ..write('active: $active, ')
+          ..write('imagePath: $imagePath, ')
           ..write('version: $version, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
@@ -7780,6 +7831,17 @@ class TeamMember extends Table with TableInfo<TeamMember, TeamMemberData> {
     $customConstraints: 'NOT NULL DEFAULT 1',
     defaultValue: const CustomExpression('1'),
   );
+  static const VerificationMeta _imagePathMeta = const VerificationMeta(
+    'imagePath',
+  );
+  late final GeneratedColumn<String> imagePath = GeneratedColumn<String>(
+    'image_path',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: '',
+  );
   static const VerificationMeta _versionMeta = const VerificationMeta(
     'version',
   );
@@ -7822,6 +7884,7 @@ class TeamMember extends Table with TableInfo<TeamMember, TeamMemberData> {
     phone,
     bikeNo,
     active,
+    imagePath,
     version,
     updatedAt,
     deletedAt,
@@ -7871,6 +7934,12 @@ class TeamMember extends Table with TableInfo<TeamMember, TeamMemberData> {
       context.handle(
         _activeMeta,
         active.isAcceptableOrUnknown(data['active']!, _activeMeta),
+      );
+    }
+    if (data.containsKey('image_path')) {
+      context.handle(
+        _imagePathMeta,
+        imagePath.isAcceptableOrUnknown(data['image_path']!, _imagePathMeta),
       );
     }
     if (data.containsKey('version')) {
@@ -7926,6 +7995,10 @@ class TeamMember extends Table with TableInfo<TeamMember, TeamMemberData> {
         DriftSqlType.int,
         data['${effectivePrefix}active'],
       )!,
+      imagePath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}image_path'],
+      ),
       version: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}version'],
@@ -7958,6 +8031,7 @@ class TeamMemberData extends DataClass implements Insertable<TeamMemberData> {
   final String? phone;
   final String? bikeNo;
   final int active;
+  final String? imagePath;
   final int version;
   final int updatedAt;
   final int? deletedAt;
@@ -7968,6 +8042,7 @@ class TeamMemberData extends DataClass implements Insertable<TeamMemberData> {
     this.phone,
     this.bikeNo,
     required this.active,
+    this.imagePath,
     required this.version,
     required this.updatedAt,
     this.deletedAt,
@@ -7987,6 +8062,9 @@ class TeamMemberData extends DataClass implements Insertable<TeamMemberData> {
       map['bike_no'] = Variable<String>(bikeNo);
     }
     map['active'] = Variable<int>(active);
+    if (!nullToAbsent || imagePath != null) {
+      map['image_path'] = Variable<String>(imagePath);
+    }
     map['version'] = Variable<int>(version);
     map['updated_at'] = Variable<int>(updatedAt);
     if (!nullToAbsent || deletedAt != null) {
@@ -8007,6 +8085,9 @@ class TeamMemberData extends DataClass implements Insertable<TeamMemberData> {
           ? const Value.absent()
           : Value(bikeNo),
       active: Value(active),
+      imagePath: imagePath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(imagePath),
       version: Value(version),
       updatedAt: Value(updatedAt),
       deletedAt: deletedAt == null && nullToAbsent
@@ -8027,6 +8108,7 @@ class TeamMemberData extends DataClass implements Insertable<TeamMemberData> {
       phone: serializer.fromJson<String?>(json['phone']),
       bikeNo: serializer.fromJson<String?>(json['bike_no']),
       active: serializer.fromJson<int>(json['active']),
+      imagePath: serializer.fromJson<String?>(json['image_path']),
       version: serializer.fromJson<int>(json['version']),
       updatedAt: serializer.fromJson<int>(json['updated_at']),
       deletedAt: serializer.fromJson<int?>(json['deleted_at']),
@@ -8042,6 +8124,7 @@ class TeamMemberData extends DataClass implements Insertable<TeamMemberData> {
       'phone': serializer.toJson<String?>(phone),
       'bike_no': serializer.toJson<String?>(bikeNo),
       'active': serializer.toJson<int>(active),
+      'image_path': serializer.toJson<String?>(imagePath),
       'version': serializer.toJson<int>(version),
       'updated_at': serializer.toJson<int>(updatedAt),
       'deleted_at': serializer.toJson<int?>(deletedAt),
@@ -8055,6 +8138,7 @@ class TeamMemberData extends DataClass implements Insertable<TeamMemberData> {
     Value<String?> phone = const Value.absent(),
     Value<String?> bikeNo = const Value.absent(),
     int? active,
+    Value<String?> imagePath = const Value.absent(),
     int? version,
     int? updatedAt,
     Value<int?> deletedAt = const Value.absent(),
@@ -8065,6 +8149,7 @@ class TeamMemberData extends DataClass implements Insertable<TeamMemberData> {
     phone: phone.present ? phone.value : this.phone,
     bikeNo: bikeNo.present ? bikeNo.value : this.bikeNo,
     active: active ?? this.active,
+    imagePath: imagePath.present ? imagePath.value : this.imagePath,
     version: version ?? this.version,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
@@ -8077,6 +8162,7 @@ class TeamMemberData extends DataClass implements Insertable<TeamMemberData> {
       phone: data.phone.present ? data.phone.value : this.phone,
       bikeNo: data.bikeNo.present ? data.bikeNo.value : this.bikeNo,
       active: data.active.present ? data.active.value : this.active,
+      imagePath: data.imagePath.present ? data.imagePath.value : this.imagePath,
       version: data.version.present ? data.version.value : this.version,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
@@ -8092,6 +8178,7 @@ class TeamMemberData extends DataClass implements Insertable<TeamMemberData> {
           ..write('phone: $phone, ')
           ..write('bikeNo: $bikeNo, ')
           ..write('active: $active, ')
+          ..write('imagePath: $imagePath, ')
           ..write('version: $version, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt')
@@ -8107,6 +8194,7 @@ class TeamMemberData extends DataClass implements Insertable<TeamMemberData> {
     phone,
     bikeNo,
     active,
+    imagePath,
     version,
     updatedAt,
     deletedAt,
@@ -8121,6 +8209,7 @@ class TeamMemberData extends DataClass implements Insertable<TeamMemberData> {
           other.phone == this.phone &&
           other.bikeNo == this.bikeNo &&
           other.active == this.active &&
+          other.imagePath == this.imagePath &&
           other.version == this.version &&
           other.updatedAt == this.updatedAt &&
           other.deletedAt == this.deletedAt);
@@ -8133,6 +8222,7 @@ class TeamMemberCompanion extends UpdateCompanion<TeamMemberData> {
   final Value<String?> phone;
   final Value<String?> bikeNo;
   final Value<int> active;
+  final Value<String?> imagePath;
   final Value<int> version;
   final Value<int> updatedAt;
   final Value<int?> deletedAt;
@@ -8144,6 +8234,7 @@ class TeamMemberCompanion extends UpdateCompanion<TeamMemberData> {
     this.phone = const Value.absent(),
     this.bikeNo = const Value.absent(),
     this.active = const Value.absent(),
+    this.imagePath = const Value.absent(),
     this.version = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
@@ -8156,6 +8247,7 @@ class TeamMemberCompanion extends UpdateCompanion<TeamMemberData> {
     this.phone = const Value.absent(),
     this.bikeNo = const Value.absent(),
     this.active = const Value.absent(),
+    this.imagePath = const Value.absent(),
     this.version = const Value.absent(),
     required int updatedAt,
     this.deletedAt = const Value.absent(),
@@ -8169,6 +8261,7 @@ class TeamMemberCompanion extends UpdateCompanion<TeamMemberData> {
     Expression<String>? phone,
     Expression<String>? bikeNo,
     Expression<int>? active,
+    Expression<String>? imagePath,
     Expression<int>? version,
     Expression<int>? updatedAt,
     Expression<int>? deletedAt,
@@ -8181,6 +8274,7 @@ class TeamMemberCompanion extends UpdateCompanion<TeamMemberData> {
       if (phone != null) 'phone': phone,
       if (bikeNo != null) 'bike_no': bikeNo,
       if (active != null) 'active': active,
+      if (imagePath != null) 'image_path': imagePath,
       if (version != null) 'version': version,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (deletedAt != null) 'deleted_at': deletedAt,
@@ -8195,6 +8289,7 @@ class TeamMemberCompanion extends UpdateCompanion<TeamMemberData> {
     Value<String?>? phone,
     Value<String?>? bikeNo,
     Value<int>? active,
+    Value<String?>? imagePath,
     Value<int>? version,
     Value<int>? updatedAt,
     Value<int?>? deletedAt,
@@ -8207,6 +8302,7 @@ class TeamMemberCompanion extends UpdateCompanion<TeamMemberData> {
       phone: phone ?? this.phone,
       bikeNo: bikeNo ?? this.bikeNo,
       active: active ?? this.active,
+      imagePath: imagePath ?? this.imagePath,
       version: version ?? this.version,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
@@ -8235,6 +8331,9 @@ class TeamMemberCompanion extends UpdateCompanion<TeamMemberData> {
     if (active.present) {
       map['active'] = Variable<int>(active.value);
     }
+    if (imagePath.present) {
+      map['image_path'] = Variable<String>(imagePath.value);
+    }
     if (version.present) {
       map['version'] = Variable<int>(version.value);
     }
@@ -8259,6 +8358,7 @@ class TeamMemberCompanion extends UpdateCompanion<TeamMemberData> {
           ..write('phone: $phone, ')
           ..write('bikeNo: $bikeNo, ')
           ..write('active: $active, ')
+          ..write('imagePath: $imagePath, ')
           ..write('version: $version, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
@@ -33531,6 +33631,7 @@ typedef $StaffCreateCompanionBuilder =
       Value<int?> lockedUntil,
       Value<int> dailyWageMinor,
       Value<int> active,
+      Value<String?> imagePath,
       Value<int> version,
       required int updatedAt,
       Value<int?> deletedAt,
@@ -33548,6 +33649,7 @@ typedef $StaffUpdateCompanionBuilder =
       Value<int?> lockedUntil,
       Value<int> dailyWageMinor,
       Value<int> active,
+      Value<String?> imagePath,
       Value<int> version,
       Value<int> updatedAt,
       Value<int?> deletedAt,
@@ -33852,6 +33954,11 @@ class $StaffFilterComposer extends Composer<_$AppDatabase, Staff> {
 
   ColumnFilters<int> get active => $composableBuilder(
     column: $table.active,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get imagePath => $composableBuilder(
+    column: $table.imagePath,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -34247,6 +34354,11 @@ class $StaffOrderingComposer extends Composer<_$AppDatabase, Staff> {
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get imagePath => $composableBuilder(
+    column: $table.imagePath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get version => $composableBuilder(
     column: $table.version,
     builder: (column) => ColumnOrderings(column),
@@ -34326,6 +34438,9 @@ class $StaffAnnotationComposer extends Composer<_$AppDatabase, Staff> {
 
   GeneratedColumn<int> get active =>
       $composableBuilder(column: $table.active, builder: (column) => column);
+
+  GeneratedColumn<String> get imagePath =>
+      $composableBuilder(column: $table.imagePath, builder: (column) => column);
 
   GeneratedColumn<int> get version =>
       $composableBuilder(column: $table.version, builder: (column) => column);
@@ -34712,6 +34827,7 @@ class $StaffTableManager
                 Value<int?> lockedUntil = const Value.absent(),
                 Value<int> dailyWageMinor = const Value.absent(),
                 Value<int> active = const Value.absent(),
+                Value<String?> imagePath = const Value.absent(),
                 Value<int> version = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
                 Value<int?> deletedAt = const Value.absent(),
@@ -34727,6 +34843,7 @@ class $StaffTableManager
                 lockedUntil: lockedUntil,
                 dailyWageMinor: dailyWageMinor,
                 active: active,
+                imagePath: imagePath,
                 version: version,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
@@ -34744,6 +34861,7 @@ class $StaffTableManager
                 Value<int?> lockedUntil = const Value.absent(),
                 Value<int> dailyWageMinor = const Value.absent(),
                 Value<int> active = const Value.absent(),
+                Value<String?> imagePath = const Value.absent(),
                 Value<int> version = const Value.absent(),
                 required int updatedAt,
                 Value<int?> deletedAt = const Value.absent(),
@@ -34759,6 +34877,7 @@ class $StaffTableManager
                 lockedUntil: lockedUntil,
                 dailyWageMinor: dailyWageMinor,
                 active: active,
+                imagePath: imagePath,
                 version: version,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
@@ -39375,6 +39494,7 @@ typedef $TeamMemberCreateCompanionBuilder =
       Value<String?> phone,
       Value<String?> bikeNo,
       Value<int> active,
+      Value<String?> imagePath,
       Value<int> version,
       required int updatedAt,
       Value<int?> deletedAt,
@@ -39388,6 +39508,7 @@ typedef $TeamMemberUpdateCompanionBuilder =
       Value<String?> phone,
       Value<String?> bikeNo,
       Value<int> active,
+      Value<String?> imagePath,
       Value<int> version,
       Value<int> updatedAt,
       Value<int?> deletedAt,
@@ -39455,6 +39576,11 @@ class $TeamMemberFilterComposer extends Composer<_$AppDatabase, TeamMember> {
 
   ColumnFilters<int> get active => $composableBuilder(
     column: $table.active,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get imagePath => $composableBuilder(
+    column: $table.imagePath,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -39537,6 +39663,11 @@ class $TeamMemberOrderingComposer extends Composer<_$AppDatabase, TeamMember> {
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get imagePath => $composableBuilder(
+    column: $table.imagePath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get version => $composableBuilder(
     column: $table.version,
     builder: (column) => ColumnOrderings(column),
@@ -39579,6 +39710,9 @@ class $TeamMemberAnnotationComposer
 
   GeneratedColumn<int> get active =>
       $composableBuilder(column: $table.active, builder: (column) => column);
+
+  GeneratedColumn<String> get imagePath =>
+      $composableBuilder(column: $table.imagePath, builder: (column) => column);
 
   GeneratedColumn<int> get version =>
       $composableBuilder(column: $table.version, builder: (column) => column);
@@ -39649,6 +39783,7 @@ class $TeamMemberTableManager
                 Value<String?> phone = const Value.absent(),
                 Value<String?> bikeNo = const Value.absent(),
                 Value<int> active = const Value.absent(),
+                Value<String?> imagePath = const Value.absent(),
                 Value<int> version = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
                 Value<int?> deletedAt = const Value.absent(),
@@ -39660,6 +39795,7 @@ class $TeamMemberTableManager
                 phone: phone,
                 bikeNo: bikeNo,
                 active: active,
+                imagePath: imagePath,
                 version: version,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
@@ -39673,6 +39809,7 @@ class $TeamMemberTableManager
                 Value<String?> phone = const Value.absent(),
                 Value<String?> bikeNo = const Value.absent(),
                 Value<int> active = const Value.absent(),
+                Value<String?> imagePath = const Value.absent(),
                 Value<int> version = const Value.absent(),
                 required int updatedAt,
                 Value<int?> deletedAt = const Value.absent(),
@@ -39684,6 +39821,7 @@ class $TeamMemberTableManager
                 phone: phone,
                 bikeNo: bikeNo,
                 active: active,
+                imagePath: imagePath,
                 version: version,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
