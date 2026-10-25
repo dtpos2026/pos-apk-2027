@@ -11,6 +11,13 @@ service cloud.firestore {
     function changedOnly(allowed) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowed); }
     function isNum(v) { return v is int || v is float; }
 
+    // What each admin may do. The owner (config/owner) can do everything. An admin whose record has no `perms` list has full
+    // access (how admins were created before permissions existed); otherwise only the listed sections:
+    //   restaurants, invoices, support, phones, settings, admins, audit, notifications
+    function adminData() { return get(/databases/$(db)/documents/admins/$(request.auth.uid)).data; }
+    function isOwner() { return signedIn() && exists(/databases/$(db)/documents/config/owner) && get(/databases/$(db)/documents/config/owner).data.uid == me(); }
+    function can(p) { return isAdmin() && (isOwner() || !('perms' in adminData()) || adminData().perms.hasAny([p])); }
+
     // ---- admins ----
     // The very first admin claims the project by writing config/owner and admins/{uid} in one batch.
     // Only the owner's own email may claim (create that user in the Firebase console first, then claim straight away).
@@ -19,15 +26,15 @@ service cloud.firestore {
       allow read: if signedIn() && (uid == me() || isAdmin());
       allow create: if signedIn() && uid == me() && isOwnerEmail() && !exists(/databases/$(db)/documents/config/owner)
                     && getAfter(/databases/$(db)/documents/config/owner).data.uid == me();
-      allow create, update, delete: if isAdmin();
+      allow create, update, delete: if can('admins');
     }
     match /config/owner {
       allow read: if signedIn();
       allow create: if signedIn() && isOwnerEmail() && request.resource.data.uid == me() && onlyKeys(['uid', 'at']);
     }
-    match /config/branding { allow read: if true; allow write: if isAdmin(); }
-    match /config/app      { allow read: if true; allow write: if isAdmin(); }
-    match /config/billing  { allow read, write: if isAdmin(); }
+    match /config/branding { allow read: if true; allow write: if can('settings'); }
+    match /config/app      { allow read: if true; allow write: if can('settings'); }
+    match /config/billing  { allow read: if isAdmin(); allow write: if can('settings'); }
 
     // ---- restaurant accounts ----
     match /accounts/{uid} {
@@ -41,11 +48,12 @@ service cloud.firestore {
         && request.resource.data.ownerName is string && request.resource.data.ownerName.size() > 0;
       // The owner may only report the app version and ask for another phone to be approved.
       allow update: if signedIn() && uid == me()
-        && changedOnly(['appVersion', 'lastSeenAt', 'phoneRequests'])
-        && request.resource.data.phoneRequests.size() <= 6;
-      allow create, update, delete: if isAdmin();
+        && changedOnly(['appVersion', 'lastSeenAt', 'phoneRequests', 'logo'])
+        && request.resource.data.phoneRequests.size() <= 6
+        && (!('logo' in request.resource.data) || (request.resource.data.logo is string && request.resource.data.logo.size() <= 40000));
+      allow create, update, delete: if can('restaurants') || can('invoices');
     }
-    match /adminNotes/{uid} { allow read, write: if isAdmin(); }
+    match /adminNotes/{uid} { allow read, write: if can('restaurants'); }
 
     // ---- daily sales totals (numbers only) ----
     match /stats/{uid} {
@@ -66,37 +74,50 @@ service cloud.firestore {
       allow read: if isAdmin() || (signedIn() && resource.data.uid == me());
       allow create, update: if signedIn() && request.resource.data.uid == me() && id == me() + '__' + request.resource.data.phoneId
         && request.resource.data.keys().hasOnly(['uid', 'phoneId', 'model', 'android', 'appVersion', 'lastSeenAt', 'locationAllowed', 'lat', 'lng', 'accuracyM', 'locationAt']);
-      allow create, update, delete: if isAdmin();
+      allow create, update, delete: if can('phones');
     }
 
     // ---- support chat ----
     match /support/{uid} {
       allow read: if isAdmin() || (signedIn() && uid == me());
       allow create, update: if signedIn() && uid == me() && onlyKeys(['businessName', 'lastMessage', 'lastAt', 'unreadForAdmin']);
-      allow create, update, delete: if isAdmin();
+      allow create, update, delete: if can('support');
       match /messages/{mid} {
         allow read: if isAdmin() || (signedIn() && uid == me());
         allow create: if signedIn() && uid == me() && request.resource.data.sender == 'business'
           && request.resource.data.keys().hasOnly(['sender', 'text', 'at'])
           && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 2000;
-        allow create, update, delete: if isAdmin();
+        allow create, update, delete: if can('support');
       }
     }
 
     // ---- DT invoices ----
     match /invoices/{id} {
       allow read: if isAdmin() || (signedIn() && resource.data.accountUid == me());
-      allow write: if isAdmin();
+      allow write: if can('invoices');
     }
-    match /invoiceVerify/{token} { allow get: if true; allow list: if isAdmin(); allow write: if isAdmin(); }
-    match /counters/{id} { allow read, write: if isAdmin(); }
+    match /invoiceVerify/{token} { allow get: if true; allow list: if isAdmin(); allow write: if can('invoices'); }
+    match /counters/{id} { allow read, write: if can('invoices'); }
 
-    // ---- audit trail of admin actions: append-only, stamped by the server clock, cannot be edited or deleted ----
+    // ---- audit trail of admin actions: stamped by the server clock, never edited. Admins with the 'audit' permission may delete old
+    //      entries to save space (the clean-up itself is written to the log). ----
     match /auditLog/{id} {
-      allow read: if isAdmin();
+      allow read: if can('audit');
+      allow delete: if can('audit');
       allow create: if isAdmin() && request.resource.data.adminUid == me() && request.resource.data.at == request.time
         && request.resource.data.keys().hasOnly(['at', 'adminUid', 'adminEmail', 'action', 'accountUid', 'details'])
         && request.resource.data.action is string;
+    }
+
+    // ---- notices from Digital Target to the app (the bell): to everyone ('all') or to one restaurant ----
+    match /notifications/{id} {
+      allow read: if isAdmin() || (signedIn() && (resource.data.target == 'all' || resource.data.target == me()));
+      allow create: if can('notifications') && request.resource.data.keys().hasOnly(['title', 'body', 'kind', 'target', 'createdAt', 'createdBy'])
+        && request.resource.data.title is string && request.resource.data.title.size() > 0 && request.resource.data.title.size() <= 120
+        && request.resource.data.body is string && request.resource.data.body.size() <= 1000
+        && request.resource.data.kind in ['info', 'payment', 'update', 'warning', 'offer']
+        && request.resource.data.target is string && request.resource.data.createdAt == request.time;
+      allow delete: if can('notifications');
     }
   }
 }

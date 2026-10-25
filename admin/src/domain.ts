@@ -104,11 +104,37 @@ export const APP_MODULES: { id: string; label: string; hint: string }[] = [
   { id: 'online', label: 'Online & phone orders', hint: 'WhatsApp / phone / delivery-app orders typed in and sent to the kitchen' },
 ];
 
+/** What an admin can be allowed to do in the panel. Dashboard and Reminders are open to every admin. */
+export const PANEL_SECTIONS: { id: string; label: string; hint: string }[] = [
+  { id: 'restaurants', label: 'Restaurants', hint: 'Approve, change plan, status, modules, themes, notes' },
+  { id: 'invoices', label: 'Invoices', hint: 'Create invoices, record payments' },
+  { id: 'support', label: 'Support chat', hint: 'Read and answer restaurants' },
+  { id: 'phones', label: 'Phones & map', hint: 'Approve, block and remove phones' },
+  { id: 'notifications', label: 'Notifications', hint: 'Send notices to the app bell' },
+  { id: 'settings', label: 'Settings', hint: 'Branding, app control, billing details' },
+  { id: 'audit', label: 'Audit log', hint: 'Read and clean the log' },
+  { id: 'admins', label: 'Admins', hint: 'Add admins and change their access' },
+];
+/** The panel page that needs each permission ('' = every admin). */
+export const PAGE_PERM: Record<string, string> = { Dashboard: '', Reminders: '', Restaurants: 'restaurants', Invoices: 'invoices', Support: 'support', Phones: 'phones', Notifications: 'notifications', Settings: 'settings', Audit: 'audit', Admins: 'admins' };
+export const DEFAULT_NEW_ADMIN_PERMS = ['restaurants', 'invoices', 'support', 'phones', 'notifications'];
+
+export const NOTICE_KINDS = ['info', 'payment', 'update', 'warning', 'offer'] as const;
+export type NoticeKind = (typeof NOTICE_KINDS)[number];
+/** Ready-made notices: pick one, change the words if needed, send. */
+export const NOTICE_TEMPLATES: { id: string; label: string; kind: NoticeKind; title: string; body: string }[] = [
+  { id: 'payment', label: 'Payment reminder', kind: 'payment', title: 'Subscription payment due', body: 'Your DT Food POS subscription payment is due. Please pay on time so the app keeps working without interruption.' },
+  { id: 'renewal', label: 'Renewal soon', kind: 'warning', title: 'Your subscription ends soon', body: 'Your DT Food POS licence is about to expire. Contact Digital Target to renew and avoid any stop in service.' },
+  { id: 'update', label: 'New version', kind: 'update', title: 'New version available', body: 'A new version of DT Food POS is ready with improvements. Please update the app from the link we sent you.' },
+  { id: 'maintenance', label: 'Maintenance', kind: 'warning', title: 'Short maintenance', body: 'We are doing a short maintenance. The app keeps working offline; online features may pause for a little while.' },
+  { id: 'welcome', label: 'Welcome', kind: 'info', title: 'Welcome to DT Food POS', body: 'Thank you for choosing DT Food POS. Open Help & Tutorials in the side menu to learn the app, or write to Support any time.' },
+  { id: 'offer', label: 'Offer', kind: 'offer', title: 'Special offer', body: 'A special offer is waiting for you. Contact Digital Target to know more.' },
+];
+
 /** The app's ready-made themes (ids match the app). main/accent/header/bg are only for the preview swatches. */
 export const APP_THEMES: { id: string; label: string; main: string; accent: string; bg: string }[] = [
   { id: 'red', label: 'Restaurant Red (default)', main: '#C92A2A', accent: '#F59F00', bg: '#FBF5F5' },
   { id: 'red2', label: 'Restaurant Red 2', main: '#C41414', accent: '#C41414', bg: '#FAF7F7' },
-  { id: 'dt', label: 'Royal Purple', main: '#3C096C', accent: '#FF5A1F', bg: '#F6F2FA' },
   { id: 'green', label: 'Fresh Green', main: '#2B8A3E', accent: '#F08C00', bg: '#F3F8F4' },
   { id: 'golden', label: 'Golden Yellow', main: '#B7791F', accent: '#1F2937', bg: '#FBF8F1' },
   { id: 'yellow', label: 'Food Yellow', main: '#FFC107', accent: '#D9480F', bg: '#FFFBEB' },
@@ -119,7 +145,6 @@ export const APP_THEMES: { id: string; label: string; main: string; accent: stri
   { id: 'navy', label: 'Navy', main: '#1E2A78', accent: '#FF5A1F', bg: '#F4F5FB' },
   { id: 'teal', label: 'Teal', main: '#0F766E', accent: '#FF5A1F', bg: '#F1F8F7' },
   { id: 'rose', label: 'Rose', main: '#BE185D', accent: '#0F766E', bg: '#FDF2F7' },
-  { id: 'royalgold', label: 'Royal Plum & Gold', main: '#4B1590', accent: '#C9A24B', bg: '#F7F4FC' },
   { id: 'rosegold', label: 'Rose Gold', main: '#9A4B5E', accent: '#A56E43', bg: '#FDF5F6' },
   { id: 'slate', label: 'Slate', main: '#334155', accent: '#FF5A1F', bg: '#F3F5F8' },
 ];

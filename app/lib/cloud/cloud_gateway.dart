@@ -33,6 +33,18 @@ class SupportMessage {
   final DateTime? at;
 }
 
+/// A notice from Digital Target (payment reminder, new version...) shown in the bell.
+class AppNotice {
+  const AppNotice({required this.id, required this.title, required this.body, required this.kind, this.at});
+  final String id;
+  final String title;
+  final String body;
+
+  /// info | payment | update | warning | offer
+  final String kind;
+  final DateTime? at;
+}
+
 class Branding {
   const Branding({this.appName = '', this.contact = '', this.whatsapp = '', this.email = '', this.supportMessage = ''});
   final String appName;
@@ -92,6 +104,9 @@ abstract class CloudGateway {
   Future<void> requestPhone(String uid, String phoneId);
 
   Future<void> reportDevice(String uid, DeviceInfoReport device);
+  /// A small picture of the restaurant's logo (a data URL) for the map pin in the panel.
+  Future<void> reportLogo(String uid, String dataUrl);
+
   Future<void> reportSales(String uid, DayTotals today, String appVersion);
 
   /// Re-sends earlier days (one document per date, so repeating it never double-counts). Covers days the phone
@@ -100,6 +115,9 @@ abstract class CloudGateway {
 
 
   Stream<List<SupportMessage>> watchSupport(String uid);
+
+  /// Notices for everyone and for this restaurant, newest first. Live: a new one arrives at once while online.
+  Stream<List<AppNotice>> watchNotices(String uid);
   Future<void> sendSupport(String uid, String businessName, String text);
 
   Future<Branding?> branding();

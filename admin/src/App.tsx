@@ -4,10 +4,10 @@ import { loadConfig } from './config';
 import { createFirebaseApi } from './firebaseApi';
 import { Dashboard, Restaurants, RestaurantPage } from './pages1';
 import { Invoices, Phones, Reminders, Support } from './pages2';
-import { Admins, Audit, Settings } from './pages3';
+import { Admins, Audit, Notifications, Settings } from './pages3';
 import { Icon } from './icons';
 import { Err, fmtDate, msg } from './ui';
-import { money } from './domain';
+import { PAGE_PERM, money } from './domain';
 
 export function Root() {
   const [st, setSt] = useState<{ api?: AdminApi; problem?: string } | null>(null);
@@ -27,34 +27,39 @@ export function SetupNeeded({ problem }: { problem: string }) {
 export function Verify({ api, token }: { api: AdminApi; token: string }) {
   const [r, setR] = useState<Awaited<ReturnType<AdminApi['verifyInvoice']>> | undefined>(undefined); const [err, setErr] = useState('');
   useEffect(() => { api.verifyInvoice(token).then(setR, e => setErr(msg(e))); }, [api, token]);
-  return (<div className="center"><div className="card"><h2>Invoice verification</h2><Err text={err} />
+  return (<div className="center"><div className="card verify"><img src="/logo.png" alt="DT Food POS" width={72} height={72} /><h2>Invoice verification</h2><p className="mut">DT Food POS · Digital Target</p><Err text={err} />
     {r === undefined && !err && <p>Checking…</p>}
-    {r === null && <p className="err">This invoice could not be verified.</p>}
-    {r && <p>Invoice <b>{r.number}</b> for <b>{r.businessName}</b><br />Amount {money(r.amountMinor, r.currency)} · status <b>{r.status}</b><br />Issued {fmtDate(r.issuedAt)}</p>}</div></div>);
+    {r === null && <div className="verdict bad"><b>Not verified</b><span>This invoice could not be found. It may be fake or the link is incomplete.</span></div>}
+    {r && <><div className="verdict ok"><b>✔ Verified</b><span>This invoice was issued by Digital Target.</span></div>
+      <table className="mini"><tbody><tr><th>Invoice</th><td>{r.number}</td></tr><tr><th>Billed to</th><td>{r.businessName}</td></tr><tr><th>Amount</th><td>{money(r.amountMinor, r.currency)}</td></tr>
+        <tr><th>Status</th><td><b>{r.status}</b></td></tr><tr><th>Issued</th><td>{fmtDate(r.issuedAt)}</td></tr></tbody></table></>}
+    <p className="mut small">Powered by Digital Target</p></div></div>);
 }
 
-const PAGES = ['Dashboard', 'Restaurants', 'Invoices', 'Support', 'Phones', 'Reminders', 'Settings', 'Admins', 'Audit'] as const;
+const PAGES = ['Dashboard', 'Restaurants', 'Invoices', 'Support', 'Phones', 'Notifications', 'Reminders', 'Settings', 'Admins', 'Audit'] as const;
 
 export function App({ api }: { api: AdminApi }) {
   const [user, setUser] = useState<{ uid: string; email: string } | null | undefined>(undefined);
   const [admin, setAdmin] = useState<boolean | undefined>(undefined);
   const [page, setPage] = useState<string>('Dashboard'); const [arg, setArg] = useState<string | undefined>();
-  useEffect(() => api.onAuth(u => { setUser(u); setAdmin(undefined); if (u) api.isAdmin(u.uid).then(setAdmin, () => setAdmin(false)); }), [api]);
+  const [access, setAccess] = useState<{ owner: boolean; perms: string[] | null }>({ owner: true, perms: null });
+  useEffect(() => api.onAuth(u => { setUser(u); setAdmin(undefined); if (u) api.isAdmin(u.uid).then(ok => { setAdmin(ok); if (ok) api.myAccess(u.uid).then(setAccess, () => setAccess({ owner: false, perms: [] })); }, () => setAdmin(false)); }), [api]);
   if (user === undefined) return <div className="center">Loading…</div>;
   if (!user) return <Login api={api} />;
   if (admin === undefined) return <div className="center">Loading…</div>;
   if (!admin) return <NoAccess api={api} uid={user.uid} email={user.email} onClaimed={() => setAdmin(true)} />;
-  const go = (p: string, a?: string) => { setPage(p); setArg(a); };
+  const allowed = (p: string) => !PAGE_PERM[p] || access.perms === null || access.perms.includes(PAGE_PERM[p]);
+  const go = (p: string, a?: string) => { if (allowed(p) || p === 'Restaurant') { setPage(p); setArg(a); } };
   const props = { api, go, arg };
   return (<div className="shell"><nav>
     <div className="brand"><img src="/dt-mark-white.png" alt="" width={30} height={30} /><div><b>DT Food POS</b><small>Super Admin</small></div></div>
-    {PAGES.map(p => <button key={p} className={p === page || (page === 'Restaurant' && p === 'Restaurants') ? 'on' : ''} aria-current={p === page ? 'page' : undefined} onClick={() => go(p)}><Icon name={p} /><span>{p === 'Audit' ? 'Audit log' : p}</span></button>)}
+    {PAGES.filter(p => allowed(p)).map(p => <button key={p} className={p === page || (page === 'Restaurant' && p === 'Restaurants') ? 'on' : ''} aria-current={p === page ? 'page' : undefined} onClick={() => go(p)}><Icon name={p} /><span>{p === 'Audit' ? 'Audit log' : p}</span></button>)}
     <div className="spacer" />
     <div className="who">{user.email}</div>
     <button onClick={() => api.signOut()}><Icon name="Sign out" /><span>Sign out</span></button>
     <div className="powered">Powered by Digital Target</div></nav>
     <main>{page === 'Dashboard' && <Dashboard {...props} />}{page === 'Restaurants' && <Restaurants {...props} />}{page === 'Restaurant' && <RestaurantPage {...props} />}
-      {page === 'Invoices' && <Invoices key={arg} {...props} />}{page === 'Support' && <Support {...props} />}{page === 'Phones' && <Phones {...props} />}
+      {page === 'Invoices' && <Invoices key={arg} {...props} />}{page === 'Support' && <Support {...props} />}{page === 'Phones' && <Phones {...props} />}{page === 'Notifications' && <Notifications {...props} />}
       {page === 'Reminders' && <Reminders {...props} />}{page === 'Settings' && <Settings {...props} />}{page === 'Admins' && <Admins {...props} me={user.uid} />}
       {page === 'Audit' && <Audit {...props} />}</main></div>);
 }

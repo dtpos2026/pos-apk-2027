@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { PhonesMap } from './PhonesMap';
 import type { AdminApi, Billing, Invoice, Message } from './api';
@@ -34,28 +34,45 @@ export function Invoices({ api, arg }: PageProps) {
     </tbody></table>{paged.pager}{inv.data && inv.data.length === 0 && <p className="empty">No invoices yet. Create one above.</p>}</>);
 }
 
+/** The invoice as a branded A4 page: red header with the logo, who bills whom, the items, totals, payment details, a real verification QR and a signature. */
 export function InvoiceView({ api, inv, phone, onBack }: { api: AdminApi; inv: Invoice; phone: string; onBack: () => void }) {
   const bill = useLoad<Billing>(() => api.getBilling(), [api]);
   const [qr, setQr] = useState('');
+  const [png, setPng] = useState('');
+  const sheet = useRef<HTMLDivElement>(null);
   const link = `${window.location.origin}/verify/${inv.verifyToken}`;
-  useEffect(() => { QRCode.toDataURL(link, { margin: 1, width: 160 }).then(setQr, () => setQr('')); }, [link]);
+  useEffect(() => { QRCode.toDataURL(link, { margin: 1, width: 220 }).then(setQr, () => setQr('')); }, [link]);
   const b = bill.data;
   const total = inv.amountMinor - inv.discountMinor;
+  const downloadPng = async () => {
+    setPng('');
+    try {
+      const { default: html2canvas } = await import('html2canvas');
+      const canvas = await html2canvas(sheet.current!, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+      const a = document.createElement('a');
+      a.download = `${inv.number}.png`; a.href = canvas.toDataURL('image/png'); a.click();
+    } catch (e) { setPng(e instanceof Error ? e.message : 'Could not make the picture'); }
+  };
   return (<>
-    <p className="noprint"><a onClick={onBack}>← Invoices</a> · <button className="act" onClick={() => window.print()}>Print / Save as PDF</button></p>
-    <div className="card invoice">
-      <h2>{b?.company || 'Invoice'}</h2><p>{b?.address}</p><h3>Invoice {inv.number} {inv.status !== 'unpaid' && <Badge>{inv.status}</Badge>}</h3>
-      <p>Billed to: <b>{inv.businessName}</b><br />Issued: {fmtDate(inv.issuedAt)} · Due: {fmtDate(inv.dueAt)}</p>
-      <table><tbody><tr><td>DT Food POS subscription {inv.plan ? `(${inv.plan})` : ''}</td><td style={{ textAlign: 'right' }}>{money(inv.amountMinor, inv.currency)}</td></tr>
-        {inv.discountMinor > 0 && <tr><td>Discount</td><td style={{ textAlign: 'right' }}>− {money(inv.discountMinor, inv.currency)}</td></tr>}
-        <tr><td><b>Total</b></td><td style={{ textAlign: 'right' }}><b>{money(total, inv.currency)}</b></td></tr></tbody></table>
-      {b && (b.bank || b.accountNo) && <p>Pay to: {b.bank} · {b.accountTitle} · {b.accountNo}</p>}
-      {b?.paymentQr && <img src={b.paymentQr} alt="Payment QR" height={110} />}
-      {b?.terms && <small>{b.terms}</small>}
-      <div className="row" style={{ marginTop: 12 }}>{qr && <img src={qr} alt="Scan to verify" width={90} />}<small>Scan to verify this invoice</small>
-        {b?.signature && <img src={b.signature} alt="Signature" height={50} style={{ marginLeft: 'auto' }} />}</div>
+    <p className="noprint"><a onClick={onBack}>← Invoices</a> · <button className="act" onClick={downloadPng}>Download PNG</button> <button className="act sec" onClick={() => window.print()}>Print / Save as PDF</button>
+      {' '}<a className="btn" href={whatsappLink(phone, `Invoice ${inv.number} for ${inv.businessName}: ${money(total, inv.currency)}, due ${fmtDate(inv.dueAt)}. Verify: ${link}`)} target="_blank" rel="noreferrer">Send on WhatsApp</a></p>
+    {png && <p className="err">{png}</p>}
+    <div className="inv-a4" ref={sheet} data-testid="invoice-sheet">
+      <header className="inv-head"><img src="/logo.png" alt="DT Food POS" width={64} height={64} /><div className="inv-co"><b>{b?.company || 'Digital Target'}</b><small>{b?.address}</small></div>
+        <div className="inv-title"><span>INVOICE</span><b>{inv.number}</b><i className={'inv-pill ' + inv.status}>{inv.status.toUpperCase()}</i></div></header>
+      <section className="inv-parties"><div><small>BILL TO</small><b>{inv.businessName}</b></div><div><small>ISSUED</small><b>{fmtDate(inv.issuedAt)}</b></div><div><small>DUE</small><b>{fmtDate(inv.dueAt)}</b></div></section>
+      <table className="inv-items"><thead><tr><th>#</th><th>Description</th><th style={{ textAlign: 'right' }}>Amount</th></tr></thead><tbody>
+        <tr><td>1</td><td>DT Food POS subscription {inv.plan ? `(${inv.plan})` : ''}</td><td style={{ textAlign: 'right' }}>{money(inv.amountMinor, inv.currency)}</td></tr>
+        {inv.discountMinor > 0 && <tr><td>2</td><td>Discount</td><td style={{ textAlign: 'right' }}>− {money(inv.discountMinor, inv.currency)}</td></tr>}</tbody></table>
+      <section className="inv-bottom"><div className="inv-pay"><small>PAYMENT DETAILS</small>{b && (b.bank || b.accountNo) ? <p>{b.bank}<br />{b.accountTitle}<br />{b.accountNo}</p> : <p className="mut">Add bank details in Settings</p>}
+        {b?.paymentQr && <img src={b.paymentQr} alt="Payment QR" height={96} />}</div>
+        <div className="inv-total"><div><span>Total</span><b>{money(total, inv.currency)}</b></div>{inv.status === 'paid' && <div className="paid"><span>Paid</span><b>{fmtDate(inv.paidAt)}</b></div>}
+          {inv.status === 'unpaid' && <div className="due"><span>Balance due</span><b>{money(total, inv.currency)}</b></div>}</div></section>
+      <section className="inv-sign"><div className="inv-verify">{qr && <img src={qr} alt="Scan to verify" width={96} height={96} />}<small>Scan to verify this invoice</small></div>
+        <div className="inv-terms">{b?.terms && <small>{b.terms}</small>}</div>
+        <div className="inv-sig">{b?.signature && <img src={b.signature} alt="Signature" height={52} />}<div className="line" /><small>Authorized signatory</small></div></section>
+      <footer className="inv-foot"><span>Thank you for your business!</span><span>Powered by Digital Target · DT Food POS</span></footer>
     </div>
-    <p className="noprint"><a className="btn" href={whatsappLink(phone, `Invoice ${inv.number} for ${inv.businessName}: ${money(total, inv.currency)}, due ${fmtDate(inv.dueAt)}. Verify: ${link}`)} target="_blank" rel="noreferrer">Send on WhatsApp{phone ? ` (${phone})` : ''}</a></p>
   </>);
 }
 
@@ -86,6 +103,7 @@ export function Phones({ api }: PageProps) {
   const [q, setQ] = useState('');
   const now = new Date();
   const nameOf = (uid: string) => acc.data?.find(a => a.uid === uid)?.businessName ?? 'Unknown account';
+  const logoOf = (uid: string) => acc.data?.find(a => a.uid === uid)?.logo;
   // one row per phone (documents are keyed restaurant+phone id, so a phone never appears twice)
   const rows = (dev.data ?? [])
     .filter(d => { const t = q.trim().toLowerCase(); return !t || [nameOf(d.uid), d.model, d.appVersion].some(v => v.toLowerCase().includes(t)); })
@@ -100,7 +118,7 @@ export function Phones({ api }: PageProps) {
     </div>
     <div className="card"><h3>Map</h3>
       {located.length === 0 ? <p className="empty">No phone shares its location yet. The restaurant owner turns it on in the app (Settings › Account).</p>
-        : <PhonesMap points={located.map(d => ({ device: d, restaurant: nameOf(d.uid), online: isOnline(d.lastSeenAt, now) }))} />}
+        : <PhonesMap points={located.map(d => ({ device: d, restaurant: nameOf(d.uid), logo: logoOf(d.uid), online: isOnline(d.lastSeenAt, now) }))} />}
     </div>
     <div className="row"><input aria-label="Search phones" placeholder="Search restaurant, model, version" style={{ width: 320 }} value={q} onChange={e => setQ(e.target.value)} /></div>
     <table><thead><tr><th>Restaurant</th><th>Model</th><th>Android / app</th><th>Last seen</th><th>Location</th><th /></tr></thead><tbody>

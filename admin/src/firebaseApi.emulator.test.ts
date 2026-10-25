@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { createFirebaseApi } from './firebaseApi';
 import { initializeApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator, createUserWithEmailAndPassword } from 'firebase/auth';
-import { addDoc, collection, connectFirestoreEmulator, doc, getFirestore, serverTimestamp, setDoc, Timestamp } from 'firebase/firestore';
+import { addDoc, collection, connectFirestoreEmulator, doc, getDocs, getFirestore, query, serverTimestamp, setDoc, Timestamp, where } from 'firebase/firestore';
 
 const on = !!process.env.FIRESTORE_EMULATOR_HOST;
 const cfg = { apiKey: 'fake', authDomain: 'localhost', projectId: 'dt-food-app', appId: 'fake' };
@@ -99,7 +99,7 @@ describe.skipIf(!on)('FirebaseApi on the emulator', () => {
     expect((await api.getAppControl()).offlineDays).toBe(5);
     await api.setNotes(r.uid, 'pays late');
     expect(await api.notes(r.uid)).toBe('pays late');
-    await api.addAdmin('someone');
+    await api.addAdmin({ uid: 'someone', perms: ['support'] });
     expect((await api.admins()).map(x => x.uid).sort()).toEqual([adminUid, 'someone'].sort());
 
     // every privileged change left an audit entry, stamped with the admin's email
@@ -120,4 +120,54 @@ describe.skipIf(!on)('FirebaseApi on the emulator', () => {
     const other = await restaurant('rest2', 'other@x.pk');
     await expect(setDoc(doc(other.db, 'admins', other.uid), { at: Timestamp.now() })).rejects.toThrow();
   }, 60000);
+
+  it('admin permissions, audit clean-up and notifications work against the real security rules', async () => {
+    const owner = createFirebaseApi(cfg, emu, 'owner2');
+    // the project was claimed by the owner in the test above (same emulator data)
+    await owner.signIn('digitaltarget.digital@gmail.com', 'secret123');
+    const ownerUid = (await owner.admins()).find(a => a.owner)!.uid;
+    const r = await restaurant('rest3', 'bistro@x.pk');
+    await setDoc(doc(r.db, 'accounts', r.uid), { businessName: 'Bistro', ownerName: 'Sana', phone: '0301', city: 'Lahore', country: 'PK', email: 'bistro@x.pk', status: 'pending', phoneRequests: ['ph9'], createdAt: serverTimestamp(), appVersion: '0.4.0' });
+
+    // an admin is created with a login in one step, and can only do what was ticked
+    const newUid = await owner.addAdmin({ email: 'sara@dt.test', password: 'secret123', name: 'Sara', perms: ['support'] });
+    const sara = createFirebaseApi(cfg, emu, 'sara');
+    await sara.signIn('sara@dt.test', 'secret123');
+    expect(await sara.isAdmin(newUid)).toBe(true);
+    expect(await sara.myAccess(newUid)).toEqual({ owner: false, perms: ['support'] });
+    await expect(sara.setStatus(r.uid, 'suspended', 'x')).rejects.toThrow();
+    await expect(sara.sendNotice({ title: 'hi', body: '', kind: 'info', target: 'all' })).rejects.toThrow();
+    await expect(sara.auditLog()).rejects.toThrow();
+    await expect(sara.addAdmin({ uid: 'friend', perms: ['support'] })).rejects.toThrow();
+    const list = await owner.admins();
+    expect(list.find(a => a.uid === newUid)).toMatchObject({ email: 'sara@dt.test', name: 'Sara', perms: ['support'], owner: false });
+    expect(list.find(a => a.uid === ownerUid)?.owner).toBe(true);
+
+    // the owner gives more access and it works at once
+    await owner.setAdminPerms(newUid, ['support', 'restaurants']);
+    await owner.approve(r.uid, 'monthly', 100000, new Date(Date.now() + 86400000));
+    await sara.setStatus(r.uid, 'suspended', 'late payment');
+    expect((await owner.account(r.uid))?.status).toBe('suspended');
+    await expect(owner.removeAdmin(ownerUid)).rejects.toThrow();
+
+    // notifications: the restaurant reads what is for everyone and for it, nothing else
+    await owner.sendNotice({ title: 'For all', body: 'a', kind: 'info', target: 'all' });
+    await owner.sendNotice({ title: 'For Bistro', body: 'b', kind: 'payment', target: r.uid });
+    await owner.sendNotice({ title: 'For someone else', body: 'c', kind: 'info', target: 'other-uid' });
+    expect((await owner.notices()).map(n => n.title).sort()).toEqual(['For Bistro', 'For all', 'For someone else']);
+    const mine = await getDocs(query(collection(r.db, 'notifications'), where('target', 'in', ['all', r.uid])));
+    expect(mine.docs.map(d => d.data().title).sort()).toEqual(['For Bistro', 'For all']);
+    await expect(getDocs(collection(r.db, 'notifications'))).rejects.toThrow();
+    const toDelete = (await owner.notices()).find(n => n.title === 'For someone else')!;
+    await owner.deleteNotice(toDelete.id);
+    expect(await owner.notices()).toHaveLength(2);
+
+    // audit log: delete chosen entries, and clean old ones (nothing is that old yet); both are recorded
+    const before = await owner.auditLog();
+    await owner.deleteAudit(before.slice(0, 2).map(e => e.id));
+    expect(await owner.cleanAudit(1)).toBe(0);
+    const after = await owner.auditLog();
+    expect(after.map(e => e.action)).toEqual(expect.arrayContaining(['audit.delete', 'audit.clean']));
+    expect(after.some(e => e.id === before[0].id)).toBe(false);
+  });
 });

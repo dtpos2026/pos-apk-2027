@@ -102,6 +102,9 @@ class FirebaseGateway implements CloudGateway {
       }));
 
   @override
+  Future<void> reportLogo(String uid, String dataUrl) => _guard(() => _db.collection('accounts').doc(uid).update({'logo': dataUrl}));
+
+  @override
   Future<void> reportSales(String uid, DayTotals t, String appVersion) => _guard(() async {
         final batch = _db.batch();
         batch.set(_db.collection('stats').doc(uid), {'updatedAt': FieldValue.serverTimestamp(), 'todayNetMinor': t.netMinor, 'todayBills': t.bills, 'currency': t.currency, 'appVersion': appVersion});
@@ -127,6 +130,15 @@ class FirebaseGateway implements CloudGateway {
   Stream<List<SupportMessage>> watchSupport(String uid) => _db.collection('support').doc(uid).collection('messages').orderBy('at').snapshots().map((q) => [
         for (final d in q.docs) SupportMessage(id: d.id, fromAdmin: d.data()['sender'] == 'admin', text: (d.data()['text'] as String?) ?? '', at: _date(d.data()['at'])),
       ]);
+
+  @override
+  Stream<List<AppNotice>> watchNotices(String uid) => _db.collection('notifications').where('target', whereIn: ['all', uid]).snapshots().map((q) {
+        final list = [
+          for (final d in q.docs)
+            AppNotice(id: d.id, title: (d.data()['title'] as String?) ?? '', body: (d.data()['body'] as String?) ?? '', kind: (d.data()['kind'] as String?) ?? 'info', at: _date(d.data()['createdAt'])),
+        ]..sort((a, b) => (b.at ?? DateTime(0)).compareTo(a.at ?? DateTime(0)));
+        return list;
+      });
 
   @override
   Future<void> sendSupport(String uid, String businessName, String text) => _guard(() async {

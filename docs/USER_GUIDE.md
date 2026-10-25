@@ -29,3 +29,11 @@
 
 ## C. Setup / deploy
 `docs/FIREBASE_SETUP.md` dekhein. Panel update: ZIP folder mein `npx firebase-tools login` phir `npx firebase-tools deploy`.
+
+## Super Admin panel: admins, notifications, audit log, invoices (v0.3)
+
+- **Admins**: type an email and a password and the login is created for the new admin automatically (or paste the UID of someone who already has one). Tick what they may do: Restaurants, Invoices, Support chat, Phones & map, Notifications, Settings, Audit log, Admins. Pages they may not use are hidden, and Firestore blocks the changes on the server too. Admins created before this had full access; they keep it until you save a list for them. The owner always has everything.
+- **Notifications**: pick a template (payment reminder, renewal soon, new version, maintenance, welcome, offer) or write your own, choose Everyone or one restaurant, Send. It appears in the bell inside the restaurant's app (top bar and side-menu header) as soon as the phone is online.
+- **Audit log**: tick entries and *Delete selected*, or *Clean old entries* for everything older than N days. The clean-up is itself written to the log.
+- **Invoices**: Open an invoice for the branded A4 sheet (logo, bill to, items, payment details, signature, verification QR). *Download PNG* saves it as a picture, *Print / Save as PDF* for paper, *Send on WhatsApp* with the verification link. The QR opens a public page that confirms the invoice is genuine.
+- **Phones & map**: each pin shows the restaurant's logo (reported by the app) and name; click it for the phone model, last seen and location accuracy.

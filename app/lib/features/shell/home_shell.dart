@@ -1,5 +1,6 @@
 import '../online/online_orders_screen.dart';
 import '../../app/theme.dart';
+import '../cloud/notices.dart';
 import '../kitchen/kitchen_screen.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../profile/app_drawer.dart';
@@ -78,6 +79,7 @@ class HomeShell extends ConsumerWidget {
     ]);
     final actions = [
       const CloudSyncIndicator(),
+      const NoticeBell(),
       if (ref.watch(cloudGatewayProvider) != null)
         IconButton(key: const ValueKey('support'), tooltip: t['support'], icon: const Icon(Icons.support_agent), onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SupportScreen()))),
       IconButton(key: const ValueKey('sign-out'), tooltip: t['sign_out'], icon: const Icon(Icons.logout), onPressed: () => ref.read(sessionProvider.notifier).signOut())

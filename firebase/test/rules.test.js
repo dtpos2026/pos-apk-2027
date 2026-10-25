@@ -49,6 +49,17 @@ describe('accounts', () => {
   });
 });
 
+describe('restaurant logo for the map pin', () => {
+  it('a restaurant may store a small logo picture on its own account, nothing bigger, and nothing else about itself', async () => {
+    await seed((db) => setDoc(doc(db, 'accounts/u1'), newAccount()));
+    const ref = doc(as('u1'), 'accounts/u1');
+    await assertSucceeds(updateDoc(ref, { logo: 'data:image/jpeg;base64,AAAA' }));
+    await assertFails(updateDoc(ref, { logo: 'x'.repeat(40001) }));
+    await assertFails(updateDoc(ref, { logo: 'data:image/jpeg;base64,AAAA', status: 'active' }));
+    await assertFails(updateDoc(doc(as('u2'), 'accounts/u1'), { logo: 'data:image/jpeg;base64,AAAA' }));
+  });
+});
+
 describe('admin claim', () => {
   it('the first signed-in user can claim, a second cannot', async () => {
     const f = as('first', OWNER);
@@ -138,14 +149,14 @@ describe('invoices', () => {
 
 describe('audit log', () => {
   const entry = (uid) => ({ at: serverTimestamp(), adminUid: uid, adminEmail: 'a@b.c', action: 'account.status', accountUid: 'u1', details: { status: 'active' } });
-  it('admins append with the server time; nobody edits or deletes; others cannot read or write', async () => {
+  it('admins append with the server time; nobody edits an entry; restaurants cannot read or write', async () => {
     await makeAdmin('adm');
     await assertSucceeds(setDoc(doc(as('adm'), 'auditLog/e1'), entry('adm')));
     await assertFails(setDoc(doc(as('adm'), 'auditLog/e2'), { ...entry('adm'), at: new Date('2020-01-01') }));
     await assertFails(setDoc(doc(as('adm'), 'auditLog/e3'), entry('someone-else')));
     await assertFails(updateDoc(doc(as('adm'), 'auditLog/e1'), { action: 'x' }));
-    await assertFails(deleteDoc(doc(as('adm'), 'auditLog/e1')));
     await assertFails(setDoc(doc(as('u1'), 'auditLog/e4'), entry('u1')));
+    await assertFails(deleteDoc(doc(as('u1'), 'auditLog/e1')));
     await assertFails(getDoc(doc(as('u1'), 'auditLog/e1')));
     await assertSucceeds(getDoc(doc(as('adm'), 'auditLog/e1')));
   });
@@ -160,5 +171,73 @@ describe('the restaurant\'s business data is never stored here', () => {
     await assertFails(setDoc(doc(as('adm'), 'backup/u1/ops/k2'), op));
     await assertFails(setDoc(doc(as('u1'), 'customers/u1/list/c1'), { name: 'Ali' }));
     await assertFails(setDoc(doc(as('u1'), 'orders/o1'), { total: 1 }));
+  });
+});
+
+describe('admin permissions', () => {
+  const makeLimited = (uid, perms) => seed((db) => setDoc(doc(db, 'admins', uid), { at: 1, perms }));
+  const makeOwner = (uid) => seed(async (db) => { await setDoc(doc(db, 'config/owner'), { uid, at: 1 }); await setDoc(doc(db, 'admins', uid), { at: 1, perms: [] }); });
+
+  it('an admin without a perms list keeps full access (older admins)', async () => {
+    await makeAdmin('old');
+    await seed((db) => setDoc(doc(db, 'accounts/u1'), newAccount()));
+    await assertSucceeds(updateDoc(doc(as('old'), 'accounts/u1'), { status: 'active' }));
+    await assertSucceeds(setDoc(doc(as('old'), 'config/app'), { offlineDays: 3 }));
+  });
+  it('a limited admin can only change what was ticked', async () => {
+    await makeLimited('sup', ['support']);
+    await seed((db) => setDoc(doc(db, 'accounts/u1'), newAccount()));
+    await assertSucceeds(getDocs(collection(as('sup'), 'accounts')));
+    await assertFails(updateDoc(doc(as('sup'), 'accounts/u1'), { status: 'active' }));
+    await assertFails(setDoc(doc(as('sup'), 'config/app'), { offlineDays: 3 }));
+    await assertFails(setDoc(doc(as('sup'), 'admins/new'), { at: 1, perms: ['support', 'admins'] }));
+    await assertSucceeds(setDoc(doc(as('sup'), 'support/u1'), { businessName: 'A', lastMessage: 'hi', lastAt: 1, unreadForAdmin: false }));
+  });
+  it('invoices permission can write invoices and extend an account, but cannot touch settings', async () => {
+    await makeLimited('acc', ['invoices']);
+    await seed((db) => setDoc(doc(db, 'accounts/u1'), newAccount()));
+    await assertSucceeds(updateDoc(doc(as('acc'), 'accounts/u1'), { status: 'active' }));
+    await assertSucceeds(setDoc(doc(as('acc'), 'invoices/i1'), { accountUid: 'u1', number: 'INV-1' }));
+    await assertFails(setDoc(doc(as('acc'), 'config/billing'), { company: 'x' }));
+    await assertSucceeds(getDoc(doc(as('acc'), 'config/billing')));
+  });
+  it('only the owner or an admin with the admins permission adds admins; the owner is never locked out', async () => {
+    await makeOwner('own');
+    await makeLimited('lim', ['restaurants']);
+    await assertSucceeds(setDoc(doc(as('own'), 'admins/n1'), { at: 1, perms: ['restaurants'] }));
+    await assertFails(setDoc(doc(as('lim'), 'admins/n2'), { at: 1 }));
+    await assertSucceeds(setDoc(doc(as('own'), 'accounts/u9'), newAccount({ status: 'active' })));
+  });
+});
+
+describe('audit log clean-up', () => {
+  const entry = (uid) => ({ at: serverTimestamp(), adminUid: uid, adminEmail: 'a@x', action: 'account.update', accountUid: null, details: {} });
+  it('an admin with the audit permission can delete entries; others cannot even read them', async () => {
+    await seed(async (db) => { await setDoc(doc(db, 'admins/aud'), { at: 1, perms: ['audit'] }); await setDoc(doc(db, 'admins/oth'), { at: 1, perms: ['support'] }); await setDoc(doc(db, 'auditLog/e1'), { at: new Date(), adminUid: 'x', adminEmail: 'x', action: 'a', accountUid: null, details: {} }); });
+    await assertFails(getDoc(doc(as('oth'), 'auditLog/e1')));
+    await assertFails(deleteDoc(doc(as('oth'), 'auditLog/e1')));
+    await assertSucceeds(getDoc(doc(as('aud'), 'auditLog/e1')));
+    await assertFails(updateDoc(doc(as('aud'), 'auditLog/e1'), { action: 'changed' }));
+    await assertSucceeds(deleteDoc(doc(as('aud'), 'auditLog/e1')));
+    await assertSucceeds(setDoc(doc(as('aud'), 'auditLog/e2'), entry('aud')));
+  });
+});
+
+describe('notifications (the bell in the app)', () => {
+  const note = (over = {}) => ({ title: 'Payment due', body: 'Please pay', kind: 'payment', target: 'all', createdAt: serverTimestamp(), createdBy: 'adm', ...over });
+  it('admins with the permission send them; restaurants read what is for everyone or for them, never others, never write', async () => {
+    await seed(async (db) => { await setDoc(doc(db, 'admins/adm'), { at: 1, perms: ['notifications'] }); await setDoc(doc(db, 'admins/no'), { at: 1, perms: ['support'] }); });
+    await assertSucceeds(setDoc(doc(as('adm'), 'notifications/n1'), note()));
+    await assertSucceeds(setDoc(doc(as('adm'), 'notifications/n2'), note({ target: 'u1' })));
+    await assertFails(setDoc(doc(as('no'), 'notifications/n3'), note()));
+    await assertFails(setDoc(doc(as('adm'), 'notifications/n4'), note({ kind: 'spam' })));
+    await assertFails(setDoc(doc(as('adm'), 'notifications/n5'), note({ extra: 1 })));
+    await assertFails(setDoc(doc(as('u1'), 'notifications/n6'), note()));
+    await assertSucceeds(getDoc(doc(as('u1'), 'notifications/n1')));
+    await assertSucceeds(getDoc(doc(as('u1'), 'notifications/n2')));
+    await assertFails(getDoc(doc(as('u2'), 'notifications/n2')));
+    await assertSucceeds(getDoc(doc(as('u2'), 'notifications/n1')));
+    await assertFails(deleteDoc(doc(as('u1'), 'notifications/n1')));
+    await assertSucceeds(deleteDoc(doc(as('adm'), 'notifications/n1')));
   });
 });

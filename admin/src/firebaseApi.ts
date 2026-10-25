@@ -1,11 +1,11 @@
-import { initializeApp } from 'firebase/app';
+import { deleteApp, initializeApp } from 'firebase/app';
 import { connectAuthEmulator, createUserWithEmailAndPassword, getAuth, onAuthStateChanged, sendPasswordResetEmail, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import {
   Timestamp, arrayRemove, arrayUnion, collection, connectFirestoreEmulator, deleteDoc, doc, getDoc, getDocs, getFirestore, orderBy, query, runTransaction, serverTimestamp,
-  limit, setDoc, updateDoc, writeBatch, type DocumentData, type Firestore, type Transaction, type WriteBatch,
+  limit, setDoc, updateDoc, where, writeBatch, type DocumentData, type Firestore, type Transaction, type WriteBatch,
 } from 'firebase/firestore';
 import type {
-  Account, AccountPatch, AdminApi, AppControl, AuditEntry, Billing, Branding, DayTotal, Device, Invoice, Message, Thread,
+  Account, AccountPatch, AdminApi, AdminUser, AppControl, AuditEntry, Billing, Branding, DayTotal, Device, Invoice, Message, Notice, Thread,
 } from './api';
 import type { FirebaseWebConfig } from './config';
 import { customerId, expiryFor, invoiceNumber, type PlanId, type Status } from './domain';
@@ -23,7 +23,7 @@ function toAccount(uid: string, d: DocumentData, stats?: DocumentData): Account 
     currency: str(d.currency, d.country === 'AE' ? 'AED' : 'PKR'), expiresAt: date(d.expiresAt), customerId: d.customerId ?? null,
     businessId: d.businessId ?? null, licenseId: d.licenseId ?? null, approvedPhones: arr(d.approvedPhones), phoneRequests: arr(d.phoneRequests).filter(p => !arr(d.approvedPhones).includes(p)),
     blockedPhones: arr(d.blockedPhones), maxPhones: num(d.maxPhones, 1), disabledModules: arr(d.disabledModules), themeId: str(d.themeId), themeLocked: d.themeLocked === true, adminMessage: str(d.adminMessage), createdAt: date(d.createdAt),
-    appVersion: str(d.appVersion), todayNetMinor: num(stats?.todayNetMinor), todayAt: date(stats?.updatedAt),
+    appVersion: str(d.appVersion), todayNetMinor: num(stats?.todayNetMinor), todayAt: date(stats?.updatedAt), logo: str(d.logo) || undefined,
   };
 }
 function toInvoice(id: string, d: DocumentData): Invoice {
@@ -225,16 +225,74 @@ export function createFirebaseApi(cfg: FirebaseWebConfig, emulator?: { host: str
     getBilling: () => cfgDoc<Billing>('billing', { company: '', address: '', bank: '', accountTitle: '', accountNo: '', terms: '', paymentQr: '', signature: '', reminderTemplate: 'Assalam o Alaikum {owner}, your DT Food POS subscription for {business} (ID {customerId}) needs attention. Amount due: {amount}. Expiry: {expiry}. Thank you.', planPrices: {} }),
     setBilling: v => audited('settings.billing', null, {}, b => b.set(doc(db, 'config', 'billing'), v)),
 
-    async admins() { return (await getDocs(collection(db, 'admins'))).docs.map(d => ({ uid: d.id })); },
-    async addAdmin(uid) {
-      const id = uid.trim();
-      if (!id) throw new Error('Enter the UID');
-      await audited('admin.add', null, { uid: id }, b => b.set(doc(db, 'admins', id), { at: serverTimestamp() }));
+    async admins(): Promise<AdminUser[]> {
+      const owner = (await getDoc(doc(db, 'config', 'owner'))).data()?.uid;
+      return (await getDocs(collection(db, 'admins'))).docs.map(d => ({ uid: d.id, email: str(d.data().email), name: str(d.data().name), perms: Array.isArray(d.data().perms) ? arr(d.data().perms) : null, owner: d.id === owner }));
     },
+    async addAdmin(a) {
+      let id = (a.uid ?? '').trim();
+      const email = (a.email ?? '').trim();
+      if (!id) {
+        if (!email || !(a.password ?? '')) throw new Error('Enter a UID, or an email and a password to create the login');
+        if ((a.password ?? '').length < 6) throw new Error('The password needs at least 6 characters');
+        // a second app instance, so creating the login does not sign this admin out
+        const second = initializeApp(cfg, `dt-new-admin-${rid()}`);
+        try {
+          const sa = getAuth(second);
+          if (emulator) connectAuthEmulator(sa, `http://${emulator.host}:${emulator.authPort}`, { disableWarnings: true });
+          id = (await createUserWithEmailAndPassword(sa, email, a.password!)).user.uid;
+          await signOut(sa);
+        } finally {
+          await deleteApp(second);
+        }
+      }
+      const perms = [...a.perms];
+      await audited('admin.add', null, { uid: id, email, perms }, b => b.set(doc(db, 'admins', id), { at: serverTimestamp(), email, name: (a.name ?? '').trim(), perms }));
+      return id;
+    },
+    async setAdminPerms(uid, perms) { await audited('admin.perms', null, { uid, perms }, b => b.update(doc(db, 'admins', uid), { perms })); },
     async removeAdmin(uid) {
       if (uid === auth.currentUser?.uid) throw new Error('You cannot remove yourself');
+      if ((await getDoc(doc(db, 'config', 'owner'))).data()?.uid === uid) throw new Error('The owner cannot be removed');
       await audited('admin.remove', null, { uid }, b => b.delete(doc(db, 'admins', uid)));
     },
+    async myAccess(uid) {
+      const owner = (await getDoc(doc(db, 'config', 'owner'))).data()?.uid === uid;
+      const d = (await getDoc(doc(db, 'admins', uid))).data();
+      return { owner, perms: owner || !Array.isArray(d?.perms) ? null : arr(d?.perms) };
+    },
+    async deleteAudit(ids) {
+      for (let i = 0; i < ids.length; i += 400) {
+        const b = writeBatch(db);
+        ids.slice(i, i + 400).forEach(id => b.delete(doc(db, 'auditLog', id)));
+        await b.commit();
+      }
+      await setDoc(doc(collection(db, 'auditLog')), auditEntry('audit.delete', null, { count: ids.length }));
+    },
+    async cleanAudit(days) {
+      if (!(days >= 1)) throw new Error('Choose at least 1 day');
+      const cutoff = Timestamp.fromDate(new Date(Date.now() - days * 86400000));
+      let total = 0;
+      for (;;) {
+        const s = await getDocs(query(collection(db, 'auditLog'), where('at', '<', cutoff), orderBy('at'), limit(400)));
+        if (s.empty) break;
+        const b = writeBatch(db);
+        s.docs.forEach(d => b.delete(d.ref));
+        await b.commit();
+        total += s.size;
+      }
+      await setDoc(doc(collection(db, 'auditLog')), auditEntry('audit.clean', null, { olderThanDays: days, count: total }));
+      return total;
+    },
+    async notices(): Promise<Notice[]> {
+      const s = await getDocs(query(collection(db, 'notifications'), orderBy('createdAt', 'desc'), limit(200)));
+      return s.docs.map(d => ({ id: d.id, title: str(d.data().title), body: str(d.data().body), kind: str(d.data().kind, 'info'), target: str(d.data().target, 'all'), createdAt: date(d.data().createdAt) }));
+    },
+    async sendNotice(n) {
+      if (!n.title.trim()) throw new Error('Write a title');
+      await audited('notice.send', n.target === 'all' ? null : n.target, { title: n.title.trim(), kind: n.kind }, b => b.set(doc(collection(db, 'notifications')), { title: n.title.trim(), body: n.body.trim(), kind: n.kind, target: n.target, createdAt: serverTimestamp(), createdBy: auth.currentUser?.uid ?? '' }));
+    },
+    async deleteNotice(id) { await audited('notice.delete', null, { id }, b => b.delete(doc(db, 'notifications', id))); },
     async auditLog(): Promise<AuditEntry[]> {
       const s = await getDocs(query(collection(db, 'auditLog'), orderBy('at', 'desc'), limit(500)));
       return s.docs.map(d => ({ id: d.id, at: date(d.data().at), adminEmail: str(d.data().adminEmail), action: str(d.data().action), accountUid: d.data().accountUid ?? null, details: (d.data().details ?? {}) as Record<string, unknown> }));

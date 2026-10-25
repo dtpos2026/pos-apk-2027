@@ -4,7 +4,20 @@ import 'leaflet/dist/leaflet.css';
 import type { Device } from './api';
 import { ago } from './ui';
 
-export interface MapPoint { device: Device; restaurant: string; online: boolean }
+export interface MapPoint { device: Device; restaurant: string; online: boolean; logo?: string }
+
+/** A map pin: a round badge with the restaurant's logo (or its first letter), a pointer below, and the name under it. Built with DOM calls only, so names can never inject HTML. */
+export function pinElement(p: MapPoint): HTMLElement {
+  const color = p.online ? '#1e7b3a' : '#C41414';
+  const wrap = document.createElement('div'); wrap.className = 'pin';
+  const head = document.createElement('div'); head.className = 'pin-head'; head.style.borderColor = color;
+  if (p.logo && p.logo.startsWith('data:image/')) { const img = document.createElement('img'); img.src = p.logo; img.alt = ''; head.appendChild(img); }
+  else { head.textContent = (p.restaurant.trim()[0] ?? '?').toUpperCase(); head.style.background = color; head.style.color = '#fff'; }
+  const tip = document.createElement('div'); tip.className = 'pin-tip'; tip.style.borderTopColor = color;
+  const name = document.createElement('div'); name.className = 'pin-name'; name.textContent = p.restaurant;
+  wrap.append(head, tip, name);
+  return wrap;
+}
 
 /** OpenStreetMap with one marker per phone that shares its location, and a circle showing GPS accuracy. */
 export function PhonesMap({ points }: { points: MapPoint[] }) {
@@ -30,9 +43,9 @@ export function PhonesMap({ points }: { points: MapPoint[] }) {
     for (const p of points) {
       const { lat, lng, accuracyM } = p.device;
       if (lat == null || lng == null) continue;
-      const color = p.online ? '#1e7b3a' : '#3C096C';
+      const color = p.online ? '#1e7b3a' : '#C41414';
       L.circle([lat, lng], { radius: Math.max(accuracyM ?? 0, 10), color, weight: 1, fillOpacity: 0.12 }).addTo(g);
-      const marker = L.circleMarker([lat, lng], { radius: 8, color: '#fff', weight: 2, fillColor: color, fillOpacity: 1 }).addTo(g);
+      const marker = L.marker([lat, lng], { icon: L.divIcon({ html: pinElement(p), className: 'pin-icon', iconSize: [120, 78], iconAnchor: [60, 50], popupAnchor: [0, -46] }) }).addTo(g);
       const div = document.createElement('div');
       const b = document.createElement('b'); b.textContent = p.restaurant; div.appendChild(b);
       div.appendChild(document.createElement('br'));

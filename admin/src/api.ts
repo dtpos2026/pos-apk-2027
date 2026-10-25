@@ -12,6 +12,8 @@ export interface Account {
   /** True = the restaurant cannot change the theme in its app. */
   themeLocked: boolean;
   adminMessage: string; createdAt: Date | null; appVersion: string; todayNetMinor: number; todayAt: Date | null;
+  /** Small picture of the restaurant's logo (a data URL) the app reports, shown on the map pin. */
+  logo?: string;
 }
 export interface Device { id: string; uid: string; phoneId: string; model: string; android: string; appVersion: string; lastSeenAt: Date | null; locationAllowed: boolean; lat?: number; lng?: number; accuracyM?: number; locationAt?: Date | null }
 export interface DayTotal { date: string; netMinor: number; bills: number; customers: number }
@@ -21,7 +23,9 @@ export interface Message { id: string; sender: 'business' | 'admin'; text: strin
 export interface Branding { appName: string; contact: string; whatsapp: string; email: string; supportMessage: string }
 export interface AppControl { offlineDays: number; notice: string; latestVersion: string; minVersion: string; updateLink: string }
 export interface Billing { company: string; address: string; bank: string; accountTitle: string; accountNo: string; terms: string; paymentQr: string; signature: string; reminderTemplate: string; planPrices: Record<string, number> }
-export interface AdminUser { uid: string }
+export interface AdminUser { uid: string; email: string; name: string; /** null = full access (owner, or an older admin) */ perms: string[] | null; owner: boolean }
+export interface Notice { id: string; title: string; body: string; kind: string; target: string; createdAt: Date | null }
+export interface NewAdmin { uid?: string; email?: string; password?: string; name?: string; perms: string[] }
 export interface AuditEntry { id: string; at: Date | null; adminEmail: string; action: string; accountUid: string | null; details: Record<string, unknown> }
 
 export type AccountPatch = Partial<Omit<Account, 'uid'>>;
@@ -64,6 +68,19 @@ export interface AdminApi {
   getBranding(): Promise<Branding>; setBranding(b: Branding): Promise<void>;
   getAppControl(): Promise<AppControl>; setAppControl(a: AppControl): Promise<void>;
   getBilling(): Promise<Billing>; setBilling(b: Billing): Promise<void>;
-  admins(): Promise<AdminUser[]>; addAdmin(uid: string): Promise<void>; removeAdmin(uid: string): Promise<void>;
+  admins(): Promise<AdminUser[]>;
+  /** With a UID, adds that existing login; with email + password, creates the login first. Returns the UID. */
+  addAdmin(a: NewAdmin): Promise<string>;
+  setAdminPerms(uid: string, perms: string[]): Promise<void>;
+  removeAdmin(uid: string): Promise<void>;
+  /** What the signed-in admin may open. */
+  myAccess(uid: string): Promise<{ owner: boolean; perms: string[] | null }>;
   auditLog(): Promise<AuditEntry[]>;
+  /** Deletes the chosen entries (and records that in the log). */
+  deleteAudit(ids: string[]): Promise<void>;
+  /** Deletes every entry older than the given number of days; returns how many. */
+  cleanAudit(olderThanDays: number): Promise<number>;
+  notices(): Promise<Notice[]>;
+  sendNotice(n: { title: string; body: string; kind: string; target: string }): Promise<void>;
+  deleteNotice(id: string): Promise<void>;
 }

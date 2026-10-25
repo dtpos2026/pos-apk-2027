@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:dt_food_pos/cloud/access_controller.dart';
 import 'package:dt_food_pos/cloud/cloud_gateway.dart' show Branding;
 import 'package:dt_food_pos/app/device_channel.dart';
@@ -5,8 +6,10 @@ import 'package:dt_food_pos/cloud/location_consent.dart';
 import 'package:dt_food_pos/data/pos_service.dart';
 import 'package:dt_food_pos/data/queries.dart' show getSetting;
 import 'package:dt_food_pos/features/cloud/cloud_reporter.dart';
+import 'package:dt_food_pos/features/cloud/notices.dart';
 import 'package:dt_food_pos/domain/account_gate.dart';
 import 'package:flutter/material.dart';
+import 'package:image/image.dart' as img;
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers/fake_cloud.dart';
@@ -159,6 +162,29 @@ void main() {
     h.container.dispose();
   });
 
+  testWidgets('the restaurant logo goes to the panel as a tiny picture (once, again only when the logo changes) for the map pin', (t) async {
+    final cloud = FakeCloud();
+    final db = newDb();
+    await seedBusiness(db);
+    final dir = Directory.systemTemp.createTempSync('dtlogo');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    final logo = File('${dir.path}/logo.png')..writeAsBytesSync(img.encodePng(img.Image(width: 300, height: 200)));
+    await db.customStatement("UPDATE business_profile SET logo_path = ?", [logo.path]);
+    final h = await pumpApp(t, db: db, cloud: cloud);
+    await cloud.signInDirect('owner@cafe.pk');
+    final phoneId = await h.container.read(accessProvider.notifier).phoneId();
+    cloud.serverAccount(account(ok: [phoneId]));
+    await settle(t);
+    await t.runAsync(() => h.container.read(cloudReporterProvider).reportNow());
+    expect(cloud.logos, hasLength(1));
+    expect(cloud.logos.single, startsWith('data:image/jpeg;base64,'));
+    expect(cloud.logos.single.length, lessThan(20000), reason: 'a pin picture, not the full logo');
+    await t.runAsync(() => h.container.read(cloudReporterProvider).reportNow());
+    expect(cloud.logos, hasLength(1), reason: 'unchanged: not sent again');
+    await t.pumpWidget(const SizedBox());
+    h.container.dispose();
+  });
+
   testWidgets('support chat sends and shows replies', (t) async {
     final cloud = FakeCloud()..brand = const Branding(whatsapp: '0300-1234567');
     final db = newDb();
@@ -180,6 +206,41 @@ void main() {
     await settle(t);
     expect(find.text('Check the Wi-Fi'), findsOneWidget);
     expect(cloud.support.first.fromAdmin, isFalse);
+    await t.pumpWidget(const SizedBox());
+    h.container.dispose();
+  });
+
+  testWidgets('notifications: a notice sent from the panel reaches the open app at once, the bell counts it, opening it marks it read (and it stays read)', (t) async {
+    final cloud = FakeCloud();
+    final db = newDb();
+    await seedBusiness(db);
+    final h = await pumpApp(t, db: db, cloud: cloud);
+    await cloud.signInDirect('owner@cafe.pk');
+    final phoneId = await h.container.read(accessProvider.notifier).phoneId();
+    cloud.serverAccount(account(ok: [phoneId]));
+    await settle(t);
+    await signIn(t, 'Ali', '1234');
+    expect(find.byKey(const ValueKey('bell')), findsOneWidget);
+    expect(find.byType(Badge).evaluate().where((e) => (e.widget as Badge).isLabelVisible), isEmpty, reason: 'nothing yet');
+
+    cloud.pushNotice('Subscription payment due', 'Please pay on time.', kind: 'payment');
+    cloud.pushNotice('New version available', 'Please update.', kind: 'update');
+    await settle(t);
+    expect(find.text('2'), findsOneWidget, reason: 'two unread on the bell');
+    await shot(t, '100_bell');
+
+    await tapKey(t, 'bell');
+    await settle(t);
+    expect(find.text('Subscription payment due'), findsOneWidget);
+    expect(find.text('New version available'), findsOneWidget);
+    await t.pageBack();
+    await t.pumpAndSettle();
+    expect(find.text('2'), findsNothing, reason: 'read now');
+    expect(h.container.read(noticeSeenProvider).value, greaterThan(0));
+
+    cloud.pushNotice('Short maintenance', 'Tonight.', kind: 'warning');
+    await settle(t);
+    expect(find.text('1'), findsOneWidget, reason: 'only the new one is unread');
     await t.pumpWidget(const SizedBox());
     h.container.dispose();
   });

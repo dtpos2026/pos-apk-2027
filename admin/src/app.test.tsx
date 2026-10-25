@@ -4,6 +4,9 @@ import { App, SetupNeeded } from './App';
 import { validateConfig, loadConfig } from './config';
 import type { Account, AdminApi } from './api';
 
+const html2canvasMock = vi.hoisted(() => vi.fn(async () => ({ toDataURL: () => 'data:image/png;base64,AAAA' })));
+vi.mock('html2canvas', () => ({ default: html2canvasMock }));
+
 afterEach(cleanup);
 
 const pending: Account = {
@@ -23,7 +26,8 @@ function fake(over: Partial<AdminApi> = {}): AdminApi {
     getBranding: async () => ({ appName: '', contact: '', whatsapp: '', email: '', supportMessage: '' }), setBranding: nope,
     getAppControl: async () => ({ offlineDays: 7, notice: '', latestVersion: '', minVersion: '', updateLink: '' }), setAppControl: nope,
     getBilling: async () => ({ company: '', address: '', bank: '', accountTitle: '', accountNo: '', terms: '', paymentQr: '', signature: '', reminderTemplate: '', planPrices: { monthly: 250000 } }), setBilling: nope,
-    admins: async () => [{ uid: 'adm' }], addAdmin: nope, removeAdmin: nope, auditLog: async () => [],
+    admins: async () => [{ uid: 'adm', email: 'a@dt.test', name: '', perms: null, owner: true }], addAdmin: nope, setAdminPerms: nope, removeAdmin: nope, myAccess: async () => ({ owner: true, perms: null }), auditLog: async () => [],
+    deleteAudit: nope, cleanAudit: nope, notices: async () => [], sendNotice: nope, deleteNotice: nope,
     ...over,
   };
 }
@@ -85,10 +89,91 @@ describe('panel', () => {
     await waitFor(() => expect(patch).toHaveBeenCalledWith('u1', { themeId: 'green', themeLocked: true }));
     fireEvent.change(screen.getByLabelText('Custom main colour'), { target: { value: '#112233' } });
     fireEvent.click(screen.getByText('Save theme'));
-    await waitFor(() => expect(patch).toHaveBeenLastCalledWith('u1', { themeId: 'custom:112233,FF5A1F,,,outline,14', themeLocked: true }));
+    await waitFor(() => expect(patch).toHaveBeenLastCalledWith('u1', { themeId: 'custom:112233,F59F00,,,outline,14', themeLocked: true }));
     fireEvent.click(screen.getByLabelText('No assigned theme'));
     fireEvent.click(screen.getByText('Save theme'));
     await waitFor(() => expect(patch).toHaveBeenLastCalledWith('u1', { themeId: '', themeLocked: false }));
+  });
+
+  it('a limited admin sees only the pages they were given', async () => {
+    render(<App api={fake({ myAccess: async () => ({ owner: false, perms: ['support'] }) })} />);
+    await screen.findByText('Support');
+    expect(screen.queryByText('Restaurants')).toBeNull();
+    expect(screen.queryByText('Invoices')).toBeNull();
+    expect(screen.queryByText('Settings')).toBeNull();
+    expect(screen.queryByText('Admins')).toBeNull();
+    expect(screen.queryByText('Audit log')).toBeNull();
+    expect(screen.getAllByText('Dashboard').length).toBeGreaterThan(0);
+  });
+
+  it('adds an admin by email and password with ticked permissions, and edits another admin\'s access', async () => {
+    const add = vi.fn(async () => 'new-uid');
+    const setPerms = vi.fn(async () => {});
+    const admins = [
+      { uid: 'adm', email: 'a@dt.test', name: 'Owner', perms: null, owner: true },
+      { uid: 'u9', email: 'sara@dt.test', name: 'Sara', perms: ['support'], owner: false },
+    ];
+    render(<App api={fake({ admins: async () => admins, addAdmin: add, setAdminPerms: setPerms })} />);
+    fireEvent.click(await screen.findByText('Admins'));
+    await screen.findByText('Add an admin');
+    fireEvent.change(screen.getByLabelText('Admin email'), { target: { value: 'new@dt.test' } });
+    fireEvent.change(screen.getByLabelText('Admin password'), { target: { value: 'secret12' } });
+    fireEvent.click(screen.getByLabelText('New admin may Invoices'));
+    fireEvent.click(screen.getByLabelText('New admin may Support chat'));
+    fireEvent.click(screen.getByText('Add admin'));
+    await waitFor(() => expect(add).toHaveBeenCalledWith({ uid: '', email: 'new@dt.test', password: 'secret12', name: '', perms: ['restaurants', 'phones', 'notifications'] }));
+    // Sara may only use Support; tick Invoices and save
+    fireEvent.click(screen.getByLabelText('Sara may Invoices'));
+    fireEvent.click(screen.getByText('Save access'));
+    await waitFor(() => expect(setPerms).toHaveBeenCalledWith('u9', ['support', 'invoices']));
+    expect(screen.getByText('Full access, always')).toBeTruthy();
+  });
+
+  it('audit log: select entries and delete them, or clean everything older than some days', async () => {
+    const del = vi.fn(async () => {}); const clean = vi.fn(async () => 7);
+    const entry = (id: string) => ({ id, at: new Date('2026-01-02T10:00:00'), adminEmail: 'a@dt.test', action: 'account.update', accountUid: null, details: {} });
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    render(<App api={fake({ auditLog: async () => [entry('e1'), entry('e2')], deleteAudit: del, cleanAudit: clean })} />);
+    fireEvent.click(await screen.findByText('Audit log'));
+    await screen.findAllByText('Changed restaurant');
+    fireEvent.click(screen.getByLabelText('Select account.update e1'));
+    fireEvent.click(screen.getByText('Delete selected (1)'));
+    await waitFor(() => expect(del).toHaveBeenCalledWith(['e1']));
+    fireEvent.change(screen.getByLabelText('Days'), { target: { value: '30' } });
+    fireEvent.click(screen.getByText('Clean old entries'));
+    await waitFor(() => expect(clean).toHaveBeenCalledWith(30));
+    await screen.findByText('7 old entries deleted.');
+  });
+
+  it('notifications: a template fills the form; it is sent to everyone or to one restaurant', async () => {
+    const send = vi.fn(async () => {});
+    render(<App api={fake({ sendNotice: send })} />);
+    fireEvent.click(await screen.findByText('Notifications'));
+    await screen.findByText('New notification');
+    fireEvent.change(screen.getByLabelText('Template'), { target: { value: 'payment' } });
+    expect((screen.getByLabelText('Title') as HTMLInputElement).value).toBe('Subscription payment due');
+    fireEvent.click(screen.getByText('Send'));
+    await waitFor(() => expect(send).toHaveBeenCalledWith(expect.objectContaining({ title: 'Subscription payment due', kind: 'payment', target: 'all' })));
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Hello Cafe' } });
+    fireEvent.change(screen.getByLabelText('Send to'), { target: { value: 'u1' } });
+    fireEvent.click(screen.getByText('Send'));
+    await waitFor(() => expect(send).toHaveBeenLastCalledWith(expect.objectContaining({ title: 'Hello Cafe', target: 'u1' })));
+  });
+
+  it('invoice: a branded sheet with a verification QR that can be saved as a PNG', async () => {
+    const inv = { id: 'i1', accountUid: 'u1', number: 'INV-0001', businessName: 'Cafe One', amountMinor: 250000, discountMinor: 0, currency: 'PKR', issuedAt: new Date('2026-01-02'), dueAt: new Date('2026-01-09'), status: 'unpaid' as const, plan: null, verifyToken: 'tok123', paidAt: null };
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    render(<App api={fake({ invoices: async () => [inv], invoice: async () => inv })} />);
+    fireEvent.click(await screen.findByText('Invoices'));
+    fireEvent.click(await screen.findByText('Open'));
+    await screen.findByTestId('invoice-sheet');
+    expect(screen.getByText('INVOICE')).toBeTruthy();
+    expect(screen.getAllByText('INV-0001').length).toBeGreaterThan(0);
+    expect(screen.getByText('Powered by Digital Target · DT Food POS')).toBeTruthy();
+    await waitFor(() => expect((screen.getByAltText('Scan to verify') as HTMLImageElement).src).toMatch(/^data:image\/png/));
+    fireEvent.click(screen.getByText('Download PNG'));
+    await waitFor(() => expect(html2canvasMock).toHaveBeenCalled());
+    await waitFor(() => expect(click).toHaveBeenCalled());
   });
 
   it('approves a pending restaurant with the chosen plan and fee', async () => {

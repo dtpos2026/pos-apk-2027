@@ -124,3 +124,16 @@ Automated tests cannot prove these; please tick them off before giving the app t
 7. Backup + restore; airplane mode for a full day of sales; reconnect and check the panel totals.
 
 Known gaps: USB/Windows printers, barcode block, multi-branch, Windows POS, customer self-ordering (needs a server), restoring from the cloud copy on a new phone, multi-device live sync (see docs/FEATURE_ROADMAP.md). Nothing has been tried on a real printer yet.
+
+## Round 8 (admin panel + app, 2026-10-25)
+
+| # | Area | Result |
+|---|------|--------|
+| 53 | Panel red design, purple removed from presets, map and logo | Done; vitest 35 pass |
+| 54 | Admin permissions (per section), auto-created login, server-side rules | Done; rules 21 + emulator tests pass |
+| 55 | Audit log: delete selected / clean old, recorded | Done; emulator test passes |
+| 56 | Invoice: branded sheet, PNG download, verify page | Done; PNG saved through html2canvas (browser) - check on the real panel |
+| 57 | Notifications: panel templates -> app bell, live, read state | Done; app test + emulator test pass. System-tray push (FCM) NOT built |
+| 58 | Logo pins on the map (app reports a 96 px logo) | Done; app + panel + rules tests pass |
+| 59 | App: delivery customer search, tables merge/split, deals, riders, per-staff access, weight dialog, customer photo/promo/export, help & tutorials | Done; 591 app tests pass; none tried on a real phone |
+| 60 | Cloud copy of business data | REMOVED on the owner's instruction (data stays on the phone) |

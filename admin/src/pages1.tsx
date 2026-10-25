@@ -103,7 +103,7 @@ export function RestaurantPage({ api, go, arg }: PageProps) {
   if (acc.err) return <Err text={acc.err} />;
   if (!a) return <p>Loading…</p>;
   const theme = themeDraft ?? { id: a.themeId, locked: a.themeLocked };
-  const custom_ = parseCustomTheme(theme.id) ?? { main: '#3C096C', accent: '#FF5A1F' };
+  const custom_ = parseCustomTheme(theme.id) ?? { main: '#C92A2A', accent: '#F59F00' };
   const off = offDraft ?? a.disabledModules;
   const setOff = setOffDraft;
   const now = new Date();

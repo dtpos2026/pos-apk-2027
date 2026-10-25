@@ -75,6 +75,9 @@ class FakeCloud implements CloudGateway {
     if (offline) throw const CloudException('No internet connection.');
     devices.add(device);
   }
+  final logos = <String>[];
+  @override
+  Future<void> reportLogo(String uid, String dataUrl) async => logos.add(dataUrl);
   @override
   Future<void> reportSales(String uid, DayTotals today, String appVersion) async => sales.add(today);
 
@@ -84,6 +87,20 @@ class FakeCloud implements CloudGateway {
   Future<void> reportPastDays(String uid, List<DayTotals> days) async {
     if (offline) throw const CloudException('No internet connection.');
     pastDays.addAll(days);
+  }
+
+  final notices = <AppNotice>[];
+  final _noticeCtl = StreamController<List<AppNotice>>.broadcast();
+  @override
+  Stream<List<AppNotice>> watchNotices(String uid) async* {
+    yield List.of(notices);
+    yield* _noticeCtl.stream;
+  }
+
+  /// The panel sends a notice: it reaches the open app at once.
+  void pushNotice(String title, String body, {String kind = 'info', DateTime? at}) {
+    notices.insert(0, AppNotice(id: 'n${notices.length}', title: title, body: body, kind: kind, at: at ?? DateTime.now()));
+    _noticeCtl.add(List.of(notices));
   }
 
   @override

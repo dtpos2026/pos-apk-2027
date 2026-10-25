@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:drift/drift.dart' show Variable;
 import 'package:flutter/material.dart';
+import 'package:image/image.dart' as img;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
@@ -59,6 +62,7 @@ class CloudReporter {
         phoneId: phoneId, model: dev.model, android: dev.android, appVersion: version,
         locationAllowed: share, lat: loc?.lat, lng: loc?.lng, accuracyM: loc?.accuracyM, locationAt: loc?.at,
       ));
+      await _reportLogo(gw, uid);
       final today = await totalsFor(now);
       if (today != null) await gw.reportSales(uid, today, version);
       final past = <DayTotals>[];
@@ -70,6 +74,26 @@ class CloudReporter {
       ref.read(cloudSyncStatusProvider.notifier).succeeded(now);
     } catch (e) {
       ref.read(cloudSyncStatusProvider.notifier).failed(now, e.toString());
+    }
+  }
+
+  /// The restaurant's logo as a tiny round-pin picture (96 px JPEG, a few KB). Sent again only when the logo file changed.
+  Future<void> _reportLogo(CloudGateway gw, String uid) async {
+    try {
+      final db = ref.read(databaseProvider);
+      final path = (await loadBusiness(db))?.logoPath;
+      if (path == null || !File(path).existsSync()) return;
+      final stamp = '$path:${File(path).lengthSync()}:${File(path).lastModifiedSync().millisecondsSinceEpoch}';
+      if (await getSetting(db, 'cloud.logo_key') == stamp) return;
+      final decoded = img.decodeImage(File(path).readAsBytesSync());
+      if (decoded == null) return;
+      final s = decoded.width < decoded.height ? decoded.width : decoded.height;
+      final square = img.copyCrop(decoded, x: (decoded.width - s) ~/ 2, y: (decoded.height - s) ~/ 2, width: s, height: s);
+      final small = img.copyResize(square, width: 96, height: 96, interpolation: img.Interpolation.average);
+      await gw.reportLogo(uid, 'data:image/jpeg;base64,${base64Encode(img.encodeJpg(small, quality: 72))}');
+      await setSetting(db, 'cloud.logo_key', stamp, ref.read(clockProvider)().millisecondsSinceEpoch);
+    } catch (_) {
+      // the pin falls back to the first letter of the name; never let a logo problem stop the report
     }
   }
 

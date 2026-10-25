@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import '../../app/theme.dart';
+import '../cloud/notices.dart';
 import '../help/help_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -38,6 +39,7 @@ class AppDrawer extends ConsumerWidget {
       padding: EdgeInsets.fromLTRB(20, MediaQuery.paddingOf(context).top + 20, 20, 20),
       decoration: BoxDecoration(gradient: BrandBanner(cs.primary, darken: 0.45).gradient),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Container(
           padding: const EdgeInsets.all(3),
           decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: BrandBanner(cs.primary).on, width: 2.5)),
@@ -48,6 +50,9 @@ class AppDrawer extends ConsumerWidget {
           child: biz?.logoPath == null || !File(biz!.logoPath!).existsSync() ? Icon(Icons.storefront_outlined, size: 34, color: cs.primary) : null,
         ),
         ),
+        const Spacer(),
+        const NoticeBell(onDark: true),
+        ]),
         const SizedBox(height: 12),
         Text(biz?.name ?? t['app_name'], key: const ValueKey('drawer-name'), style: TextStyle(color: BrandBanner(cs.primary).on, fontSize: 20, fontWeight: FontWeight.w800)),
         if ((biz?.ownerName ?? '').isNotEmpty) Text(biz!.ownerName!, style: TextStyle(color: BrandBanner(cs.primary).soft)),
