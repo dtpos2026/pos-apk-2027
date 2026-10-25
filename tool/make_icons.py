@@ -22,11 +22,10 @@ def u(v):
 
 
 # Everything sits inside a circle of radius ~34 around the centre (54, 54), so no launcher shape (circle, squircle, the
-# Android 12 splash circle) can cut any of it off. A wide receipt with the DT mark and a burger; the gold fork-and-knife coin sits on its
-# lower-right corner.
-OX, OY = -2, -3
-RX0, RX1, RY0, RY1, TIP = 34 + OX, 68 + OX, 30 + OY, 72 + OY, 77 + OY
-COIN = (66 + OX, 68 + OY, 10.5)
+# Android 12 splash circle) can cut any of it off. A receipt with the DT mark and a burger; the gold fork-and-knife coin sits on its lower middle.
+# everything is centred on the icon: the receipt on the middle, the coin sitting on the paper's lower middle
+RX0, RX1, RY0, RY1, TIP = 35, 73, 24, 79, 84
+COIN = (54, 68.5, 8.8)
 
 
 def receipt_mask(d, fill):
@@ -52,7 +51,7 @@ def burger(d, cx, cy, w, color, accent=None):
     d.rounded_rectangle([u(x0 + w * 0.03), u(top + h * 0.74), u(x0 + w * 0.97), u(top + h * 0.98)], radius=u(h * 0.1), fill=color)
 
 
-def cutlery(d, cx, cy, color, k=0.7):
+def cutlery(d, cx, cy, color, k=0.62):
     """Fork and knife, centred on (cx, cy), scaled by k."""
     def X(v):
         return u(cx + v * k)
@@ -75,7 +74,7 @@ def foreground(mono=False):
     d = ImageDraw.Draw(im)
     cx, cy, r = COIN
     mx = (RX0 + RX1) / 2 - 7
-    bx, by, bw = (RX0 + RX1) / 2 - 1, RY0 + 29, 18
+    bx, by, bw = (RX0 + RX1) / 2, RY0 + 25.5, 16
     if mono:
         receipt_mask(d, (0, 0, 0, 255))
         im.paste((0, 0, 0, 0), (u(mx), u(RY0 + 4)), mark_mask(14))
