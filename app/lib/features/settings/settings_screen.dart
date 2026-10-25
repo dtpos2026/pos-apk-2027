@@ -399,7 +399,11 @@ class SettingsScreen extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(scrollable: true, 
         title: Text(t['backup']),
-        content: TextField(key: const ValueKey('backup-pass'), controller: pass, obscureText: true, decoration: InputDecoration(labelText: t['backup_passphrase'])),
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(t['backup_no_code']),
+          const SizedBox(height: 10),
+          TextField(key: const ValueKey('backup-pass'), controller: pass, obscureText: true, decoration: InputDecoration(labelText: t['backup_passphrase_optional'])),
+        ]),
         actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(t['cancel'])), FilledButton(key: const ValueKey('backup-go'), onPressed: () => Navigator.pop(ctx, true), child: Text(t['backup_now']))],
       ),
     );
@@ -435,6 +439,13 @@ Future<void> _restore(BuildContext context, WidgetRef ref) async {
   if (picked == null || !context.mounted) return;
   final pass = TextEditingController();
   String? error;
+  // only older backups (made with a passphrase) ask for it; newer ones restore without any code
+  var needsPass = true;
+  try {
+    final probe = File('${ref.read(docsDirProvider).path}/.probe.dtbak')..writeAsBytesSync(picked.bytes.length > 64 ? picked.bytes.sublist(0, 64) : picked.bytes, flush: true);
+    needsPass = BackupService.needsPassphrase(probe);
+    probe.deleteSync();
+  } catch (_) {}
   final done = await showDialog<bool>(
     context: context,
     builder: (ctx) => StatefulBuilder(
@@ -444,8 +455,12 @@ Future<void> _restore(BuildContext context, WidgetRef ref) async {
           Text(picked.name, style: const TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(height: 6),
           Text(t['restore_warning']),
-          const SizedBox(height: 10),
-          TextField(key: const ValueKey('restore-pass'), controller: pass, obscureText: true, decoration: InputDecoration(labelText: t['backup_passphrase'])),
+          if (needsPass) ...[
+            const SizedBox(height: 10),
+            Text(t['restore_pass_needed']),
+            const SizedBox(height: 6),
+            TextField(key: const ValueKey('restore-pass'), controller: pass, obscureText: true, decoration: InputDecoration(labelText: t['backup_passphrase'])),
+          ],
           if (error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(error!, style: TextStyle(color: Theme.of(ctx).colorScheme.error))),
         ]),
         actions: [

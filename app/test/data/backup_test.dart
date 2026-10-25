@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:archive/archive.dart';
 import 'package:drift/native.dart';
 import 'package:dt_food_pos/data/backup_service.dart';
 import 'package:dt_food_pos/data/db/database.dart';
@@ -113,5 +114,45 @@ void main() {
     await repointPictures(restored, menuImages: menu, logo: logo);
     final path = (await restored.customSelect("SELECT image_path FROM product WHERE id = 'p1'").getSingle()).data['image_path'];
     expect(path, '${menu.path}/product-p1-1.jpg');
+  });
+
+  group('no code needed', () {
+    test('a backup made without a passphrase restores without one, and any damage is caught', () async {
+      final f = await svc.createBackup(dir: tmp);
+      expect(BackupService.needsPassphrase(f), isFalse);
+      final out = File('${tmp.path}/restored.db');
+      await BackupService.decryptAndVerify(backup: f, target: out);
+      final check = sqlite.sqlite3.open(out.path);
+      expect(check.select("SELECT name FROM product WHERE id='p1'").first['name'], 'Zinger Burger');
+      check.dispose();
+
+      final bytes = f.readAsBytesSync();
+      bytes[bytes.length ~/ 2] ^= 0x55;
+      f.writeAsBytesSync(bytes);
+      await expectLater(BackupService.decryptAndVerify(backup: f, target: File('${tmp.path}/x.db')), throwsA(isA<BackupException>()));
+    });
+
+    test('older passphrase backups still need theirs, and say so', () async {
+      final f = await svc.createBackup(passphrase: '000000', dir: tmp);
+      expect(BackupService.needsPassphrase(f), isTrue);
+      await expectLater(BackupService.decryptAndVerify(backup: f, passphrase: '0000000', target: File('${tmp.path}/x.db')), throwsA(isA<BackupException>()));
+      await BackupService.decryptAndVerify(backup: f, passphrase: '000000', target: File('${tmp.path}/y.db'));
+    });
+
+    test('a bare database file or a plain zip with db.sqlite can be restored too', () async {
+      final snap = File('${tmp.path}/snap.sqlite');
+      await db.customStatement('VACUUM INTO ?', [snap.path]);
+      await BackupService.decryptAndVerify(backup: snap, target: File('${tmp.path}/a.db'));
+      expect(File('${tmp.path}/a.db').existsSync(), isTrue);
+
+      final zip = File('${tmp.path}/b.zip')..writeAsBytesSync(ZipEncoder().encodeBytes(Archive()..addFile(ArchiveFile.bytes('db.sqlite', snap.readAsBytesSync()))));
+      await BackupService.decryptAndVerify(backup: zip, target: File('${tmp.path}/b.db'));
+      expect(File('${tmp.path}/b.db').existsSync(), isTrue);
+    });
+
+    test('an empty passphrase is allowed, a short one is not', () async {
+      await svc.createBackup(dir: tmp);
+      await expectLater(svc.createBackup(passphrase: '123', dir: tmp), throwsA(isA<BackupException>()));
+    });
   });
 }

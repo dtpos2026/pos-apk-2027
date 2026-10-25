@@ -18,6 +18,8 @@ class BackupException implements Exception {
 /// Encrypted, verifiable backups of the whole database and the pictures (item/category photos, logo).
 /// File layout: "DTBAK2" | iterations (u32 BE) | salt (16) | nonce (12) | ciphertext | GCM tag (16).
 /// The plaintext of DTBAK2 is a zip: `db.sqlite` + `media/<folder>/<file>`. Older DTBAK1 files hold the bare database.
+/// DTBAK3 (the default, no passphrase to remember): "DTBAK3" | zip | SHA-256 of the zip, so damage is still detected.
+/// A plain .zip with db.sqlite, or a bare SQLite database file, can be restored as well.
 /// Key = PBKDF2-HMAC-SHA256(passphrase, salt). AES-256-GCM authenticates the data, so a wrong passphrase or any
 /// modification is detected before anything is restored.
 class BackupService {
@@ -27,6 +29,7 @@ class BackupService {
 
   static const _magicV1 = [0x44, 0x54, 0x42, 0x41, 0x4B, 0x31]; // DTBAK1
   static const _magic = [0x44, 0x54, 0x42, 0x41, 0x4B, 0x32]; // DTBAK2
+  static const _magicV3 = [0x44, 0x54, 0x42, 0x41, 0x4B, 0x33]; // DTBAK3
   static final _aes = AesGcm.with256bits();
 
   static Future<SecretKey> _key(String pass, List<int> salt, int iterations) =>
@@ -36,8 +39,8 @@ class BackupService {
 
   /// Writes `dt-backup-<timestamp>.dtbak` into [dir] and returns it.
   /// [media] = picture folders to include, by name (e.g. {'menu_images': dir, 'logo': dir}).
-  Future<File> createBackup({required String passphrase, required Directory dir, DateTime? now, Map<String, Directory> media = const {}}) async {
-    if (passphrase.length < 6) throw BackupException('Passphrase must be at least 6 characters');
+  Future<File> createBackup({String passphrase = '', required Directory dir, DateTime? now, Map<String, Directory> media = const {}}) async {
+    if (passphrase.isNotEmpty && passphrase.length < 6) throw BackupException('Passphrase must be at least 6 characters (or leave it empty for none)');
     dir.createSync(recursive: true);
     final tmp = File('${dir.path}/.snapshot-${DateTime.now().microsecondsSinceEpoch}.db');
     try {
@@ -50,17 +53,25 @@ class BackupService {
         }
       }
       final plain = ZipEncoder().encodeBytes(zip);
-      final rnd = Random.secure();
-      final salt = List<int>.generate(16, (_) => rnd.nextInt(256));
-      final nonce = _aes.newNonce();
-      final box = await _aes.encrypt(plain, secretKey: await _key(passphrase, salt, iterations), nonce: nonce);
-      final out = BytesBuilder()
-        ..add(_magic)
-        ..add([(iterations >> 24) & 0xFF, (iterations >> 16) & 0xFF, (iterations >> 8) & 0xFF, iterations & 0xFF])
-        ..add(salt)
-        ..add(nonce)
-        ..add(box.cipherText)
-        ..add(box.mac.bytes);
+      final out = BytesBuilder();
+      if (passphrase.isEmpty) {
+        out
+          ..add(_magicV3)
+          ..add(plain)
+          ..add((await Sha256().hash(plain)).bytes);
+      } else {
+        final rnd = Random.secure();
+        final salt = List<int>.generate(16, (_) => rnd.nextInt(256));
+        final nonce = _aes.newNonce();
+        final box = await _aes.encrypt(plain, secretKey: await _key(passphrase, salt, iterations), nonce: nonce);
+        out
+          ..add(_magic)
+          ..add([(iterations >> 24) & 0xFF, (iterations >> 16) & 0xFF, (iterations >> 8) & 0xFF, iterations & 0xFF])
+          ..add(salt)
+          ..add(nonce)
+          ..add(box.cipherText)
+          ..add(box.mac.bytes);
+      }
       final file = File('${dir.path}/dt-backup-${_stamp(now ?? DateTime.now())}.dtbak');
       file.writeAsBytesSync(out.toBytes(), flush: true);
       return file;
@@ -69,29 +80,56 @@ class BackupService {
     }
   }
 
+  /// True when [backup] was made with a passphrase (DTBAK1/DTBAK2); newer backups, plain zips and database files need none.
+  static bool needsPassphrase(File backup) {
+    final head = backup.openSync()..setPositionSync(0);
+    try {
+      final b = head.readSync(6);
+      return _listEq(b, _magic) || _listEq(b, _magicV1);
+    } finally {
+      head.closeSync();
+    }
+  }
+
   /// Decrypts [backup] into [target], then checks it is a healthy SQLite database with our schema.
   /// Pictures are written under `mediaRoot/folder/` when [mediaRoot] is given. Returns how many pictures were restored.
   /// Throws [BackupException] on a wrong passphrase, corruption or a foreign file. Nothing is touched on failure.
-  static Future<int> decryptAndVerify({required File backup, required String passphrase, required File target, Directory? mediaRoot}) async {
+  static Future<int> decryptAndVerify({required File backup, String passphrase = '', required File target, Directory? mediaRoot}) async {
     final bytes = backup.readAsBytesSync();
-    const header = 6 + 4 + 16 + 12;
-    final v2 = bytes.length >= 6 && _listEq(bytes.sublist(0, 6), _magic);
-    if (bytes.length < header + 16 || !(v2 || _listEq(bytes.sublist(0, 6), _magicV1))) throw BackupException('Not a DT Food POS backup');
-    final iterations = ByteData.sublistView(bytes, 6, 10).getUint32(0);
-    if (iterations < 1000 || iterations > 5000000) throw BackupException('Corrupted backup header');
-    final salt = bytes.sublist(10, 26);
-    final nonce = bytes.sublist(26, 38);
-    final cipher = bytes.sublist(38, bytes.length - 16);
-    final mac = bytes.sublist(bytes.length - 16);
+    final head = bytes.length >= 6 ? bytes.sublist(0, 6) : const <int>[];
+    final v3 = _listEq(head, _magicV3);
+    final v2 = _listEq(head, _magic);
+    final v1 = _listEq(head, _magicV1);
+    final isZip = bytes.length > 4 && bytes[0] == 0x50 && bytes[1] == 0x4B && bytes[2] == 3 && bytes[3] == 4;
+    final isSqlite = bytes.length > 16 && String.fromCharCodes(bytes.sublist(0, 15)) == 'SQLite format 3';
+    if (!(v3 || v2 || v1 || isZip || isSqlite)) throw BackupException('Not a DT Food POS backup');
+
     List<int> plain;
-    try {
-      plain = await _aes.decrypt(SecretBox(cipher, nonce: nonce, mac: Mac(mac)), secretKey: await _key(passphrase, salt, iterations));
-    } on SecretBoxAuthenticationError {
-      throw BackupException('Wrong passphrase, or the backup file is damaged');
+    if (v3) {
+      if (bytes.length < 6 + 32 + 4) throw BackupException('The backup file is damaged');
+      plain = bytes.sublist(6, bytes.length - 32);
+      final sum = (await Sha256().hash(plain)).bytes;
+      if (!_listEq(sum, bytes.sublist(bytes.length - 32))) throw BackupException('The backup file is damaged (it may not have been copied completely). Copy it again from where it was saved.');
+    } else if (v2 || v1) {
+      const header = 6 + 4 + 16 + 12;
+      if (bytes.length < header + 16) throw BackupException('The backup file is damaged');
+      final iterations = ByteData.sublistView(bytes, 6, 10).getUint32(0);
+      if (iterations < 1000 || iterations > 5000000) throw BackupException('Corrupted backup header');
+      final salt = bytes.sublist(10, 26);
+      final nonce = bytes.sublist(26, 38);
+      final cipher = bytes.sublist(38, bytes.length - 16);
+      final mac = bytes.sublist(bytes.length - 16);
+      try {
+        plain = await _aes.decrypt(SecretBox(cipher, nonce: nonce, mac: Mac(mac)), secretKey: await _key(passphrase, salt, iterations));
+      } on SecretBoxAuthenticationError {
+        throw BackupException('Wrong passphrase. Type exactly the one used when this backup was made (check every character), or the file is damaged.');
+      }
+    } else {
+      plain = bytes;
     }
     var dbBytes = plain;
     final pictures = <String, List<int>>{};
-    if (v2) {
+    if (v3 || v2 || isZip) {
       final Archive zip;
       try {
         zip = ZipDecoder().decodeBytes(plain);
