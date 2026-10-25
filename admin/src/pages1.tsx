@@ -214,7 +214,7 @@ export function RestaurantPage({ api, go, arg }: PageProps) {
         <button className="act sec" onClick={() => act.run(async () => { const n = Number(maxPhones); if (!Number.isInteger(n) || n < 1 || n > 20) throw new Error('Limit must be 1 to 20'); await api.patchAccount(uid, { maxPhones: n }); setMaxPhones(''); })}>Save</button></div>
       <table><tbody>
         {a.approvedPhones.map(p => { const d = mine.find(x => x.phoneId === p); const blocked = a.blockedPhones.includes(p); return (
-          <tr key={p}><td>{d?.model ?? p.slice(0, 8)}</td><td>{d ? `Android ${d.android} · app ${d.appVersion}` : ''}</td><td>{d ? ago(d.lastSeenAt) : ''}</td><td><Badge tone={blocked ? 'bad' : 'ok'}>{blocked ? 'blocked' : 'approved'}</Badge></td>
+          <tr key={p}><td>{d?.model ?? p.slice(0, 8)}</td><td>{d ? `Android ${d.android} · app ${d.appVersion}${d.ip ? ' · ' + d.ip : ''}` : ''}</td><td>{d ? ago(d.lastSeenAt) : ''}</td><td><Badge tone={blocked ? 'bad' : 'ok'}>{blocked ? 'blocked' : 'approved'}</Badge></td>
             <td><button className="act sec" onClick={() => act.run(() => api.setDeviceBlocked(uid, p, !blocked))}>{blocked ? 'Unblock' : 'Block'}</button> <button className="act danger" onClick={() => act.run(() => api.removePhone(uid, p))}>Remove</button></td></tr>); })}
         {a.phoneRequests.map(p => { const d = mine.find(x => x.phoneId === p); return (
           <tr key={p}><td>{d?.model ?? p.slice(0, 8)}</td><td>{d ? `Android ${d.android}` : ''}</td><td /><td><Badge tone="warn">needs approval</Badge></td>

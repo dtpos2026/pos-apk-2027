@@ -135,7 +135,7 @@ export function createFirebaseApi(cfg: FirebaseWebConfig, emulator?: { host: str
     async devices(): Promise<Device[]> {
       const s = await getDocs(collection(db, 'devices'));
       return s.docs.map(d => { const x = d.data(); return {
-        id: d.id, uid: str(x.uid), phoneId: str(x.phoneId), model: str(x.model), android: str(x.android), appVersion: str(x.appVersion), lastSeenAt: date(x.lastSeenAt),
+        id: d.id, uid: str(x.uid), phoneId: str(x.phoneId), model: str(x.model), android: str(x.android), appVersion: str(x.appVersion), ip: str(x.ip) || undefined, lastSeenAt: date(x.lastSeenAt),
         locationAllowed: x.locationAllowed === true, lat: x.lat, lng: x.lng, accuracyM: x.accuracyM, locationAt: date(x.locationAt),
       }; });
     },

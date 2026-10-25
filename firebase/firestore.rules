@@ -75,7 +75,7 @@ service cloud.firestore {
     match /devices/{id} {
       allow read: if isAdmin() || (signedIn() && resource.data.uid == me());
       allow create, update: if signedIn() && request.resource.data.uid == me() && id == me() + '__' + request.resource.data.phoneId
-        && request.resource.data.keys().hasOnly(['uid', 'phoneId', 'model', 'android', 'appVersion', 'lastSeenAt', 'locationAllowed', 'lat', 'lng', 'accuracyM', 'locationAt']);
+        && request.resource.data.keys().hasOnly(['uid', 'phoneId', 'model', 'android', 'appVersion', 'lastSeenAt', 'locationAllowed', 'lat', 'lng', 'accuracyM', 'locationAt', 'ip']);
       allow create, update, delete: if can('phones');
     }
 

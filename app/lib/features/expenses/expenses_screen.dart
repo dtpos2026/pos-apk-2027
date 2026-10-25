@@ -36,7 +36,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
     });
   }
 
-  Future<void> _add() async {
+  Future<void> _add([ExpenseRow? edit]) async {
     final methods = (await ref.read(paymentMethodsProvider.future)).where((m) => m.kind != 'credit').toList();
     final cats = await ref.read(expenseServiceProvider).categories();
     if (!mounted) return;
@@ -44,7 +44,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (_) => _ExpenseSheet(methods: methods, categories: cats),
+      builder: (_) => _ExpenseSheet(methods: methods, categories: cats, edit: edit),
     );
     if (done == true) {
       ref.invalidate(_expensesProvider);
@@ -131,6 +131,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                                   ]),
                                 ),
                                 Text(ref.money(e.amountMinor), style: TextStyle(fontWeight: FontWeight.w800, color: cs.error)),
+                                IconButton(key: ValueKey('exp-edit-$i'), tooltip: s['edit'], visualDensity: VisualDensity.compact, icon: Icon(Icons.edit_outlined, color: cs.onSurfaceVariant), onPressed: () => _add(e)),
                                 IconButton(key: ValueKey('exp-delete-$i'), tooltip: s['delete'], visualDensity: VisualDensity.compact, icon: Icon(Icons.delete_outline, color: cs.onSurfaceVariant), onPressed: () => _confirmDelete(e)),
                               ]),
                             );
@@ -149,7 +150,8 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
 /// Add an expense with as few taps as possible: the amount and how it was paid are all that is needed. A category (tap one of
 /// the saved ones, or type a new one) and a note are optional.
 class _ExpenseSheet extends ConsumerStatefulWidget {
-  const _ExpenseSheet({required this.methods, required this.categories});
+  const _ExpenseSheet({required this.methods, required this.categories, this.edit});
+  final ExpenseRow? edit;
   final List<PaymentMethodInfo> methods;
   final List<({String id, String name})> categories;
   @override
@@ -157,10 +159,10 @@ class _ExpenseSheet extends ConsumerStatefulWidget {
 }
 
 class _ExpenseSheetState extends ConsumerState<_ExpenseSheet> {
-  final _amount = TextEditingController();
-  final _category = TextEditingController();
-  final _note = TextEditingController();
-  late String _method = widget.methods.first.id;
+  late final _amount = TextEditingController(text: widget.edit == null ? '' : formatMinor(widget.edit!.amountMinor, currency: ref.currency, symbol: false).replaceAll(',', '').replaceFirst(RegExp(r'\.0+$'), ''));
+  late final _category = TextEditingController(text: widget.edit?.category ?? '');
+  late final _note = TextEditingController(text: widget.edit?.note ?? '');
+  late String _method = widget.edit?.methodId != null && widget.methods.any((m) => m.id == widget.edit!.methodId) ? widget.edit!.methodId! : widget.methods.first.id;
   String? _error;
   bool _busy = false;
 
@@ -176,7 +178,14 @@ class _ExpenseSheetState extends ConsumerState<_ExpenseSheet> {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      await ref.read(expenseServiceProvider).add(amountMinor: parseMinor(_amount.text, currency: ref.currency) ?? 0, category: _category.text, methodId: _method, note: _note.text, staffId: ref.read(sessionProvider)!.staffId);
+      final svc = ref.read(expenseServiceProvider);
+      final amount = parseMinor(_amount.text, currency: ref.currency) ?? 0;
+      final me = ref.read(sessionProvider)!.staffId;
+      if (widget.edit == null) {
+        await svc.add(amountMinor: amount, category: _category.text, methodId: _method, note: _note.text, staffId: me);
+      } else {
+        await svc.update(widget.edit!.id, amountMinor: amount, category: _category.text, methodId: _method, note: _note.text, staffId: me);
+      }
       if (mounted) Navigator.pop(context, true);
     } on PosException catch (e) {
       if (mounted) setState(() { _error = e.message; _busy = false; });
@@ -191,7 +200,7 @@ class _ExpenseSheetState extends ConsumerState<_ExpenseSheet> {
       padding: EdgeInsets.fromLTRB(16, 0, 16, 16 + MediaQuery.viewInsetsOf(context).bottom),
       child: SingleChildScrollView(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-          Text(s['add_expense'], style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+          Text(widget.edit == null ? s['add_expense'] : s['edit_expense'], style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
           const SizedBox(height: 12),
           TextField(
             key: const ValueKey('f-amount'),
@@ -238,6 +247,23 @@ class _CategorySheet extends ConsumerStatefulWidget {
 
 class _CategorySheetState extends ConsumerState<_CategorySheet> {
   late Future<List<({String id, String name})>> _cats = ref.read(expenseServiceProvider).categories();
+  final _newCat = TextEditingController();
+
+  @override
+  void dispose() {
+    _newCat.dispose();
+    super.dispose();
+  }
+
+  Future<void> _addCat() async {
+    final name = _newCat.text.trim();
+    if (name.isEmpty) return;
+    await ref.read(expenseServiceProvider).addCategory(name);
+    _newCat.clear();
+    setState(() {
+      _cats = ref.read(expenseServiceProvider).categories();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -250,6 +276,12 @@ class _CategorySheetState extends ConsumerState<_CategorySheet> {
           return ListView(shrinkWrap: true, padding: const EdgeInsets.fromLTRB(16, 0, 16, 16), children: [
             Text(s['expense_categories'], style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
             const SizedBox(height: 8),
+            Row(children: [
+              Expanded(child: TextField(key: const ValueKey('new-cat-field'), controller: _newCat, textCapitalization: TextCapitalization.words, decoration: InputDecoration(labelText: s['new_category'], isDense: true, prefixIcon: const Icon(Icons.label_outline)), onSubmitted: (_) => _addCat())),
+              const SizedBox(width: 8),
+              FilledButton(key: const ValueKey('new-cat-add'), onPressed: _addCat, child: Text(s['add'])),
+            ]),
+            const SizedBox(height: 6),
             if (snap.connectionState == ConnectionState.done && cats.isEmpty) Padding(padding: const EdgeInsets.all(16), child: Text(s['no_categories'])),
             for (final c in cats)
               ListTile(

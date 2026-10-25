@@ -97,7 +97,7 @@ class FirebaseGateway implements CloudGateway {
   @override
   Future<void> reportDevice(String uid, DeviceInfoReport d) => _guard(() => _db.collection('devices').doc('${uid}__${d.phoneId}').set({
         'uid': uid, 'phoneId': d.phoneId, 'model': d.model, 'android': d.android, 'appVersion': d.appVersion,
-        'lastSeenAt': FieldValue.serverTimestamp(), 'locationAllowed': d.locationAllowed,
+        'lastSeenAt': FieldValue.serverTimestamp(), 'locationAllowed': d.locationAllowed, if (d.ip != null) 'ip': d.ip,
         if (d.locationAllowed && d.lat != null && d.lng != null) ...{
           'lat': d.lat, 'lng': d.lng, 'accuracyM': d.accuracyM ?? 0, 'locationAt': Timestamp.fromDate(d.locationAt ?? DateTime.now()),
         },

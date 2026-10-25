@@ -60,7 +60,7 @@ class CloudReporter {
       final loc = share && source != null ? await source().catchError((_) => null) : null;
       await gw.reportDevice(uid, DeviceInfoReport(
         phoneId: phoneId, model: dev.model, android: dev.android, appVersion: version,
-        locationAllowed: share, lat: loc?.lat, lng: loc?.lng, accuracyM: loc?.accuracyM, locationAt: loc?.at,
+        locationAllowed: share, lat: loc?.lat, lng: loc?.lng, accuracyM: loc?.accuracyM, locationAt: loc?.at, ip: await _localIp(),
       ));
       await _reportLogo(gw, uid);
       final today = await totalsFor(now);
@@ -75,6 +75,18 @@ class CloudReporter {
     } catch (e) {
       ref.read(cloudSyncStatusProvider.notifier).failed(now, e.toString());
     }
+  }
+
+  /// The phone's own IPv4 address on the network it is using now (Wi-Fi first); null when it cannot be read.
+  static Future<String?> _localIp() async {
+    try {
+      final all = await NetworkInterface.list(type: InternetAddressType.IPv4, includeLoopback: false);
+      all.sort((a, b) => (a.name.toLowerCase().contains('wlan') ? 0 : 1).compareTo(b.name.toLowerCase().contains('wlan') ? 0 : 1));
+      for (final i in all) {
+        if (i.addresses.isNotEmpty) return i.addresses.first.address;
+      }
+    } catch (_) {}
+    return null;
   }
 
   /// The restaurant's logo as a tiny round-pin picture (96 px JPEG, a few KB). Sent again only when the logo file changed.

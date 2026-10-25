@@ -76,8 +76,11 @@ class DayTotals {
 }
 
 class DeviceInfoReport {
-  const DeviceInfoReport({required this.phoneId, required this.model, required this.android, required this.appVersion, this.locationAllowed = false, this.lat, this.lng, this.accuracyM, this.locationAt});
+  const DeviceInfoReport({required this.phoneId, required this.model, required this.android, required this.appVersion, this.locationAllowed = false, this.lat, this.lng, this.accuracyM, this.locationAt, this.ip});
   final String phoneId;
+
+  /// The phone's own network address (Wi-Fi / mobile), shown in the panel next to the model and version.
+  final String? ip;
   final String model;
   final String android;
   final String appVersion;

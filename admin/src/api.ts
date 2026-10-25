@@ -19,7 +19,7 @@ export interface Account {
   /** When the app last applied a reset from the panel. */
   pinResetDoneAt?: Date | null;
 }
-export interface Device { id: string; uid: string; phoneId: string; model: string; android: string; appVersion: string; lastSeenAt: Date | null; locationAllowed: boolean; lat?: number; lng?: number; accuracyM?: number; locationAt?: Date | null }
+export interface Device { id: string; uid: string; phoneId: string; model: string; android: string; appVersion: string; ip?: string; lastSeenAt: Date | null; locationAllowed: boolean; lat?: number; lng?: number; accuracyM?: number; locationAt?: Date | null }
 export interface DayTotal { date: string; netMinor: number; bills: number; customers: number }
 export interface Invoice { id: string; accountUid: string; number: string; businessName: string; amountMinor: number; discountMinor: number; currency: string; issuedAt: Date; dueAt: Date; status: 'unpaid' | 'paid' | 'void'; plan: PlanId | null; verifyToken: string; paidAt: Date | null }
 export interface Thread { uid: string; businessName: string; lastMessage: string; lastAt: Date | null; unreadForAdmin: boolean }

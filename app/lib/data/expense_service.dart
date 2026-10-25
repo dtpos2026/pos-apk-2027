@@ -2,7 +2,8 @@ import 'db_helper.dart';
 import 'pos_service.dart' show PosException;
 
 class ExpenseRow {
-  const ExpenseRow({required this.id, required this.amountMinor, this.category, this.note, required this.date, this.method});
+  const ExpenseRow({required this.id, required this.amountMinor, this.category, this.note, required this.date, this.method, this.methodId});
+  final String? methodId;
   final String id;
   final int amountMinor;
   final String? category;
@@ -54,11 +55,38 @@ class ExpenseService {
         return id;
       });
 
+  /// Corrects an expense entered wrongly (amount, category, how it was paid, note). A cash expense that left the drawer is put back and the
+  /// corrected one taken out, so the shift's cash agrees; the audit trail keeps what it was before. Returns false when it does not exist.
+  Future<bool> update(String id, {required int amountMinor, String? category, required String methodId, String? note, required String staffId}) => h.db.transaction(() async {
+        if (amountMinor <= 0) throw PosException('bad_amount', 'Amount must be positive');
+        final old = await h.one('SELECT e.amount_minor, e.note, e.method_id, c.name AS cat, m.kind AS kind FROM expense e LEFT JOIN expense_category c ON c.id = e.category_id LEFT JOIN payment_method m ON m.id = e.method_id WHERE e.id = ?', [id]);
+        if (old == null) return false;
+        final m = await h.one('SELECT kind FROM payment_method WHERE id = ? AND enabled = 1', [methodId]);
+        if (m == null) throw PosException('bad_method', 'Choose a payment method');
+        final catName = (category ?? '').trim();
+        final cat = catName.isEmpty ? null : await categoryId(catName);
+        await h.exec('UPDATE expense SET category_id = ?, amount_minor = ?, method_id = ?, note = ? WHERE id = ?', [cat, amountMinor, methodId, note?.trim(), id]);
+        final shift = await h.openShiftOf(staffId);
+        if (shift != null) {
+          if (old['kind'] == 'cash') {
+            await h.exec('INSERT INTO cash_movement(id, shift_id, direction, amount_minor, reason, staff_id, created_at) VALUES (?,?,?,?,?,?,?)', [h.id, shift, 'in', old['amount_minor'], 'Expense corrected (back)', staffId, h.ts]);
+          }
+          if (m['kind'] == 'cash') {
+            await h.exec('INSERT INTO cash_movement(id, shift_id, direction, amount_minor, reason, staff_id, created_at) VALUES (?,?,?,?,?,?,?)', [h.id, shift, 'out', amountMinor, catName.isEmpty ? 'Expense corrected' : 'Expense corrected: $catName', staffId, h.ts]);
+          }
+        }
+        await h.audit('expense.update', staffId: staffId, entity: 'expense', entityId: id, before: {'amount': old['amount_minor'], 'category': old['cat'], 'note': old['note'], 'method': old['method_id']}, after: {'amount': amountMinor, 'category': catName, 'note': note, 'method': methodId});
+        return true;
+      });
+
+  /// Saves a category on its own (no expense yet), so the usual ones (Gas, Rent, Electricity...) are ready to tap. Returns its id; an existing name is reused.
+  Future<String> addCategory(String name) => categoryId(name);
+
   Future<List<ExpenseRow>> forDate(String date) async => [
         for (final r in await h.q(
-            'SELECT e.id, e.amount_minor, e.note, e.business_date, c.name AS cat, m.name AS method FROM expense e LEFT JOIN expense_category c ON c.id = e.category_id LEFT JOIN payment_method m ON m.id = e.method_id WHERE e.business_date = ? ORDER BY e.created_at DESC, e.rowid DESC',
+            'SELECT e.id, e.amount_minor, e.note, e.business_date, c.name AS cat, m.name AS method, e.method_id FROM expense e LEFT JOIN expense_category c ON c.id = e.category_id LEFT JOIN payment_method m ON m.id = e.method_id WHERE e.business_date = ? ORDER BY e.created_at DESC, e.rowid DESC',
             [date]))
-          ExpenseRow(id: r['id'] as String, amountMinor: r['amount_minor'] as int, category: r['cat'] as String?, note: r['note'] as String?, date: r['business_date'] as String, method: r['method'] as String?)
+          ExpenseRow(id: r['id'] as String, amountMinor: r['amount_minor'] as int, category: r['cat'] as String?, note: r['note'] as String?, date: r['business_date'] as String, method: r['method'] as String?, methodId: r['method_id'] as String?)
       ];
 
   Future<int> totalFor(String date) => h.intValue('SELECT COALESCE(SUM(amount_minor),0) FROM expense WHERE business_date = ?', [date]);

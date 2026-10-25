@@ -106,7 +106,7 @@ export function Phones({ api }: PageProps) {
   const logoOf = (uid: string) => acc.data?.find(a => a.uid === uid)?.logo;
   // one row per phone (documents are keyed restaurant+phone id, so a phone never appears twice)
   const rows = (dev.data ?? [])
-    .filter(d => { const t = q.trim().toLowerCase(); return !t || [nameOf(d.uid), d.model, d.appVersion].some(v => v.toLowerCase().includes(t)); })
+    .filter(d => { const t = q.trim().toLowerCase(); return !t || [nameOf(d.uid), d.model, d.appVersion, d.ip ?? ''].some(v => v.toLowerCase().includes(t)); })
     .sort((a, b) => (b.lastSeenAt?.getTime() ?? 0) - (a.lastSeenAt?.getTime() ?? 0));
   const paged = usePaged(rows);
   const located = rows.filter(d => d.locationAllowed && d.lat != null && d.lng != null);
@@ -123,7 +123,7 @@ export function Phones({ api }: PageProps) {
     <div className="row"><input aria-label="Search phones" placeholder="Search restaurant, model, version" style={{ width: 320 }} value={q} onChange={e => setQ(e.target.value)} /></div>
     <table><thead><tr><th>Restaurant</th><th>Model</th><th>Android / app</th><th>Last seen</th><th>Location</th><th /></tr></thead><tbody>
       {paged.rows.map(d => { const a = acc.data?.find(x => x.uid === d.uid); const blocked = !!a?.blockedPhones.includes(d.phoneId); const approved = !!a?.approvedPhones.includes(d.phoneId); return (
-        <tr key={d.id}><td>{nameOf(d.uid)} {blocked ? <Badge tone="bad">blocked</Badge> : approved ? <Badge tone="ok">approved</Badge> : <Badge tone="warn">not approved</Badge>}</td><td>{d.model}</td><td>{d.android} / {d.appVersion}</td>
+        <tr key={d.id}><td>{nameOf(d.uid)} {blocked ? <Badge tone="bad">blocked</Badge> : approved ? <Badge tone="ok">approved</Badge> : <Badge tone="warn">not approved</Badge>}</td><td>{d.model}</td><td>{d.android} / {d.appVersion}{d.ip ? <><br /><small className="mut">{d.ip}</small></> : null}</td>
           <td><Badge tone={isOnline(d.lastSeenAt, now) ? 'ok' : ''}>{isOnline(d.lastSeenAt, now) ? 'online' : 'offline'}</Badge> {ago(d.lastSeenAt)}</td>
           <td>{d.locationAllowed && d.lat != null && d.lng != null ? <a href={`https://www.openstreetmap.org/?mlat=${d.lat}&mlon=${d.lng}#map=17/${d.lat}/${d.lng}`} target="_blank" rel="noreferrer">±{Math.round(d.accuracyM ?? 0)} m, {ago(d.locationAt ?? null)}</a> : d.locationAllowed ? 'allowed, no fix yet' : <span className="mut">not shared</span>}</td>
           <td><button className="act sec" onClick={() => act.run(() => api.setDeviceBlocked(d.uid, d.phoneId, !blocked))}>{blocked ? 'Unblock' : 'Block'}</button>{' '}
