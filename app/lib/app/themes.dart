@@ -57,13 +57,11 @@ class ThemePreset {
   Color get headerColor => header ?? seed;
 }
 
-/// The default is Restaurant Red (red / white with gold and black accents). "Digital Target" is the purple brand theme, available as a choice.
+/// The default is Restaurant Red. No purple: the app follows the red / white restaurant identity with gold and black accents.
 const themePresets = <ThemePreset>[
   // The DT Food POS identity: red and white. Restaurant Red is the default; Restaurant Red 2 uses #C41414.
   ThemePreset('red', Color(0xFFC92A2A), 'theme_red', accent: Color(0xFFF59F00), background: Color(0xFFFBF5F5)),
   ThemePreset('red2', Color(0xFFC41414), 'theme_red2', accent: Color(0xFFC41414), background: Color(0xFFFAF7F7), surface: Color(0xFFFFFFFF), nav: Color(0xFFFFFFFF)),
-  // Digital Target's own colours: royal purple with amber. An extra choice; the app stays Restaurant Red by default.
-  ThemePreset('dt', Color(0xFF3C096C), 'theme_dt', accent: brandAmber, background: Color(0xFFF8F5FC)),
   ThemePreset('green', Color(0xFF2B8A3E), 'theme_green', accent: Color(0xFFF08C00), background: Color(0xFFF3F8F4)),
   ThemePreset('golden', Color(0xFFB7791F), 'theme_golden', accent: Color(0xFF1F2937), background: Color(0xFFFBF8F1)),
   ThemePreset('yellow', Color(0xFFFFC107), 'theme_yellow', accent: Color(0xFFD9480F), background: Color(0xFFFFFBEB), cardStyle: 'shadow'),

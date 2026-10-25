@@ -1,156 +1,91 @@
-"""NOTE: the shipped launcher icon is the Digital Target purple one (restored from git history, commit dfa357e^). This script draws the
-RED restaurant alternative; running it overwrites the icons, so it only runs with --write-red.
+"""Builds the DT Food POS launcher icons in Restaurant Red from the approved icon design (receipt with the DT mark, lines, a gold
+fork-and-knife coin on its corner). The design layers (receipt, mark, coin) were drawn once and are kept as the foreground PNGs in
+res/mipmap-*; this script recolours them (the old Digital Target purple becomes restaurant red), draws a red background and rebuilds
+the legacy round / square icons.
 
-Draws the DT Food POS launcher icon (red + white, gold and black accents) for every Android density.
-
-Run: python3 -I tool/make_icons.py   (needs Pillow). Layers follow the adaptive-icon grid: 108 units, safe zone 66 centred.
+Run: python3 -I tool/make_icons.py <from-dir>   where <from-dir> holds the original purple res/ folder (default: git history copy
+extracted to a temp dir by the caller). Needs Pillow.
 """
+import colorsys
+import glob
 import os
+import sys
 from PIL import Image, ImageDraw
 
-ASSETS = os.path.join(os.path.dirname(__file__), '..', 'app', 'assets', 'brand')
 RES = os.path.join(os.path.dirname(__file__), '..', 'app', 'android', 'app', 'src', 'main', 'res')
-S = 16  # supersampling: draw at 108*S, scale down
-RED, RED_DARK, GOLD, BLACK, WHITE, TINT = (201, 42, 42), (150, 24, 24), (245, 179, 1), (17, 17, 17), (255, 255, 255), (243, 194, 194)
-SIZES = {'mdpi': 1.0, 'hdpi': 1.5, 'xhdpi': 2.0, 'xxhdpi': 3.0, 'xxxhdpi': 4.0}
+ASSETS = os.path.join(os.path.dirname(__file__), '..', 'app', 'assets', 'brand')
+RED, RED_DARK = (212, 48, 48), (140, 20, 20)
+DENS = ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi']
 
 
-def mark_mask(side):
-    """The Digital Target mark (4 triangles) as a mask, kept from the old icon."""
-    return Image.open(os.path.join(ASSETS, 'dt_mark_white.png')).convert('RGBA').split()[-1].resize((u(side), u(side)), Image.LANCZOS)
-
-
-def u(v):
-    return int(round(v * S))
-
-
-# Everything sits inside a circle of radius ~34 around the centre (54, 54), so no launcher shape (circle, squircle, the
-# Android 12 splash circle) can cut any of it off. A receipt with the DT mark and a burger; the gold fork-and-knife coin sits on its lower middle.
-# everything is centred on the icon: the receipt on the middle, the coin sitting on the paper's lower middle
-RX0, RX1, RY0, RY1, TIP = 35, 73, 24, 79, 84
-COIN = (54, 68.5, 8.8)
-
-
-def receipt_mask(d, fill):
-    """The paper: rounded top, zig-zag torn bottom."""
-    d.rounded_rectangle([u(RX0), u(RY0), u(RX1), u(RY1)], radius=u(4), fill=fill)
-    d.rectangle([u(RX0), u(RY0 + 10), u(RX1), u(RY1 + 2)], fill=fill)
-    pts = [(RX0, RY1)]
-    n = 8
-    w = (RX1 - RX0) / n
-    for i in range(n):
-        pts.append((RX0 + w * (i + 0.5), TIP))
-        pts.append((RX0 + w * (i + 1), RY1))
-    d.polygon([(u(a), u(b)) for a, b in pts], fill=fill)
-
-
-def burger(d, cx, cy, w, color, accent=None):
-    """A simple burger: top bun, lettuce, patty, bottom bun, centred on (cx, cy), w wide."""
-    h = w * 0.78
-    x0, top = cx - w / 2, cy - h / 2
-    d.pieslice([u(x0), u(top), u(x0 + w), u(top + h * 0.62)], 180, 360, fill=color)
-    d.rounded_rectangle([u(x0 - w * 0.04), u(top + h * 0.36), u(x0 + w * 1.04), u(top + h * 0.50)], radius=u(h * 0.07), fill=accent or color)
-    d.rounded_rectangle([u(x0), u(top + h * 0.54), u(x0 + w), u(top + h * 0.70)], radius=u(h * 0.08), fill=color)
-    d.rounded_rectangle([u(x0 + w * 0.03), u(top + h * 0.74), u(x0 + w * 0.97), u(top + h * 0.98)], radius=u(h * 0.1), fill=color)
-
-
-def cutlery(d, cx, cy, color, k=0.62):
-    """Fork and knife, centred on (cx, cy), scaled by k."""
-    def X(v):
-        return u(cx + v * k)
-
-    def Y(v):
-        return u(cy + v * k)
-
-    fx = -4.6
-    for dx in (-2.4, 0, 2.4):
-        d.rounded_rectangle([X(fx + dx - 0.6), Y(-8), X(fx + dx + 0.6), Y(-1.5)], radius=u(0.35), fill=color)
-    d.rounded_rectangle([X(fx - 3), Y(-3.2), X(fx + 3), Y(-0.2)], radius=u(0.9), fill=color)
-    d.rounded_rectangle([X(fx - 0.8), Y(-2), X(fx + 0.8), Y(8)], radius=u(0.5), fill=color)
-    kx = 4.6
-    d.rounded_rectangle([X(kx - 1.7), Y(-8), X(kx + 1.5), Y(0.5)], radius=u(1.0), fill=color)
-    d.rounded_rectangle([X(kx - 0.8), Y(-1), X(kx + 1.5), Y(8)], radius=u(0.5), fill=color)
-
-
-def foreground(mono=False):
-    im = Image.new('RGBA', (u(108), u(108)), (0, 0, 0, 0))
-    d = ImageDraw.Draw(im)
-    cx, cy, r = COIN
-    mx = (RX0 + RX1) / 2 - 7
-    bx, by, bw = (RX0 + RX1) / 2, RY0 + 25.5, 16
-    if mono:
-        receipt_mask(d, (0, 0, 0, 255))
-        im.paste((0, 0, 0, 0), (u(mx), u(RY0 + 4)), mark_mask(14))
-        burger(d, bx, by, bw, (0, 0, 0, 0))
-        d.ellipse([u(cx - r - 1.6), u(cy - r - 1.6), u(cx + r + 1.6), u(cy + r + 1.6)], fill=(0, 0, 0, 0))
-        d.ellipse([u(cx - r), u(cy - r), u(cx + r), u(cy + r)], fill=(0, 0, 0, 255))
-        cutlery(d, cx, cy, (0, 0, 0, 0))
-        return im
-    # soft shadow under the paper
-    sh = Image.new('RGBA', im.size, (0, 0, 0, 0))
-    sd = ImageDraw.Draw(sh)
-    receipt_mask(sd, (0, 0, 0, 80))
-    sh = sh.transform(sh.size, Image.AFFINE, (1, 0, 0, 0, 1, -u(1.3)))
-    im.alpha_composite(sh)
-    receipt_mask(d, WHITE)
-    im.paste(RED, (u(mx), u(RY0 + 4)), mark_mask(14))  # the brand mark in restaurant red
-    burger(d, bx, by, bw, RED, (240, 170, 170))
-    d.ellipse([u(cx - r - 1.7), u(cy - r - 1.7), u(cx + r + 1.7), u(cy + r + 1.7)], fill=WHITE)  # ring keeps the coin apart from the paper
-    # the gold coin: drop shadow, dark rim, bright face with a soft highlight, black fork and knife
-    d.ellipse([u(cx - r + 0.4), u(cy - r + 1.2), u(cx + r + 0.4), u(cy + r + 1.2)], fill=(0, 0, 0, 60))
-    d.ellipse([u(cx - r), u(cy - r), u(cx + r), u(cy + r)], fill=(176, 120, 0))
-    d.ellipse([u(cx - r + 0.9), u(cy - r + 0.9), u(cx + r - 0.9), u(cy + r - 0.9)], fill=GOLD)
-    d.ellipse([u(cx - r + 1.6), u(cy - r + 1.6), u(cx + r - 1.6), u(cy + r - 1.6)], outline=(255, 214, 90), width=u(0.35))
-    cutlery(d, cx, cy, BLACK)
+def recolor_fg(im):
+    """Purple ink (mark, fork and knife, bottom line) -> restaurant red; pale lavender lines -> pale pink. White and amber stay."""
+    im = im.convert('RGBA')
+    px = im.load()
+    w, h = im.size
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a == 0:
+                continue
+            H, S, V = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
+            if S > 0.08 and 235 <= H * 360 <= 330:
+                if V < 0.62:
+                    v = min(0.84, max(0.52, 0.58 + (V - 0.17) * (0.26 / 0.28)))
+                    s = min(0.80, 0.55 + S * 0.3)
+                else:
+                    v, s = V, S * 0.9
+                r2, g2, b2 = colorsys.hsv_to_rgb(0.0, s, v)
+                px[x, y] = (int(r2 * 255), int(g2 * 255), int(b2 * 255), a)
     return im
 
 
-def background():
-    im = Image.new('RGB', (u(108), u(108)), RED)
-    px = ImageDraw.Draw(im)
-    for y in range(u(108)):
-        t = y / u(108)
-        c = tuple(int(RED[i] + (RED_DARK[i] - RED[i]) * t) for i in range(3))
-        px.line([(0, y), (u(108), y)], fill=c)
+def background(px):
+    """A red tile: lighter at the top left, darker at the bottom right, with a soft glow."""
+    im = Image.new('RGB', (px, px))
+    d = im.load()
+    for y in range(px):
+        for x in range(px):
+            t = (x + y) / (2 * px)
+            glow = max(0.0, 1 - ((x - px * 0.28) ** 2 + (y - px * 0.22) ** 2) ** 0.5 / (px * 0.6)) * 0.22
+            d[x, y] = tuple(min(255, int(RED[i] + (RED_DARK[i] - RED[i]) * t + 40 * glow)) for i in range(3))
     return im
 
 
-def save(img, name, density, px):
-    folder = os.path.join(RES, f'mipmap-{density}')
-    os.makedirs(folder, exist_ok=True)
-    img.resize((px, px), Image.LANCZOS).save(os.path.join(folder, name))
-
-
-def main():
-    fg, mono, bg = foreground(), foreground(mono=True), background()
-    for dens, k in SIZES.items():
-        layer = int(108 * k)
-        icon = int(48 * k)
-        save(fg, 'ic_launcher_foreground.png', dens, layer)
-        save(mono, 'ic_launcher_monochrome.png', dens, layer)
-        save(bg, 'ic_launcher_background.png', dens, layer)
-        # legacy icons (Android 7 and older): the whole picture, cropped to the visible 72/108 window
+def main(src):
+    for dens in DENS:
+        sd = os.path.join(src, f'mipmap-{dens}')
+        out = os.path.join(RES, f'mipmap-{dens}')
+        os.makedirs(out, exist_ok=True)
+        fg = recolor_fg(Image.open(os.path.join(sd, 'ic_launcher_foreground.png')))
+        fg.save(os.path.join(out, 'ic_launcher_foreground.png'))
+        bg = background(fg.width)
+        bg.save(os.path.join(out, 'ic_launcher_background.png'))
+        # the themed (monochrome) icon is a shape only: kept as drawn
+        Image.open(os.path.join(sd, 'ic_launcher_monochrome.png')).save(os.path.join(out, 'ic_launcher_monochrome.png'))
+        # legacy icons: the visible 72/108 window of the whole picture, rounded square and circle
         full = bg.convert('RGBA')
         full.alpha_composite(fg)
-        crop = full.crop((u(18), u(18), u(90), u(90)))
-        sq = crop.resize((icon * 4, icon * 4), Image.LANCZOS)
-        mask = Image.new('L', sq.size, 0)
-        ImageDraw.Draw(mask).rounded_rectangle([0, 0, sq.size[0] - 1, sq.size[1] - 1], radius=int(sq.size[0] * 0.22), fill=255)
-        sq.putalpha(mask)
-        rd = crop.resize((icon * 4, icon * 4), Image.LANCZOS)
+        k = fg.width / 108
+        crop = full.crop((int(18 * k), int(18 * k), int(90 * k), int(90 * k)))
+        icon = int(round(48 * k))
+        big = crop.resize((icon * 4, icon * 4), Image.LANCZOS)
+        sq = big.copy()
+        m = Image.new('L', sq.size, 0)
+        ImageDraw.Draw(m).rounded_rectangle([0, 0, sq.size[0] - 1, sq.size[1] - 1], radius=int(sq.size[0] * 0.22), fill=255)
+        sq.putalpha(m)
+        sq.resize((icon, icon), Image.LANCZOS).save(os.path.join(out, 'ic_launcher.png'))
+        rd = big.copy()
         cm = Image.new('L', rd.size, 0)
         ImageDraw.Draw(cm).ellipse([0, 0, rd.size[0] - 1, rd.size[1] - 1], fill=255)
         rd.putalpha(cm)
-        folder = os.path.join(RES, f'mipmap-{dens}')
-        sq.resize((icon, icon), Image.LANCZOS).save(os.path.join(folder, 'ic_launcher.png'))
-        rd.resize((icon, icon), Image.LANCZOS).save(os.path.join(folder, 'ic_launcher_round.png'))
-    # a 512 preview for the store listing and for a quick look
-    full = bg.convert('RGBA')
-    full.alpha_composite(fg)
-    full.resize((512, 512), Image.LANCZOS).save(os.path.join(RES, '..', '..', '..', '..', '..', 'assets', 'brand', 'app_icon_512.png'))
+        rd.resize((icon, icon), Image.LANCZOS).save(os.path.join(out, 'ic_launcher_round.png'))
+        if dens == 'xxxhdpi':
+            full.resize((512, 512), Image.LANCZOS).save(os.path.join(ASSETS, 'app_icon_512.png'))
 
 
-if '--write-red' in __import__('sys').argv:
-    main()
-else:
-    print('Not writing: the shipped icon is the Digital Target purple one. Use --write-red for the red alternative.')
+if __name__ == '__main__':
+    if len(sys.argv) < 2:
+        print(__doc__)
+        sys.exit(1)
+    main(sys.argv[1])
