@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
+import '../domain/money.dart';
 import '../domain/print_settings.dart';
 import '../domain/receipt.dart';
 import '../domain/receipt_doc.dart';
@@ -181,7 +182,16 @@ class PrintService {
       final kotLines = <KotLine>[];
       for (final i in lines) {
         final mods = await _select('SELECT name FROM order_item_modifier WHERE order_item_id = ?', [i['id'] as String]);
-        kotLines.add(KotLine(i['name'] as String, i['qty_milli'] as int, modifiers: [for (final m in mods) m['name'] as String], note: i['note'] as String?));
+        // a deal lists what is inside it, so the kitchen knows what to make
+        final inside = await _select(
+            "SELECT d.qty_milli, p.name AS pname, v.name AS vname FROM deal_item d JOIN product p ON p.id = d.product_id LEFT JOIN product_variant v ON v.id = d.variant_id WHERE d.deal_id = ? ORDER BY d.rowid",
+            [i['product_id'] as String]);
+        kotLines.add(KotLine(i['name'] as String, i['qty_milli'] as int,
+            modifiers: [
+              for (final c in inside) '${formatQty((c['qty_milli'] as int) * (i['qty_milli'] as int) ~/ 1000)} x ${c['pname']}${c['vname'] == null ? '' : ' (${c['vname']})'}',
+              for (final m in mods) m['name'] as String,
+            ],
+            note: i['note'] as String?));
       }
       final doc = buildKotDoc(
         station: station.isEmpty ? 'Kitchen' : station,

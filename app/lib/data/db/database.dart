@@ -7,13 +7,14 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onUpgrade: (m, from, to) async {
           if (from < 2) await migrateToV2(this);
           if (from < 3) await migrateToV3(this);
+          if (from < 4) await migrateToV4(this);
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
@@ -47,6 +48,16 @@ Future<void> migrateToV2(AppDatabase db) async {
   ]) {
     await db.customStatement(sql);
   }
+}
+
+/// Version 4: deals / combos (what each deal contains). Mirrors docs/schema/local.sql.
+Future<void> migrateToV4(AppDatabase db) async {
+  await db.customStatement("""CREATE TABLE IF NOT EXISTS deal_item (
+  id TEXT PRIMARY KEY, deal_id TEXT NOT NULL REFERENCES product(id),
+  product_id TEXT NOT NULL REFERENCES product(id), variant_id TEXT REFERENCES product_variant(id),
+  qty_milli INTEGER NOT NULL CHECK (qty_milli > 0)
+)""");
+  await db.customStatement('CREATE INDEX IF NOT EXISTS deal_item_ix ON deal_item(deal_id)');
 }
 
 /// Version 3: purchase orders. Mirrors docs/schema/local.sql.

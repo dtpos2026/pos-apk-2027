@@ -15,6 +15,7 @@ import '../../data/queries.dart';
 import '../../domain/money.dart';
 import '../../domain/xlsx.dart';
 import '../common/dialogs.dart';
+import 'deals_screen.dart';
 
 class MenuScreen extends ConsumerStatefulWidget {
   const MenuScreen({super.key});
@@ -42,18 +43,25 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
       body: Column(children: [
         Padding(
           padding: const EdgeInsets.all(12),
-          child: Row(children: [
-            Expanded(child: TextField(decoration: InputDecoration(prefixIcon: const Icon(Icons.search), hintText: t['search_items'], isDense: true), onChanged: (s) => setState(() => _search = s))),
-            const SizedBox(width: 8),
+          child: Column(children: [
+            TextField(decoration: InputDecoration(prefixIcon: const Icon(Icons.search), hintText: t['search_items'], isDense: true), onChanged: (s) => setState(() => _search = s)),
+            const SizedBox(height: 8),
+            SizedBox(height: 44, child: ListView(scrollDirection: Axis.horizontal, children: [
             OutlinedButton.icon(key: const ValueKey('categories'), onPressed: () async {
               await showDialog<void>(context: context, builder: (_) => const _CategoriesDialog());
               _refresh();
             }, icon: const Icon(Icons.category_outlined), label: Text(t['categories'])),
             const SizedBox(width: 8),
+            OutlinedButton.icon(key: const ValueKey('open-deals'), onPressed: () async {
+              await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const DealsScreen()));
+              _refresh();
+            }, icon: const Icon(Icons.local_offer_outlined), label: Text(t['deals'])),
+            const SizedBox(width: 8),
             OutlinedButton.icon(key: const ValueKey('import-csv'), onPressed: () async {
               await showDialog<void>(context: context, builder: (_) => const _ImportDialog());
               _refresh();
             }, icon: const Icon(Icons.upload_file), label: Text(t['import_csv'])),
+          ])),
           ]),
         ),
         Expanded(

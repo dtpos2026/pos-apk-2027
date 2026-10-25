@@ -126,6 +126,13 @@ CREATE TABLE combo_item (                   -- components of a product with kind
   PRIMARY KEY (combo_id, product_id)
 );
 
+CREATE TABLE deal_item (                    -- what a deal (product with kind = 'combo') contains; one row per item and size
+  id TEXT PRIMARY KEY, deal_id TEXT NOT NULL REFERENCES product(id),
+  product_id TEXT NOT NULL REFERENCES product(id), variant_id TEXT REFERENCES product_variant(id),
+  qty_milli INTEGER NOT NULL CHECK (qty_milli > 0)
+);
+CREATE INDEX deal_item_ix ON deal_item(deal_id);
+
 -- ---------- floors & tables ----------
 CREATE TABLE area (
   id TEXT PRIMARY KEY, name TEXT NOT NULL, sort INTEGER NOT NULL DEFAULT 0,

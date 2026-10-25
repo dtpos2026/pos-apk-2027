@@ -7887,6 +7887,369 @@ class ComboItemCompanion extends UpdateCompanion<ComboItemData> {
   }
 }
 
+class DealItem extends Table with TableInfo<DealItem, DealItemData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  DealItem(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'PRIMARY KEY',
+  );
+  static const VerificationMeta _dealIdMeta = const VerificationMeta('dealId');
+  late final GeneratedColumn<String> dealId = GeneratedColumn<String>(
+    'deal_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL REFERENCES product(id)',
+  );
+  static const VerificationMeta _productIdMeta = const VerificationMeta(
+    'productId',
+  );
+  late final GeneratedColumn<String> productId = GeneratedColumn<String>(
+    'product_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL REFERENCES product(id)',
+  );
+  static const VerificationMeta _variantIdMeta = const VerificationMeta(
+    'variantId',
+  );
+  late final GeneratedColumn<String> variantId = GeneratedColumn<String>(
+    'variant_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'REFERENCES product_variant(id)',
+  );
+  static const VerificationMeta _qtyMilliMeta = const VerificationMeta(
+    'qtyMilli',
+  );
+  late final GeneratedColumn<int> qtyMilli = GeneratedColumn<int>(
+    'qty_milli',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK (qty_milli > 0)',
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    dealId,
+    productId,
+    variantId,
+    qtyMilli,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'deal_item';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DealItemData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('deal_id')) {
+      context.handle(
+        _dealIdMeta,
+        dealId.isAcceptableOrUnknown(data['deal_id']!, _dealIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dealIdMeta);
+    }
+    if (data.containsKey('product_id')) {
+      context.handle(
+        _productIdMeta,
+        productId.isAcceptableOrUnknown(data['product_id']!, _productIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_productIdMeta);
+    }
+    if (data.containsKey('variant_id')) {
+      context.handle(
+        _variantIdMeta,
+        variantId.isAcceptableOrUnknown(data['variant_id']!, _variantIdMeta),
+      );
+    }
+    if (data.containsKey('qty_milli')) {
+      context.handle(
+        _qtyMilliMeta,
+        qtyMilli.isAcceptableOrUnknown(data['qty_milli']!, _qtyMilliMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_qtyMilliMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  DealItemData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DealItemData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      ),
+      dealId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}deal_id'],
+      )!,
+      productId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}product_id'],
+      )!,
+      variantId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}variant_id'],
+      ),
+      qtyMilli: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}qty_milli'],
+      )!,
+    );
+  }
+
+  @override
+  DealItem createAlias(String alias) {
+    return DealItem(attachedDatabase, alias);
+  }
+
+  @override
+  bool get dontWriteConstraints => true;
+}
+
+class DealItemData extends DataClass implements Insertable<DealItemData> {
+  /// what a deal (product with kind = 'combo') contains; one row per item and size
+  final String? id;
+  final String dealId;
+  final String productId;
+  final String? variantId;
+  final int qtyMilli;
+  const DealItemData({
+    this.id,
+    required this.dealId,
+    required this.productId,
+    this.variantId,
+    required this.qtyMilli,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (!nullToAbsent || id != null) {
+      map['id'] = Variable<String>(id);
+    }
+    map['deal_id'] = Variable<String>(dealId);
+    map['product_id'] = Variable<String>(productId);
+    if (!nullToAbsent || variantId != null) {
+      map['variant_id'] = Variable<String>(variantId);
+    }
+    map['qty_milli'] = Variable<int>(qtyMilli);
+    return map;
+  }
+
+  DealItemCompanion toCompanion(bool nullToAbsent) {
+    return DealItemCompanion(
+      id: id == null && nullToAbsent ? const Value.absent() : Value(id),
+      dealId: Value(dealId),
+      productId: Value(productId),
+      variantId: variantId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(variantId),
+      qtyMilli: Value(qtyMilli),
+    );
+  }
+
+  factory DealItemData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DealItemData(
+      id: serializer.fromJson<String?>(json['id']),
+      dealId: serializer.fromJson<String>(json['deal_id']),
+      productId: serializer.fromJson<String>(json['product_id']),
+      variantId: serializer.fromJson<String?>(json['variant_id']),
+      qtyMilli: serializer.fromJson<int>(json['qty_milli']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String?>(id),
+      'deal_id': serializer.toJson<String>(dealId),
+      'product_id': serializer.toJson<String>(productId),
+      'variant_id': serializer.toJson<String?>(variantId),
+      'qty_milli': serializer.toJson<int>(qtyMilli),
+    };
+  }
+
+  DealItemData copyWith({
+    Value<String?> id = const Value.absent(),
+    String? dealId,
+    String? productId,
+    Value<String?> variantId = const Value.absent(),
+    int? qtyMilli,
+  }) => DealItemData(
+    id: id.present ? id.value : this.id,
+    dealId: dealId ?? this.dealId,
+    productId: productId ?? this.productId,
+    variantId: variantId.present ? variantId.value : this.variantId,
+    qtyMilli: qtyMilli ?? this.qtyMilli,
+  );
+  DealItemData copyWithCompanion(DealItemCompanion data) {
+    return DealItemData(
+      id: data.id.present ? data.id.value : this.id,
+      dealId: data.dealId.present ? data.dealId.value : this.dealId,
+      productId: data.productId.present ? data.productId.value : this.productId,
+      variantId: data.variantId.present ? data.variantId.value : this.variantId,
+      qtyMilli: data.qtyMilli.present ? data.qtyMilli.value : this.qtyMilli,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DealItemData(')
+          ..write('id: $id, ')
+          ..write('dealId: $dealId, ')
+          ..write('productId: $productId, ')
+          ..write('variantId: $variantId, ')
+          ..write('qtyMilli: $qtyMilli')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, dealId, productId, variantId, qtyMilli);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DealItemData &&
+          other.id == this.id &&
+          other.dealId == this.dealId &&
+          other.productId == this.productId &&
+          other.variantId == this.variantId &&
+          other.qtyMilli == this.qtyMilli);
+}
+
+class DealItemCompanion extends UpdateCompanion<DealItemData> {
+  final Value<String?> id;
+  final Value<String> dealId;
+  final Value<String> productId;
+  final Value<String?> variantId;
+  final Value<int> qtyMilli;
+  final Value<int> rowid;
+  const DealItemCompanion({
+    this.id = const Value.absent(),
+    this.dealId = const Value.absent(),
+    this.productId = const Value.absent(),
+    this.variantId = const Value.absent(),
+    this.qtyMilli = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DealItemCompanion.insert({
+    this.id = const Value.absent(),
+    required String dealId,
+    required String productId,
+    this.variantId = const Value.absent(),
+    required int qtyMilli,
+    this.rowid = const Value.absent(),
+  }) : dealId = Value(dealId),
+       productId = Value(productId),
+       qtyMilli = Value(qtyMilli);
+  static Insertable<DealItemData> custom({
+    Expression<String>? id,
+    Expression<String>? dealId,
+    Expression<String>? productId,
+    Expression<String>? variantId,
+    Expression<int>? qtyMilli,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (dealId != null) 'deal_id': dealId,
+      if (productId != null) 'product_id': productId,
+      if (variantId != null) 'variant_id': variantId,
+      if (qtyMilli != null) 'qty_milli': qtyMilli,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DealItemCompanion copyWith({
+    Value<String?>? id,
+    Value<String>? dealId,
+    Value<String>? productId,
+    Value<String?>? variantId,
+    Value<int>? qtyMilli,
+    Value<int>? rowid,
+  }) {
+    return DealItemCompanion(
+      id: id ?? this.id,
+      dealId: dealId ?? this.dealId,
+      productId: productId ?? this.productId,
+      variantId: variantId ?? this.variantId,
+      qtyMilli: qtyMilli ?? this.qtyMilli,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (dealId.present) {
+      map['deal_id'] = Variable<String>(dealId.value);
+    }
+    if (productId.present) {
+      map['product_id'] = Variable<String>(productId.value);
+    }
+    if (variantId.present) {
+      map['variant_id'] = Variable<String>(variantId.value);
+    }
+    if (qtyMilli.present) {
+      map['qty_milli'] = Variable<int>(qtyMilli.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DealItemCompanion(')
+          ..write('id: $id, ')
+          ..write('dealId: $dealId, ')
+          ..write('productId: $productId, ')
+          ..write('variantId: $variantId, ')
+          ..write('qtyMilli: $qtyMilli, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class Area extends Table with TableInfo<Area, AreaData> {
   @override
   final GeneratedDatabase attachedDatabase;
@@ -28324,6 +28687,11 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     this,
   );
   late final ComboItem comboItem = ComboItem(this);
+  late final DealItem dealItem = DealItem(this);
+  late final Index dealItemIx = Index(
+    'deal_item_ix',
+    'CREATE INDEX deal_item_ix ON deal_item (deal_id)',
+  );
   late final Area area = Area(this);
   late final DiningTable diningTable = DiningTable(this);
   late final Customer customer = Customer(this);
@@ -28481,6 +28849,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     modifierOption,
     productModifierGroup,
     comboItem,
+    dealItem,
+    dealItemIx,
     area,
     diningTable,
     customer,
@@ -33925,6 +34295,28 @@ final class $ProductVariantReferences
     );
   }
 
+  static MultiTypedResultKey<DealItem, List<DealItemData>> _dealItemRefsTable(
+    _$AppDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.dealItem,
+    aliasName: $_aliasNameGenerator(
+      db.productVariant.id,
+      db.dealItem.variantId,
+    ),
+  );
+
+  $DealItemProcessedTableManager get dealItemRefs {
+    final manager = $DealItemTableManager(
+      $_db,
+      $_db.dealItem,
+    ).filter((f) => f.variantId.id.sqlEquals($_itemColumn<String>('id')));
+
+    final cache = $_typedResult.readTableOrNull(_dealItemRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
   static MultiTypedResultKey<OrderItem, List<OrderItemData>>
   _orderItemRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
     db.orderItem,
@@ -34051,6 +34443,31 @@ class $ProductVariantFilterComposer
           }) => $ProductPriceFilterComposer(
             $db: $db,
             $table: $db.productPrice,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> dealItemRefs(
+    Expression<bool> Function($DealItemFilterComposer f) f,
+  ) {
+    final $DealItemFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.dealItem,
+      getReferencedColumn: (t) => t.variantId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $DealItemFilterComposer(
+            $db: $db,
+            $table: $db.dealItem,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -34259,6 +34676,31 @@ class $ProductVariantAnnotationComposer
     return f(composer);
   }
 
+  Expression<T> dealItemRefs<T extends Object>(
+    Expression<T> Function($DealItemAnnotationComposer a) f,
+  ) {
+    final $DealItemAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.dealItem,
+      getReferencedColumn: (t) => t.variantId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $DealItemAnnotationComposer(
+            $db: $db,
+            $table: $db.dealItem,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
   Expression<T> orderItemRefs<T extends Object>(
     Expression<T> Function($OrderItemAnnotationComposer a) f,
   ) {
@@ -34326,6 +34768,7 @@ class $ProductVariantTableManager
           PrefetchHooks Function({
             bool productId,
             bool productPriceRefs,
+            bool dealItemRefs,
             bool orderItemRefs,
             bool recipeLineRefs,
           })
@@ -34397,6 +34840,7 @@ class $ProductVariantTableManager
               ({
                 productId = false,
                 productPriceRefs = false,
+                dealItemRefs = false,
                 orderItemRefs = false,
                 recipeLineRefs = false,
               }) {
@@ -34404,6 +34848,7 @@ class $ProductVariantTableManager
                   db: db,
                   explicitlyWatchedTables: [
                     if (productPriceRefs) db.productPrice,
+                    if (dealItemRefs) db.dealItem,
                     if (orderItemRefs) db.orderItem,
                     if (recipeLineRefs) db.recipeLine,
                   ],
@@ -34456,6 +34901,27 @@ class $ProductVariantTableManager
                                 table,
                                 p0,
                               ).productPriceRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.variantId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (dealItemRefs)
+                        await $_getPrefetchedData<
+                          ProductVariantData,
+                          ProductVariant,
+                          DealItemData
+                        >(
+                          currentTable: table,
+                          referencedTable: $ProductVariantReferences
+                              ._dealItemRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $ProductVariantReferences(
+                                db,
+                                table,
+                                p0,
+                              ).dealItemRefs,
                           referencedItemsForCurrentItem:
                               (item, referencedItems) => referencedItems.where(
                                 (e) => e.variantId == item.id,
@@ -34527,6 +34993,7 @@ typedef $ProductVariantProcessedTableManager =
       PrefetchHooks Function({
         bool productId,
         bool productPriceRefs,
+        bool dealItemRefs,
         bool orderItemRefs,
         bool recipeLineRefs,
       })
@@ -36473,6 +36940,494 @@ typedef $ComboItemProcessedTableManager =
       (ComboItemData, $ComboItemReferences),
       ComboItemData,
       PrefetchHooks Function({bool comboId, bool productId})
+    >;
+typedef $DealItemCreateCompanionBuilder =
+    DealItemCompanion Function({
+      Value<String?> id,
+      required String dealId,
+      required String productId,
+      Value<String?> variantId,
+      required int qtyMilli,
+      Value<int> rowid,
+    });
+typedef $DealItemUpdateCompanionBuilder =
+    DealItemCompanion Function({
+      Value<String?> id,
+      Value<String> dealId,
+      Value<String> productId,
+      Value<String?> variantId,
+      Value<int> qtyMilli,
+      Value<int> rowid,
+    });
+
+final class $DealItemReferences
+    extends BaseReferences<_$AppDatabase, DealItem, DealItemData> {
+  $DealItemReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static Product _dealIdTable(_$AppDatabase db) => db.product.createAlias(
+    $_aliasNameGenerator(db.dealItem.dealId, db.product.id),
+  );
+
+  $ProductProcessedTableManager get dealId {
+    final $_column = $_itemColumn<String>('deal_id')!;
+
+    final manager = $ProductTableManager(
+      $_db,
+      $_db.product,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_dealIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static Product _productIdTable(_$AppDatabase db) => db.product.createAlias(
+    $_aliasNameGenerator(db.dealItem.productId, db.product.id),
+  );
+
+  $ProductProcessedTableManager get productId {
+    final $_column = $_itemColumn<String>('product_id')!;
+
+    final manager = $ProductTableManager(
+      $_db,
+      $_db.product,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_productIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static ProductVariant _variantIdTable(_$AppDatabase db) =>
+      db.productVariant.createAlias(
+        $_aliasNameGenerator(db.dealItem.variantId, db.productVariant.id),
+      );
+
+  $ProductVariantProcessedTableManager? get variantId {
+    final $_column = $_itemColumn<String>('variant_id');
+    if ($_column == null) return null;
+    final manager = $ProductVariantTableManager(
+      $_db,
+      $_db.productVariant,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_variantIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $DealItemFilterComposer extends Composer<_$AppDatabase, DealItem> {
+  $DealItemFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get qtyMilli => $composableBuilder(
+    column: $table.qtyMilli,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $ProductFilterComposer get dealId {
+    final $ProductFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.dealId,
+      referencedTable: $db.product,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $ProductFilterComposer(
+            $db: $db,
+            $table: $db.product,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $ProductFilterComposer get productId {
+    final $ProductFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.productId,
+      referencedTable: $db.product,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $ProductFilterComposer(
+            $db: $db,
+            $table: $db.product,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $ProductVariantFilterComposer get variantId {
+    final $ProductVariantFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.variantId,
+      referencedTable: $db.productVariant,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $ProductVariantFilterComposer(
+            $db: $db,
+            $table: $db.productVariant,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $DealItemOrderingComposer extends Composer<_$AppDatabase, DealItem> {
+  $DealItemOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get qtyMilli => $composableBuilder(
+    column: $table.qtyMilli,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $ProductOrderingComposer get dealId {
+    final $ProductOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.dealId,
+      referencedTable: $db.product,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $ProductOrderingComposer(
+            $db: $db,
+            $table: $db.product,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $ProductOrderingComposer get productId {
+    final $ProductOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.productId,
+      referencedTable: $db.product,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $ProductOrderingComposer(
+            $db: $db,
+            $table: $db.product,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $ProductVariantOrderingComposer get variantId {
+    final $ProductVariantOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.variantId,
+      referencedTable: $db.productVariant,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $ProductVariantOrderingComposer(
+            $db: $db,
+            $table: $db.productVariant,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $DealItemAnnotationComposer extends Composer<_$AppDatabase, DealItem> {
+  $DealItemAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get qtyMilli =>
+      $composableBuilder(column: $table.qtyMilli, builder: (column) => column);
+
+  $ProductAnnotationComposer get dealId {
+    final $ProductAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.dealId,
+      referencedTable: $db.product,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $ProductAnnotationComposer(
+            $db: $db,
+            $table: $db.product,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $ProductAnnotationComposer get productId {
+    final $ProductAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.productId,
+      referencedTable: $db.product,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $ProductAnnotationComposer(
+            $db: $db,
+            $table: $db.product,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $ProductVariantAnnotationComposer get variantId {
+    final $ProductVariantAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.variantId,
+      referencedTable: $db.productVariant,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $ProductVariantAnnotationComposer(
+            $db: $db,
+            $table: $db.productVariant,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $DealItemTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          DealItem,
+          DealItemData,
+          $DealItemFilterComposer,
+          $DealItemOrderingComposer,
+          $DealItemAnnotationComposer,
+          $DealItemCreateCompanionBuilder,
+          $DealItemUpdateCompanionBuilder,
+          (DealItemData, $DealItemReferences),
+          DealItemData,
+          PrefetchHooks Function({bool dealId, bool productId, bool variantId})
+        > {
+  $DealItemTableManager(_$AppDatabase db, DealItem table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $DealItemFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $DealItemOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $DealItemAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String?> id = const Value.absent(),
+                Value<String> dealId = const Value.absent(),
+                Value<String> productId = const Value.absent(),
+                Value<String?> variantId = const Value.absent(),
+                Value<int> qtyMilli = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DealItemCompanion(
+                id: id,
+                dealId: dealId,
+                productId: productId,
+                variantId: variantId,
+                qtyMilli: qtyMilli,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                Value<String?> id = const Value.absent(),
+                required String dealId,
+                required String productId,
+                Value<String?> variantId = const Value.absent(),
+                required int qtyMilli,
+                Value<int> rowid = const Value.absent(),
+              }) => DealItemCompanion.insert(
+                id: id,
+                dealId: dealId,
+                productId: productId,
+                variantId: variantId,
+                qtyMilli: qtyMilli,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (e.readTable(table), $DealItemReferences(db, table, e)),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({dealId = false, productId = false, variantId = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (dealId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.dealId,
+                                    referencedTable: $DealItemReferences
+                                        ._dealIdTable(db),
+                                    referencedColumn: $DealItemReferences
+                                        ._dealIdTable(db)
+                                        .id,
+                                  )
+                                  as T;
+                        }
+                        if (productId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.productId,
+                                    referencedTable: $DealItemReferences
+                                        ._productIdTable(db),
+                                    referencedColumn: $DealItemReferences
+                                        ._productIdTable(db)
+                                        .id,
+                                  )
+                                  as T;
+                        }
+                        if (variantId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.variantId,
+                                    referencedTable: $DealItemReferences
+                                        ._variantIdTable(db),
+                                    referencedColumn: $DealItemReferences
+                                        ._variantIdTable(db)
+                                        .id,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $DealItemProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      DealItem,
+      DealItemData,
+      $DealItemFilterComposer,
+      $DealItemOrderingComposer,
+      $DealItemAnnotationComposer,
+      $DealItemCreateCompanionBuilder,
+      $DealItemUpdateCompanionBuilder,
+      (DealItemData, $DealItemReferences),
+      DealItemData,
+      PrefetchHooks Function({bool dealId, bool productId, bool variantId})
     >;
 typedef $AreaCreateCompanionBuilder =
     AreaCompanion Function({
@@ -54308,6 +55263,8 @@ class $AppDatabaseManager {
       $ProductModifierGroupTableManager(_db, _db.productModifierGroup);
   $ComboItemTableManager get comboItem =>
       $ComboItemTableManager(_db, _db.comboItem);
+  $DealItemTableManager get dealItem =>
+      $DealItemTableManager(_db, _db.dealItem);
   $AreaTableManager get area => $AreaTableManager(_db, _db.area);
   $DiningTableTableManager get diningTable =>
       $DiningTableTableManager(_db, _db.diningTable);

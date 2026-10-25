@@ -465,10 +465,27 @@ class PosService {
         return SettledOrder(orderId: orderId, invoiceNo: invoiceNo, totalMinor: bill.totalMinor, changeMinor: result.changeMinor, alreadySettled: false);
       });
 
+  /// A deal takes stock from the items inside it: one row per component, quantity = per-deal quantity x deals sold.
+  Future<List<Map<String, Object?>>> _expandDeals(List<Map<String, Object?>> rows) async {
+    final out = <Map<String, Object?>>[];
+    for (final r in rows) {
+      final kind = (await _select('SELECT kind FROM product WHERE id = ?', [r['product_id']])).firstOrNull?['kind'];
+      if (kind != 'combo') {
+        out.add(r);
+        continue;
+      }
+      for (final c in await _select('SELECT product_id, variant_id, qty_milli FROM deal_item WHERE deal_id = ?', [r['product_id']])) {
+        out.add({...r, 'product_id': c['product_id'], 'variant_id': c['variant_id'], 'qty_milli': (c['qty_milli'] as int) * (r['qty_milli'] as int) ~/ 1000});
+      }
+    }
+    return out;
+  }
+
   /// Writes stock ledger rows for an order. Recipe lines win; otherwise a stock item linked straight to the product.
   /// Stock may go negative: a sale is never blocked by an out-of-date count.
-  Future<void> _applyStock(String orderId, List<Map<String, Object?>> itemRows, {required int sign, required String reason, String? staffId}) async {
+  Future<void> _applyStock(String orderId, List<Map<String, Object?>> soldRows, {required int sign, required String reason, String? staffId}) async {
     final now = _ts;
+    final itemRows = await _expandDeals(soldRows);
     for (final r in itemRows) {
       final qty = r['qty_milli'] as int;
       final recipe = await _select(

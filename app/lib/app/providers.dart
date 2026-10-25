@@ -25,6 +25,8 @@ import '../data/menu_import.dart';
 import '../data/menu_service.dart';
 import '../data/payment_method_service.dart';
 import '../data/bill_ops.dart';
+import '../data/deal_import.dart';
+import '../data/deal_service.dart';
 import '../data/pos_service.dart';
 import '../data/print_service.dart';
 import '../data/queries.dart';
@@ -107,6 +109,8 @@ final backupFilePickerProvider = Provider<ImportFilePicker>((ref) => const Syste
 /// Folder for item/category pictures. Overridden in main() (app documents) and in tests (temp folder).
 final menuImageDirProvider = Provider<Directory>((ref) => Directory('${Directory.systemTemp.path}/dt_menu_images'));
 final menuImageStoreProvider = Provider<MenuImageStore>((ref) => MenuImageStore(ref.watch(databaseProvider), ref.watch(menuImageDirProvider), now: ref.watch(clockProvider)));
+final dealServiceProvider = Provider<DealService>((ref) => DealService(ref.watch(databaseProvider), ref.watch(menuServiceProvider)));
+final dealImporterProvider = Provider<DealImporter>((ref) => DealImporter(ref.watch(databaseProvider), ref.watch(dealServiceProvider)));
 final menuServiceProvider = Provider<MenuService>((ref) => MenuService(ref.watch(databaseProvider), now: ref.watch(clockProvider)));
 final menuImporterProvider = Provider<MenuImporter>((ref) => MenuImporter(ref.watch(databaseProvider), now: ref.watch(clockProvider)));
 final backupServiceProvider = Provider<BackupService>((ref) => BackupService(ref.watch(databaseProvider)));
