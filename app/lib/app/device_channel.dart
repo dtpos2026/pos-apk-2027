@@ -8,6 +8,21 @@ class PairedPrinter {
   final String address;
 }
 
+/// A USB device found on the phone. [id] is "vendor:product", which stays the same when the cable is replugged.
+class UsbPrinter {
+  const UsbPrinter(this.label, this.id, this.isPrinter);
+  final String label;
+  final String id;
+  final bool isPrinter;
+}
+
+/// How fast bytes are pushed to a printer: fast, normal or safe (small chunks, longer pauses for printers that lose data).
+class PrintSpeed {
+  static String value = 'normal';
+  static const settingKey = 'print.speed';
+  static const all = ['fast', 'normal', 'safe'];
+}
+
 class PhoneLocation {
   const PhoneLocation(this.lat, this.lng, this.accuracyM, this.at);
   final double lat;
@@ -58,12 +73,30 @@ class DeviceChannel {
     return [for (final m in list.cast<Map<Object?, Object?>>()) PairedPrinter('${m['name']}', '${m['address']}')];
   }
 
-  Future<void> bluetoothPrint(String address, Uint8List bytes) async {
+  /// Sends [bytes] to a paired Bluetooth printer. Returns how the link was made: spp, spp-insecure, spp-port1 or ble.
+  Future<String> bluetoothPrint(String address, Uint8List bytes) async {
     if (!await requestPermissions(bluetoothPermissions)) {
       throw PrinterException('Bluetooth permission was not given. Allow "Nearby devices" for DT Food POS in Android settings.');
     }
-    await _call<bool>('bluetoothPrint', {'address': address, 'bytes': bytes});
+    return await _call<String>('bluetoothPrint', {'address': address, 'bytes': bytes, 'speed': PrintSpeed.value}) ?? 'spp';
   }
+
+  /// What Android knows about a paired printer (type classic / le / dual, services), for the printer test screen.
+  Future<Map<String, Object?>> printerInfo(String address) async {
+    if (!await requestPermissions(bluetoothPermissions)) {
+      throw PrinterException('Bluetooth permission was not given. Allow "Nearby devices" for DT Food POS in Android settings.');
+    }
+    final m = await _call<Map<Object?, Object?>>('printerInfo', {'address': address});
+    return {for (final e in (m ?? const {}).entries) '${e.key}': e.value};
+  }
+
+  /// USB devices plugged into the phone (through an OTG cable).
+  Future<List<UsbPrinter>> usbDevices() async {
+    final list = await _call<List<Object?>>('usbDevices') ?? const [];
+    return [for (final m in list.cast<Map<Object?, Object?>>()) UsbPrinter('${m['label']}', '${m['id']}', m['printer'] == true)];
+  }
+
+  Future<String> usbPrint(String id, Uint8List bytes) async => await _call<String>('usbPrint', {'name': id, 'bytes': bytes, 'speed': PrintSpeed.value}) ?? 'usb';
 
   /// Saves a file where the person can find it (Downloads/DT Food POS, or Pictures/DT Food POS when [gallery] so it shows in the
   /// gallery). Returns the place it was saved. Throws [PrinterException] with a plain sentence on failure.
@@ -136,16 +169,38 @@ class SystemBluetoothScanner implements BluetoothPrinterScanner {
 }
 
 /// Classic Bluetooth (SPP) ESC/POS printer addressed by MAC. Jobs go one at a time.
-/// Compiled and wired; not yet tried on a real printer.
-class BluetoothPrinterTransport implements PrinterTransport {
+/// Tries classic Bluetooth three ways, then Low Energy. The printer test screen shows which one worked.
+class BluetoothPrinterTransport implements PrinterTransport, RoutedTransport {
   BluetoothPrinterTransport(this.mac);
   final String mac;
   static Future<void> _chain = Future.value();
+  @override
+  String? route;
 
   @override
   Future<void> send(Uint8List bytes) {
-    final job = _chain.then((_) => const DeviceChannel().bluetoothPrint(mac, bytes));
-    _chain = job.catchError((_) {});
+    final job = _chain.then((_) async {
+      route = await const DeviceChannel().bluetoothPrint(mac, bytes);
+    });
+    _chain = job.then((_) {}, onError: (_) {});
+    return job;
+  }
+}
+
+/// A printer on the phone's USB port (OTG cable), addressed by "vendor:product".
+class UsbPrinterTransport implements PrinterTransport, RoutedTransport {
+  UsbPrinterTransport(this.id);
+  final String id;
+  static Future<void> _chain = Future.value();
+  @override
+  String? route;
+
+  @override
+  Future<void> send(Uint8List bytes) {
+    final job = _chain.then((_) async {
+      route = await const DeviceChannel().usbPrint(id, bytes);
+    });
+    _chain = job.then((_) {}, onError: (_) {});
     return job;
   }
 }
@@ -155,6 +210,10 @@ PrinterTransport appTransport(String connection, String? address) {
   if (connection == 'bluetooth') {
     if (address == null || address.isEmpty) throw PrinterException('Choose the Bluetooth printer again in Settings');
     return BluetoothPrinterTransport(address);
+  }
+  if (connection == 'usb') {
+    if (address == null || address.isEmpty) throw PrinterException('Choose the USB printer again in Settings');
+    return UsbPrinterTransport(address);
   }
   return defaultTransport(connection, address);
 }

@@ -12,7 +12,8 @@ import '../tokens/token_ui.dart';
 import '../tokens/tokens_settings_screen.dart';
 
 import '../../app/business_mode.dart';
-import '../../app/device_channel.dart' show PairedPrinter;
+import '../../app/device_channel.dart' show DeviceChannel, PairedPrinter;
+import 'printer_diagnostics_screen.dart';
 import '../../app/feedback.dart';
 import '../cloud/notices.dart' show noticeClearedProvider;
 import '../../app/providers.dart';
@@ -155,12 +156,20 @@ class SettingsScreen extends ConsumerWidget {
             leading: const Icon(Icons.print_outlined),
             title: Text('${p['name']}'),
             subtitle: Text('${p['connection']} · ${p['address']} · ${p['paper_mm']} mm · ${p['role']}${p['station'] == null ? '' : ' · ${p['station']}'}'),
-            trailing: IconButton(
-              key: ValueKey('printer-test-${p['name']}'),
-              tooltip: t['print_test'],
-              icon: const Icon(Icons.receipt_long_outlined),
-              onPressed: () => testPrinter(context, ref, p),
-            ),
+            trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+              IconButton(
+                key: ValueKey('printer-help-${p['name']}'),
+                tooltip: t['printer_help'],
+                icon: const Icon(Icons.build_circle_outlined),
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => PrinterDiagnosticsScreen(initial: '${p['id']}'))),
+              ),
+              IconButton(
+                key: ValueKey('printer-test-${p['name']}'),
+                tooltip: t['print_test'],
+                icon: const Icon(Icons.receipt_long_outlined),
+                onPressed: () => testPrinter(context, ref, p),
+              ),
+            ]),
           ),
         Align(alignment: AlignmentDirectional.centerStart, child: TextButton.icon(key: const ValueKey('add-printer'), onPressed: () => _addPrinter(context, ref), icon: const Icon(Icons.add), label: Text(t['add_printer']))),
       ]),
@@ -326,7 +335,7 @@ class SettingsScreen extends ConsumerWidget {
                 SegmentedButton<String>(
                   key: const ValueKey('printer-connection'),
                   showSelectedIcon: false,
-                  segments: [ButtonSegment(value: 'lan', icon: const Icon(Icons.wifi), label: Text(t['printer_lan'])), ButtonSegment(value: 'bluetooth', icon: const Icon(Icons.bluetooth), label: Text(t['printer_bluetooth']))],
+                  segments: [ButtonSegment(value: 'lan', icon: const Icon(Icons.wifi), label: Text(t['printer_lan'])), ButtonSegment(value: 'bluetooth', icon: const Icon(Icons.bluetooth), label: Text(t['printer_bluetooth'])), ButtonSegment(value: 'usb', icon: const Icon(Icons.usb), label: Text(t['printer_usb']))],
                   selected: {connection},
                   onSelectionChanged: (s) => setState(() => connection = s.first),
                 ),
@@ -334,7 +343,33 @@ class SettingsScreen extends ConsumerWidget {
               ],
               if (connection == 'lan')
                 TextField(key: const ValueKey('printer-address'), controller: addr, decoration: InputDecoration(labelText: t['printer_address'], hintText: '192.168.1.50:9100'))
-              else ...[
+              else if (connection == 'usb') ...[
+                OutlinedButton.icon(
+                  key: const ValueKey('printer-choose-usb'),
+                  icon: const Icon(Icons.usb),
+                  label: Text(bt == null ? t['choose_usb'] : '${bt!.name} (${bt!.address})'),
+                  onPressed: () async {
+                    try {
+                      final list = await const DeviceChannel().usbDevices();
+                      if (!ctx.mounted) return;
+                      if (list.isEmpty) {
+                        setState(() => btError = t['no_usb']);
+                        return;
+                      }
+                      final pick = await showDialog<PairedPrinter>(
+                        context: ctx,
+                        builder: (c2) => SimpleDialog(title: Text(t['choose_usb']), children: [
+                          for (final u in list) SimpleDialogOption(onPressed: () => Navigator.pop(c2, PairedPrinter(u.label, u.id)), child: Text('${u.label}\n${u.id}${u.isPrinter ? '' : ' (not a printer?)'}')),
+                        ]),
+                      );
+                      if (pick != null) setState(() { bt = pick; btError = null; });
+                    } catch (e) {
+                      setState(() => btError = '$e');
+                    }
+                  },
+                ),
+                if (btError != null) Padding(padding: const EdgeInsets.only(top: 6), child: Text(btError!, style: TextStyle(color: Theme.of(ctx).colorScheme.error))),
+              ] else ...[
                 OutlinedButton.icon(
                   key: const ValueKey('printer-choose-bt'),
                   icon: const Icon(Icons.bluetooth_searching),

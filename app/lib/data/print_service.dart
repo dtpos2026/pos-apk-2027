@@ -23,9 +23,14 @@ class PrinterException implements Exception {
 }
 
 /// One way of getting bytes to a printer. LAN (raw TCP 9100) is implemented and tested.
-/// Bluetooth classic (SPP), BLE and USB need native plugins and a real printer, and are NOT implemented yet.
+/// Bluetooth (classic and Low Energy) and USB are in device_channel.dart and are tried with the printer test screen.
 abstract class PrinterTransport {
   Future<void> send(Uint8List bytes);
+}
+
+/// A transport that can say how the last send reached the printer (Bluetooth classic / Low Energy / USB). For the printer test screen.
+abstract interface class RoutedTransport {
+  String? get route;
 }
 
 class TcpPrinterTransport implements PrinterTransport {

@@ -19,6 +19,7 @@ import 'cloud/firebase_gateway.dart';
 import 'cloud/location_consent.dart';
 import 'features/cloud/cloud_reporter.dart';
 import 'data/db/database.dart';
+import 'data/queries.dart' show getSetting;
 import 'data/receipt_settings.dart';
 import 'data/restore.dart';
 import 'features/splash/animated_splash_screen.dart';
@@ -34,6 +35,7 @@ Future<void> main() async {
   final restored = applyPendingRestore(dir, media: {'menu_images': menuImages, 'logo': logoDir});
   final db = AppDatabase(NativeDatabase(File(p.join(dir.path, dbFileName))));
   if (restored) await repointPictures(db, menuImages: menuImages, logo: logoDir);
+  PrintSpeed.value = await getSetting(db, PrintSpeed.settingKey) ?? 'normal';
   CloudGateway? cloud;
   String? cloudError;
   try {

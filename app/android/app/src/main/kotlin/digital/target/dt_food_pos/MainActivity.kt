@@ -54,6 +54,17 @@ class MainActivity : FlutterActivity() {
                     "requestPermissions" -> requestPermissions(perms(call), result)
                     "bluetoothPaired" -> bluetoothPaired(result)
                     "bluetoothPrint" -> bluetoothPrint(call, result)
+                    "printerInfo" -> {
+                        val address = call.argument<String>("address") ?: return@setMethodCallHandler result.error("args", "No printer address", null)
+                        offMain(result, "info") { printerLink.info(address) }
+                    }
+                    "usbDevices" -> offMain(result, "usb") { printerLink.usbDevices() }
+                    "usbPrint" -> {
+                        val name = call.argument<String>("name") ?: return@setMethodCallHandler result.error("args", "No USB printer", null)
+                        val bytes = call.argument<ByteArray>("bytes") ?: return@setMethodCallHandler result.error("args", "Nothing to print", null)
+                        val speed = call.argument<String>("speed") ?: "normal"
+                        offMain(result, "print") { printerLink.printUsb(name, bytes, speed) }
+                    }
                     "location" -> location(result)
                     "saveFile" -> saveFile(call, result)
                     "tone" -> result.success(tone(call.argument<String>("kind") ?: "success", call.argument<Boolean>("force") == true))
@@ -244,29 +255,27 @@ class MainActivity : FlutterActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !hasAll(listOf(Manifest.permission.BLUETOOTH_CONNECT))) {
             return result.error("permission", "Bluetooth permission is not given. Allow \"Nearby devices\" for DT Food POS.", null)
         }
-        val adapter = (getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter
-            ?: return result.error("unsupported", "This phone has no Bluetooth.", null)
-        if (!adapter.isEnabled) return result.error("off", "Bluetooth is off. Turn it on to print.", null)
+        val speed = call.argument<String>("speed") ?: "normal"
         io.execute {
             try {
-                val device = adapter.getRemoteDevice(address)
-                adapter.cancelDiscovery()
-                device.createRfcommSocketToServiceRecord(SPP).use { socket ->
-                    socket.connect()
-                    val out = socket.outputStream
-                    var i = 0
-                    while (i < bytes.size) {
-                        val n = minOf(1024, bytes.size - i)
-                        out.write(bytes, i, n)
-                        out.flush()
-                        i += n
-                        Thread.sleep(15) // small printers have small buffers
-                    }
-                    Thread.sleep(400) // let the printer drain before the link closes
-                }
-                main.post { result.success(true) }
+                val route = printerLink.printBluetooth(address, bytes, speed)
+                main.post { result.success(route) }
             } catch (e: Exception) {
-                main.post { result.error("print", "Bluetooth printer $address did not print (${e.message}). Is it on, paired and in range?", null) }
+                main.post { result.error("print", e.message ?: e.toString(), null) }
+            }
+        }
+    }
+
+    private val printerLink by lazy { PrinterLink(this) }
+
+    /** Runs [work] off the main thread and answers with its value, or with the error sentence. */
+    private fun <T> offMain(result: MethodChannel.Result, code: String, work: () -> T) {
+        io.execute {
+            try {
+                val v = work()
+                main.post { result.success(v) }
+            } catch (e: Exception) {
+                main.post { result.error(code, e.message ?: e.toString(), null) }
             }
         }
     }
