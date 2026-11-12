@@ -82,20 +82,32 @@ class PrinterLink(private val ctx: Context) {
                 "spp-port1" to { d.javaClass.getMethod("createRfcommSocket", Int::class.javaPrimitiveType).invoke(d, 1) as BluetoothSocket },
             )
             for ((route, make) in tries) {
+                // only a failed CONNECT moves on to the next way; once connected, a failure is reported as it is,
+                // so a half-sent slip is never sent a second time
+                var socket: BluetoothSocket? = null
                 try {
-                    val socket = make()
-                    try {
-                        socket.connect()
-                        sendStream(socket.outputStream, bytes, speed(speedName))
-                    } finally {
-                        try { socket.close() } catch (_: Exception) {}
-                    }
-                    return route
+                    socket = make()
+                    socket.connect()
                 } catch (e: Exception) {
                     failures.add("$route: ${e.message}")
+                    try { socket?.close() } catch (_: Exception) {}
                     Thread.sleep(300)
+                    continue
                 }
+                val s = socket!!
+                try {
+                    sendStream(s.outputStream, bytes, speed(speedName))
+                } catch (e: Exception) {
+                    throw Exception("Printer ${d.name ?: address} connected ($route) but the data did not go through (${e.message}). Try the Safe speed in the printer test.")
+                } finally {
+                    try { s.close() } catch (_: Exception) {}
+                }
+                return route
             }
+        }
+        // a classic-only printer cannot answer over Low Energy: say what failed without a 12-second wait
+        if (kind == BluetoothDevice.DEVICE_TYPE_CLASSIC) {
+            throw Exception("Printer ${d.name ?: address} (classic Bluetooth) did not connect. Tried ${failures.joinToString("; ")}. Is it switched on, not connected to another phone, and close by?")
         }
         // a printer that only speaks Low Energy, or one whose classic link refused every try
         try {

@@ -89,7 +89,14 @@ final textRasterizerProvider = Provider<TextRasterizer>((ref) => const FlutterTe
 /// How print jobs reach printers. main() supplies Bluetooth + LAN; the default (and tests) use LAN only.
 final printerTransportProvider = Provider<TransportFactory>((ref) => defaultTransport);
 final bluetoothScannerProvider = Provider<BluetoothPrinterScanner?>((ref) => null);
-final printServiceProvider = Provider<PrintService>((ref) => PrintService(ref.watch(databaseProvider), now: ref.watch(clockProvider), rasterizer: ref.watch(textRasterizerProvider), transport: ref.watch(printerTransportProvider)));
+final printServiceProvider = Provider<PrintService>((ref) {
+  final svc = PrintService(ref.watch(databaseProvider), now: ref.watch(clockProvider), rasterizer: ref.watch(textRasterizerProvider), transport: ref.watch(printerTransportProvider));
+  ref.onDispose(svc.dispose);
+  return svc;
+});
+
+/// Print jobs that failed, as they happen (shown on screen by the shell).
+final printFailuresProvider = StreamProvider<PrintFailure>((ref) => ref.watch(printServiceProvider).failures);
 
 /// Folder for the business logo file. Overridden in main() (and in tests).
 final logoDirProvider = Provider<Directory>((ref) => throw UnimplementedError('logoDirProvider must be overridden'));

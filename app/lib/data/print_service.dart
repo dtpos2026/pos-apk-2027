@@ -66,6 +66,13 @@ PrinterTransport defaultTransport(String connection, String? address) {
   throw PrinterException('Connection type "$connection" is not supported yet');
 }
 
+/// A job that could not be sent: which printer, and the reason in plain words.
+class PrintFailure {
+  const PrintFailure(this.printer, this.message);
+  final String printer;
+  final String message;
+}
+
 class PrintStats {
   const PrintStats({this.done = 0, this.failed = 0});
   final int done;
@@ -85,6 +92,11 @@ class PrintService {
   final TransportFactory _transport;
   final DateTime Function() _now;
   final int maxAttempts;
+  final _failures = StreamController<PrintFailure>.broadcast();
+
+  /// Every job that could not be sent, as it happens, so the app can say so on screen instead of failing silently.
+  Stream<PrintFailure> get failures => _failures.stream;
+  void dispose() => _failures.close();
 
   int get _ts => _now().millisecondsSinceEpoch;
 
@@ -308,11 +320,29 @@ class PrintService {
     return id;
   }
 
+  Future<PrintStats>? _current;
+
   /// Sends every queued/failed job that has attempts left. Jobs stuck in 'printing' (app died mid-print) are retried.
+  /// Runs one at a time: a second call waits for the first, so two quick prints never send the same job twice.
   Future<PrintStats> processQueue() async {
+    while (_current != null) {
+      try {
+        await _current;
+      } catch (_) {}
+    }
+    final run = _process();
+    _current = run;
+    try {
+      return await run;
+    } finally {
+      if (identical(_current, run)) _current = null;
+    }
+  }
+
+  Future<PrintStats> _process() async {
     await db.customStatement("UPDATE print_job SET status = 'queued' WHERE status = 'printing'");
     final jobs = await _select(
-        "SELECT j.*, p.connection AS connection, p.address AS address FROM print_job j JOIN printer p ON p.id = j.printer_id WHERE j.status IN ('queued','failed') AND j.attempts < ? ORDER BY j.created_at, j.rowid",
+        "SELECT j.*, p.connection AS connection, p.address AS address, p.name AS printer_name FROM print_job j JOIN printer p ON p.id = j.printer_id WHERE j.status IN ('queued','failed') AND j.attempts < ? ORDER BY j.created_at, j.rowid",
         [maxAttempts]);
     var done = 0, failed = 0;
     for (final j in jobs) {
@@ -324,6 +354,7 @@ class PrintService {
       } catch (e) {
         await db.customStatement("UPDATE print_job SET status = 'failed', last_error = ?, attempts = attempts + 1, updated_at = ? WHERE id = ?", ['$e', _ts, j['id']]);
         failed++;
+        if (!_failures.isClosed) _failures.add(PrintFailure('${j['printer_name'] ?? ''}', '$e'));
       }
     }
     return PrintStats(done: done, failed: failed);

@@ -46,6 +46,29 @@ Uint8List graphicsTest({int paperMm = 58, int heightPx = 120}) {
   return b.toBytes();
 }
 
+/// Says on screen when a print job fails (the reason, and a button to the printer test), instead of failing silently.
+class PrintFailureWatcher extends ConsumerWidget {
+  const PrintFailureWatcher({super.key});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.listen(printFailuresProvider, (_, next) {
+      final f = next.value;
+      if (f == null) return;
+      final t = Strings.of(context);
+      // replaces "sent to the printer queue" at once: the failure is what matters now
+      ScaffoldMessenger.of(context)
+        ..removeCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+        key: const ValueKey('print-failed'),
+        duration: const Duration(seconds: 10),
+        content: Text('${t['print_failed']} ${f.printer}: ${f.message}'),
+        action: SnackBarAction(label: t['pr_diag_title'], onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const PrinterDiagnosticsScreen()))),
+        ));
+    });
+    return const SizedBox.shrink();
+  }
+}
+
 class PrinterDiagnosticsScreen extends ConsumerStatefulWidget {
   const PrinterDiagnosticsScreen({super.key, this.initial});
   final String? initial;

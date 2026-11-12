@@ -58,6 +58,32 @@ void main() {
     await tapKey(t, 'diag-text');
     expect(find.textContaining('10.0.0.9:9100 is offline'), findsOneWidget);
   });
+
+  testWidgets('a print that fails is said on screen with the reason and a way to the printer test (never silent)', (t) async {
+    final db = newDb();
+    await seedBusiness(db);
+    await db.customStatement("INSERT INTO printer(id, name, connection, address, paper_mm, role, updated_at) VALUES ('p1','Counter','lan','10.0.0.9:9100',58,'both',1)");
+    await pumpApp(t, db: db, transport: (c, a) => _Recorder(const [], fail: 'Printer $a is offline'));
+    await signIn(t, 'Ali', '1234');
+    await openTab(t, 'settings', 'Settings');
+    await t.scrollUntilVisible(find.byKey(const ValueKey('printer-test-Counter')), 300, scrollable: verticalScroll);
+    await t.ensureVisible(find.byKey(const ValueKey('printer-test-Counter')));
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const ValueKey('printer-test-Counter')));
+    for (var i = 0; i < 40 && find.byKey(const ValueKey('print-failed')).evaluate().isEmpty; i++) {
+      await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 30)));
+      await t.pump();
+    }
+    expect(find.byKey(const ValueKey('print-failed')), findsOneWidget);
+    expect(find.textContaining('Counter: Printer 10.0.0.9:9100 is offline'), findsOneWidget);
+    await t.pump(const Duration(milliseconds: 600)); // the snackbar finishes sliding in
+    await t.tap(find.byType(SnackBarAction));
+    for (var i = 0; i < 40 && find.byKey(const ValueKey('diag-text')).evaluate().isEmpty; i++) {
+      await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 30)));
+      await t.pump();
+    }
+    expect(find.byKey(const ValueKey('diag-text')), findsOneWidget, reason: 'the snackbar button opens the printer test');
+  });
 }
 
 extension on Uint8List {
