@@ -53,7 +53,8 @@ class PrinterLink(private val ctx: Context) {
     private fun device(address: String): BluetoothDevice {
         val a = adapter ?: throw Exception("This phone has no Bluetooth.")
         if (!a.isEnabled) throw Exception("Bluetooth is off. Turn it on to print.")
-        a.cancelDiscovery()
+        // stopping a search needs the "scan" permission on Android 12+, which printing never asks for: skip it when not allowed
+        try { a.cancelDiscovery() } catch (e: SecurityException) {}
         return a.getRemoteDevice(address)
     }
 
