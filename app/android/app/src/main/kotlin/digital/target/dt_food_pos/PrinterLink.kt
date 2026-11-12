@@ -31,10 +31,21 @@ class PrinterLink(private val ctx: Context) {
     /** How fast bytes are pushed: small printers with small buffers drop data when it comes too fast. */
     class Speed(val chunk: Int, val delayMs: Long)
 
+    // normal stays under ~10 KB a second: the Bluetooth chip of printers like the PT-210 passes data on at 115200 baud (about 11 KB a second)
     private fun speed(name: String) = when (name) {
         "fast" -> Speed(1024, 10)
-        "safe" -> Speed(96, 50)
-        else -> Speed(384, 22)
+        "safe" -> Speed(128, 45)
+        else -> Speed(256, 25)
+    }
+
+    /**
+     * Waits until the printer has had time to take in everything before the link is closed. Its Bluetooth chip passes data on at about
+     * 11 KB a second, so closing right after the last write can throw away the end of a picture slip (the "original" design is one picture).
+     */
+    private fun drain(size: Int, started: Long) {
+        val needed = size * 1000L / 11000L
+        val left = needed - (System.currentTimeMillis() - started)
+        Thread.sleep(800 + left.coerceIn(0L, 25000L))
     }
 
     private val adapter get() = (ctx.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter
@@ -120,6 +131,7 @@ class PrinterLink(private val ctx: Context) {
     }
 
     private fun sendStream(out: java.io.OutputStream, bytes: ByteArray, sp: Speed) {
+        val started = System.currentTimeMillis()
         Thread.sleep(150) // let the printer finish waking up after the link opens
         out.write(byteArrayOf(0x1B, 0x40)) // ESC @: start from a clean state
         out.flush()
@@ -132,7 +144,7 @@ class PrinterLink(private val ctx: Context) {
             i += n
             Thread.sleep(sp.delayMs)
         }
-        Thread.sleep(600 + (bytes.size / 200).toLong().coerceAtMost(3000)) // let the printer drain before the link closes
+        drain(bytes.size, started)
     }
 
     // ---------- Bluetooth Low Energy ----------
@@ -140,6 +152,7 @@ class PrinterLink(private val ctx: Context) {
     @Suppress("DEPRECATION")
     private fun printBle(d: BluetoothDevice, bytes: ByteArray, speedName: String) {
         val sp = speed(speedName)
+        val started = System.currentTimeMillis()
         val ready = CountDownLatch(1)
         val written = arrayOfNulls<CountDownLatch>(1)
         var problem: String? = null
@@ -196,7 +209,7 @@ class PrinterLink(private val ctx: Context) {
                 i += part.size
                 Thread.sleep(sp.delayMs)
             }
-            Thread.sleep(600)
+            drain(bytes.size, started)
         } finally {
             try { gatt.disconnect() } catch (_: Exception) {}
             try { gatt.close() } catch (_: Exception) {}
