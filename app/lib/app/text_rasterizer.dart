@@ -21,7 +21,7 @@ class FlutterTextRasterizer implements TextRasterizer, DocumentRasterizer {
         fontSize: baseSize * scale,
         fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
         color: const Color(0xFF000000),
-        height: 1.35,
+        height: 1.2,
       );
 
   TextDirection _dir(String s) => RegExp(r'[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]').hasMatch(s) ? TextDirection.rtl : TextDirection.ltr;
@@ -52,7 +52,7 @@ class FlutterTextRasterizer implements TextRasterizer, DocumentRasterizer {
 
   TextPainter _tp(String text, double size, {bool bold = false, TextAlign align = TextAlign.left, double? width, Color color = const Color(0xFF000000), bool italic = false}) {
     final p = TextPainter(
-      text: TextSpan(text: text, style: TextStyle(fontFamily: 'Inter', fontFamilyFallback: const ['NotoNaskhArabic'], fontSize: size, fontWeight: bold ? FontWeight.w800 : FontWeight.w600, fontStyle: italic ? FontStyle.italic : FontStyle.normal, color: color, height: 1.3)),
+      text: TextSpan(text: text, style: TextStyle(fontFamily: 'Inter', fontFamilyFallback: const ['NotoNaskhArabic'], fontSize: size, fontWeight: bold ? FontWeight.w800 : FontWeight.w600, fontStyle: italic ? FontStyle.italic : FontStyle.normal, color: color, height: 1.15)),
       textDirection: _dir(text),
       textAlign: align,
     );

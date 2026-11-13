@@ -135,6 +135,16 @@ void main() {
     expect(await rows("SELECT id FROM audit_log WHERE event='bill.reprint'"), hasLength(1));
   });
 
+  test('KOT is never lost: with only station printers, items without a station still print (on the counter printer)', () async {
+    await addPrinter('counter-p', 'both', station: 'Counter');
+    final ids = await print_.queueKot(await sale());
+    expect(ids, hasLength(1), reason: 'a single printer that was given a counter name still gets the kitchen ticket');
+    expect((await print_.processQueue()).done, 1);
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    expect(lan.text, contains('Zinger Burger'));
+    expect(lan.text, contains('Cola'));
+  });
+
   test('KOT routing: each station printer gets only its own items; no prices', () async {
     final grill = FakePrinter(), bar = FakePrinter();
     await grill.start();

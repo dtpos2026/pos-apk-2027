@@ -15,6 +15,7 @@ import '../../data/report_service.dart';
 import '../../data/queries.dart';
 import '../../domain/money.dart';
 import '../../domain/report_pdf.dart';
+import '../../domain/report_slip.dart';
 import '../common/dialogs.dart';
 import 'day_close_screen.dart';
 
@@ -119,6 +120,34 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
     if (mounted) showMessage(context, Strings.of(context)['exported']);
   }
 
+  /// The whole report on one short 58/80 mm slip, on the bill printers.
+  Future<void> _printSlip(_RangeData d) async {
+    final t = Strings.of(context);
+    final business = await loadBusiness(ref.read(databaseProvider));
+    final single = _key(_from) == _key(_to);
+    final day = single ? await ref.read(posServiceProvider).salesReport(_key(_from)) : null;
+    final data = ReportPdfData(
+      businessName: business?.name ?? '',
+      from: _key(_from),
+      to: _key(_to),
+      currency: business?.currency ?? Currency.pkr,
+      salesMinor: d.totals.sales,
+      refundsMinor: d.totals.refunds,
+      taxMinor: d.totals.tax,
+      expensesMinor: d.totals.expenses,
+      bills: day?.bills,
+      byMethod: day?.byMethod ?? const {},
+      items: d.items,
+      categories: d.categories,
+      cashiers: d.cashiers,
+      generatedAt: ref.read(clockProvider)(),
+    );
+    final print = ref.read(printServiceProvider);
+    final jobs = await print.queueDocument('report', (_) => buildReportSlip(data, profit: d.profit, accounts: d.accounts, moneyOut: d.moneyOut));
+    if (jobs.isNotEmpty) print.processQueue();
+    if (mounted) showMessage(context, jobs.isEmpty ? t['no_printer'] : t['print_queued']);
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = Strings.of(context);
@@ -137,6 +166,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
             _from = _from.add(const Duration(days: 1));
             _to = _from;
           }) : null, icon: const Icon(Icons.chevron_right)),
+          IconButton(key: const ValueKey('print-report'), tooltip: t['print'], onPressed: range.value == null ? null : () => _printSlip(range.value!), icon: const Icon(Icons.print_outlined)),
           IconButton(key: const ValueKey('export-pdf'), tooltip: t['export_pdf'], onPressed: range.value == null ? null : () => _exportPdf(range.value!), icon: const Icon(Icons.picture_as_pdf_outlined)),
         ]),
       ),

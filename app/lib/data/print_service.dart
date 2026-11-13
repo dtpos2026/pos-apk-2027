@@ -198,10 +198,15 @@ class PrintService {
     } else if (o['waiter_id'] != null) {
       waiterName = (await _select('SELECT name FROM staff WHERE id = ?', [o['waiter_id'] as String])).firstOrNull?['name'] as String?;
     }
+    // items no station printer takes go to the printers without a station; when every printer has a station (a single counter
+    // printer given a name, say), they go to the counter printer (bill + KOT) instead of being lost. A kitchen-only station
+    // printer (a tandoor, say) never gets other counters' items.
+    final hasGeneral = printers.any((p) => ((p['station'] as String?) ?? '').isEmpty);
+    final fallbackId = hasGeneral ? null : printers.where((p) => p['role'] == 'both').firstOrNull?['id'];
     for (final p in printers) {
       final station = (p['station'] as String?) ?? '';
-      final lines = byStation[station];
-      if (lines == null || lines.isEmpty) continue;
+      final lines = [...?byStation[station], if (station.isNotEmpty && p['id'] == fallbackId) ...?byStation['']];
+      if (lines.isEmpty) continue;
       final kotLines = <KotLine>[];
       for (final i in lines) {
         final mods = await _select('SELECT name FROM order_item_modifier WHERE order_item_id = ?', [i['id'] as String]);
