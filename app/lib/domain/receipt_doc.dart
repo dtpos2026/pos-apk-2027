@@ -84,13 +84,16 @@ class RText extends RLine {
 
 /// "left ......... right" on one line.
 class RRow extends RLine {
-  const RRow(this.left, this.right, {this.bold = false, this.height = 1, this.box = false, this.inverse = false});
+  const RRow(this.left, this.right, {this.bold = false, this.height = 1, this.box = false, this.inverse = false, this.leader = false});
   final String left;
   final String right;
   final bool bold;
   final int height;
   final bool box;
   final bool inverse;
+
+  /// Dots from the label to the value ("Total ........ 900"), in picture designs.
+  final bool leader;
 }
 
 /// A table row: the first cell takes what the others leave and wraps; the others are right-aligned and never wrap.
@@ -106,9 +109,41 @@ class RCols extends RLine {
 /// Boxed cells with a small heading over a bold value ("TYPE / TAKEAWAY", "TOKEN / #004"), as on the original DT slips. Two cells are
 /// stacked, three or more sit side by side. Text printers draw them as a boxed table.
 class RCells extends RLine {
-  const RCells(this.heads, this.values);
+  const RCells(this.heads, this.values, {this.dashed = false, this.across = false});
   final List<String> heads;
   final List<String> values;
+
+  /// Dashed frame instead of a solid one (picture designs).
+  final bool dashed;
+
+  /// Side by side even when there are only two cells.
+  final bool across;
+}
+
+/// A divider for picture designs: 'diamond' (line, a diamond, line), 'double' (two lines) or 'zigzag' (a torn paper edge).
+/// Printer text gets a plain rule.
+class RDivider extends RLine {
+  const RDivider(this.kind);
+  final String kind;
+}
+
+/// Label | value rows in a bordered table (picture designs). Printer text gets boxed rows.
+class RKeyGrid extends RLine {
+  const RKeyGrid(this.rows);
+  final List<(String, String)> rows;
+}
+
+/// The items as a bordered table: a black header row, then per item its text lines and the amount.
+class RItemGrid extends RLine {
+  const RItemGrid(this.head, this.rows);
+  final (String, String) head;
+  final List<(List<String>, String)> rows;
+}
+
+/// A rubber-stamp word ("PAID") in a rounded frame, slightly tilted (picture designs).
+class RStamp extends RLine {
+  const RStamp(this.text);
+  final String text;
 }
 
 class RRule extends RLine {
@@ -300,6 +335,31 @@ class EscPosRenderer {
           b.line(line);
         }
         b.bold(false).line(_rule('+', b.columns));
+      case RDivider():
+        b.align(PrintAlign.left).line(_rule(l.kind == 'double' ? '=' : '-', b.columns));
+      case RKeyGrid():
+        b.align(PrintAlign.left);
+        for (final r in l.rows) {
+          for (final line in layoutRow(r.$1, r.$2, b.columns)) {
+            b.line(line);
+          }
+        }
+      case RItemGrid():
+        b.align(PrintAlign.left).bold(true);
+        for (final line in layoutRow(l.head.$1, l.head.$2, b.columns)) {
+          b.line(line);
+        }
+        b.bold(false).line(_rule('-', b.columns));
+        for (final r in l.rows) {
+          for (final line in layoutRow(r.$1.isEmpty ? '' : r.$1.first, r.$2, b.columns)) {
+            b.line(line);
+          }
+          for (final extra in r.$1.skip(1)) {
+            b.line('  $extra');
+          }
+        }
+      case RStamp():
+        b.align(PrintAlign.center).bold(true).line('[ ${l.text} ]').bold(false).align(PrintAlign.left);
       case RRule():
         b.align(PrintAlign.left).line(_rule(l.ch, b.columns));
       case RImage():
@@ -358,6 +418,29 @@ String docToText(ReceiptDoc doc, int paperMm) {
           out.writeln(line);
         }
         out.writeln(_rule('+', cols));
+      case RDivider():
+        out.writeln(_rule(l.kind == 'double' ? '=' : '-', cols));
+      case RKeyGrid():
+        for (final r in l.rows) {
+          for (final line in layoutRow(r.$1, r.$2, cols)) {
+            out.writeln(line);
+          }
+        }
+      case RItemGrid():
+        for (final line in layoutRow(l.head.$1, l.head.$2, cols)) {
+          out.writeln(line);
+        }
+        out.writeln(_rule('-', cols));
+        for (final r in l.rows) {
+          for (final line in layoutRow(r.$1.isEmpty ? '' : r.$1.first, r.$2, cols)) {
+            out.writeln(line);
+          }
+          for (final extra in r.$1.skip(1)) {
+            out.writeln('  $extra');
+          }
+        }
+      case RStamp():
+        out.writeln(align('[ ${l.text} ]', PrintAlign.center, cols));
       case RRule():
         out.writeln(_rule(l.ch, cols));
       case RImage():

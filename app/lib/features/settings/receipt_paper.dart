@@ -120,6 +120,15 @@ class ReceiptPaper extends StatelessWidget {
           for (final line in [ruleText('+', cols), ...layoutCols(l.heads, [for (var i = 1; i < l.heads.length; i++) 9], cols, box: true), ...layoutCols(l.values, [for (var i = 1; i < l.heads.length; i++) 9], cols, box: true), ruleText('+', cols)])
             SizedBox(width: textWidth, child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(line, softWrap: false))),
         ]);
+      case RDivider():
+        return SizedBox(width: textWidth, child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(ruleText(l.kind == 'double' ? '=' : '-', cols), softWrap: false, style: const TextStyle(color: Colors.black45))));
+      case RKeyGrid() || RItemGrid() || RStamp():
+        // drawn exactly only in picture designs (shown there as the printed picture); text printers get plain rows
+        final text = docToText(ReceiptDoc([l]), paperMm).trimRight();
+        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          for (final line in text.split('\n'))
+            SizedBox(width: textWidth, child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(line, softWrap: false))),
+        ]);
       case RRule():
         return SizedBox(width: textWidth, child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(ruleText(l.ch, cols), softWrap: false, style: const TextStyle(color: Colors.black45))));
       case RImage():

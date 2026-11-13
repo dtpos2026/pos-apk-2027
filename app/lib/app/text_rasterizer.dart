@@ -121,6 +121,7 @@ class FlutterTextRasterizer implements TextRasterizer, DocumentRasterizer {
           final lp = _tp(l.left, size, bold: l.bold || l.inverse, width: null);
           final maxLeft = (inner - r.width - 14).clamp(40.0, inner);
           final left = _tp(l.left, size, bold: l.bold || l.inverse, align: TextAlign.left, width: maxLeft);
+          final lw0 = lp.width;
           lp.dispose();
           final h = (left.height > r.height ? left.height : r.height);
           if (l.inverse) {
@@ -132,9 +133,18 @@ class FlutterTextRasterizer implements TextRasterizer, DocumentRasterizer {
               rw.paint(c, Offset(_pad + inner - rw.width - 10, y + 8));
             }));
           } else {
+            final leftEnd = (lw0 < maxLeft ? lw0 : maxLeft);
             items.add((h: h + 2, draw: (c, y) {
               left.paint(c, Offset(_pad, y + 1));
               r.paint(c, Offset(_pad + inner - r.width, y + 1));
+              if (l.leader) {
+                // dots from the label to the value, on the text's last line
+                final dot = Paint()..color = const Color(0xFF000000);
+                final yy = y + h - 7;
+                for (var x = _pad + leftEnd + 6; x < _pad + inner - r.width - 6; x += 6) {
+                  c.drawRect(Rect.fromLTWH(x, yy, 2, 2), dot);
+                }
+              }
             }));
           }
         case RCols():
@@ -154,7 +164,7 @@ class FlutterTextRasterizer implements TextRasterizer, DocumentRasterizer {
           }));
         case RCells():
           final n = l.heads.length;
-          final stacked = n <= 2;
+          final stacked = n <= 2 && !l.across;
           final cw = stacked ? inner : inner / n;
           final cells = [
             for (var i = 0; i < n; i++) (head: _tp(l.heads[i], base * 0.78, align: TextAlign.center, width: cw - 8), value: _tp(i < l.values.length ? l.values[i] : '', base * (stacked ? 1.2 : 1.05), bold: true, align: TextAlign.center, width: cw - 8)),
@@ -163,13 +173,96 @@ class FlutterTextRasterizer implements TextRasterizer, DocumentRasterizer {
           final total = stacked ? ch * n : ch;
           items.add((h: total + 8, draw: (c, y) {
             final stroke = Paint()..style = PaintingStyle.stroke..strokeWidth = 2.5..color = const Color(0xFF000000);
-            c.drawRect(Rect.fromLTWH(_pad, y + 3, inner, total), stroke);
+            void line(Offset a, Offset b) => l.dashed ? _dash(c, a, b, stroke) : c.drawLine(a, b, stroke);
+            final box = Rect.fromLTWH(_pad, y + 3, inner, total);
+            line(box.topLeft, box.topRight);
+            line(box.bottomLeft, box.bottomRight);
+            line(box.topLeft, box.bottomLeft);
+            line(box.topRight, box.bottomRight);
             for (var i = 0; i < n; i++) {
               final x = stacked ? _pad : _pad + cw * i, yy = stacked ? y + 3 + ch * i : y + 3;
-              if (i > 0) c.drawLine(stacked ? Offset(_pad, yy) : Offset(x, yy), stacked ? Offset(_pad + inner, yy) : Offset(x, yy + ch), stroke);
+              if (i > 0) line(stacked ? Offset(_pad, yy) : Offset(x, yy), stacked ? Offset(_pad + inner, yy) : Offset(x, yy + ch));
               cells[i].head.paint(c, Offset(x + 4, yy + 4));
               cells[i].value.paint(c, Offset(x + 4, yy + 6 + cells[i].head.height));
             }
+          }));
+        case RDivider():
+          final ink = Paint()..color = const Color(0xFF000000)..strokeWidth = 2;
+          switch (l.kind) {
+            case 'diamond':
+              items.add((h: 22, draw: (c, y) {
+                final mid = y + 11, cx = _pad + inner / 2;
+                c.drawLine(Offset(_pad, mid), Offset(cx - 16, mid), ink);
+                c.drawLine(Offset(cx + 16, mid), Offset(_pad + inner, mid), ink);
+                c.drawPath(Path()..moveTo(cx, mid - 8)..lineTo(cx + 8, mid)..lineTo(cx, mid + 8)..lineTo(cx - 8, mid)..close(), Paint()..color = const Color(0xFF000000));
+              }));
+            case 'zigzag':
+              items.add((h: 16, draw: (c, y) {
+                final path = Path()..moveTo(_pad, y + 14);
+                for (var x = _pad; x < _pad + inner; x += 16) {
+                  path
+                    ..lineTo(x + 8, y + 2)
+                    ..lineTo((x + 16).clamp(0, _pad + inner).toDouble(), y + 14);
+                }
+                path.close();
+                c.drawPath(path, Paint()..color = const Color(0xFF000000));
+              }));
+            default: // double
+              items.add((h: 14, draw: (c, y) {
+                c.drawLine(Offset(_pad, y + 5), Offset(_pad + inner, y + 5), ink);
+                c.drawLine(Offset(_pad, y + 10), Offset(_pad + inner, y + 10), ink);
+              }));
+          }
+        case RKeyGrid():
+          final colW = inner * 0.38;
+          final rows = [for (final r in l.rows) (k: _tp(r.$1, base * 0.95, bold: true, width: colW - 12), v: _tp(r.$2, base * 0.95, width: inner - colW - 12))];
+          final heights = [for (final r in rows) (r.k.height > r.v.height ? r.k.height : r.v.height) + 12];
+          final total = heights.fold<double>(0, (a, b) => a + b);
+          items.add((h: total + 6, draw: (c, y) {
+            final stroke = Paint()..style = PaintingStyle.stroke..strokeWidth = 2..color = const Color(0xFF000000);
+            c.drawRect(Rect.fromLTWH(_pad, y + 3, inner, total), stroke);
+            c.drawLine(Offset(_pad + colW, y + 3), Offset(_pad + colW, y + 3 + total), stroke);
+            var yy = y + 3;
+            for (var i = 0; i < rows.length; i++) {
+              if (i > 0) c.drawLine(Offset(_pad, yy), Offset(_pad + inner, yy), stroke);
+              rows[i].k.paint(c, Offset(_pad + 6, yy + 6));
+              rows[i].v.paint(c, Offset(_pad + colW + 6, yy + 6));
+              yy += heights[i];
+            }
+          }));
+        case RItemGrid():
+          final amtW = inner * 0.26;
+          final hl = _tp(l.head.$1, base, bold: true, width: inner - amtW - 12, color: const Color(0xFFFFFFFF));
+          final hr = _tp(l.head.$2, base, bold: true, color: const Color(0xFFFFFFFF));
+          final headH = (hl.height > hr.height ? hl.height : hr.height) + 10;
+          final rows = [for (final r in l.rows) (t: _tp(r.$1.join('\n'), base, width: inner - amtW - 12), a: _tp(r.$2, base, bold: true))];
+          final heights = [for (final r in rows) (r.t.height > r.a.height ? r.t.height : r.a.height) + 12];
+          final total = headH + heights.fold<double>(0, (a, b) => a + b);
+          items.add((h: total + 6, draw: (c, y) {
+            final stroke = Paint()..style = PaintingStyle.stroke..strokeWidth = 2..color = const Color(0xFF000000);
+            c.drawRect(Rect.fromLTWH(_pad, y + 3, inner, headH), black);
+            hl.paint(c, Offset(_pad + 6, y + 8));
+            hr.paint(c, Offset(_pad + inner - hr.width - 6, y + 8));
+            c.drawRect(Rect.fromLTWH(_pad, y + 3, inner, total), stroke);
+            c.drawLine(Offset(_pad + inner - amtW, y + 3 + headH), Offset(_pad + inner - amtW, y + 3 + total), stroke);
+            var yy = y + 3 + headH;
+            for (var i = 0; i < rows.length; i++) {
+              if (i > 0) c.drawLine(Offset(_pad, yy), Offset(_pad + inner, yy), stroke);
+              rows[i].t.paint(c, Offset(_pad + 6, yy + 6));
+              rows[i].a.paint(c, Offset(_pad + inner - rows[i].a.width - 6, yy + 6));
+              yy += heights[i];
+            }
+          }));
+        case RStamp():
+          final tp = _tp(l.text.split('').join(' '), base * 1.6, bold: true);
+          final bw = tp.width + 40, bh = tp.height + 18;
+          items.add((h: bh + 22, draw: (c, y) {
+            c.save();
+            c.translate(_pad + inner / 2, y + 11 + bh / 2);
+            c.rotate(-0.06);
+            c.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: Offset.zero, width: bw, height: bh), const Radius.circular(14)), Paint()..style = PaintingStyle.stroke..strokeWidth = 4..color = const Color(0xFF000000));
+            tp.paint(c, Offset(-tp.width / 2, -tp.height / 2));
+            c.restore();
           }));
         case RRule():
           final solid = l.ch == '=';
@@ -206,6 +299,16 @@ class FlutterTextRasterizer implements TextRasterizer, DocumentRasterizer {
         y += e.h;
       }
     });
+  }
+
+  static void _dash(Canvas c, Offset a, Offset b, Paint p) {
+    final d = b - a;
+    final len = d.distance;
+    if (len == 0) return;
+    final u = d / len;
+    for (var t = 0.0; t < len; t += 12) {
+      c.drawLine(a + u * t, a + u * (t + 7 > len ? len : t + 7), p);
+    }
   }
 
   Future<ui.Image> _decode(RasterImage img) {

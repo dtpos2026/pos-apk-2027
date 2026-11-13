@@ -113,6 +113,7 @@ ReceiptDoc buildBillDoc(ReceiptData d, {BillDesign template = BillDesign.default
   final body = L.rtl ? PrintAlign.right : PrintAlign.left;
   final style = t.style;
   if (style == 'original') return _originalBill(d, t, L);
+  if (_pictureStyles.contains(style)) return _pictureBill(d, t, L, style);
   final grid = style == 'grid';
   final RLine rule = switch (style) {
     'modern' => const RRule('- '),
@@ -341,6 +342,143 @@ ReceiptDoc _originalBill(ReceiptData d, BillDesign t, BillLabels L) {
   for (final l in t.footerLines.map((l) => l == BillDesign.defaultFooter ? L['thanks'] : l).where((l) => l.trim().isNotEmpty)) {
     lines.add(RText(l, align: PrintAlign.center));
   }
+  final qr = t.qrText ?? d.qrData;
+  if (qr != null && qr.isNotEmpty) lines.add(RQr(qr));
+  if (t.showPoweredBy) lines.add(const RText('Powered by Digital Target', align: PrintAlign.center));
+  return ReceiptDoc(lines, copies: t.copies, graphic: true);
+}
+
+const _pictureStyles = {'stamp', 'elegant', 'sheet', 'framed', 'mini'};
+
+/// The picture designs (printed as one image, like the original): Stamp, Elegant, Invoice sheet, Framed and Mini.
+ReceiptDoc _pictureBill(ReceiptData d, BillDesign t, BillLabels L, String style) {
+  final rtl = L.rtl;
+  final h = t.headerAlign;
+  final lines = <RLine>[];
+  String money(int v) => _m(v, d.currency);
+  String typeLabel(String code) => switch (code) { 'Dine-in' => L['dine_in'], 'Takeaway' => L['takeaway'], 'Delivery' => L['delivery_type'], 'Counter' => L['counter'], _ => code };
+  final elegant = style == 'elegant';
+  RLine row(String label, String value, {bool bold = false, int height = 1}) =>
+      rtl ? RRow(value, label, bold: bold, height: height, leader: elegant) : RRow(label, value, bold: bold, height: height, leader: elegant);
+  final cur = d.currency.code == 'PKR' ? 'Rs.' : d.currency.code;
+  final hasTable = t.showTable && d.tableLabel != null;
+  final showToken = t.showToken && d.token != null;
+  final body = rtl ? PrintAlign.right : PrintAlign.left;
+  final RLine rule = switch (style) { 'elegant' => const RDivider('diamond'), 'framed' => const RDivider('double'), 'sheet' => const RFeed(), _ => const RRule() };
+
+  // ---- header ----
+  if (style == 'stamp') lines.add(const RDivider('zigzag'));
+  if (d.isDuplicate) lines.add(RText(L['duplicate'], align: PrintAlign.center, bold: true));
+  if (t.showLogo && d.logo != null) lines.add(RImage(d.logo!, align: t.logoAt));
+  lines.add(RText(d.businessName, align: t.nameAt, bold: true, width: style == 'mini' ? 1 : t.nameSize, height: style == 'mini' ? 1 : t.nameSize));
+  for (final l in t.headerLines.where((l) => l.trim().isNotEmpty)) {
+    lines.add(RText(l, align: h));
+  }
+  if (t.showAddress && style != 'mini' && (d.address?.trim().isNotEmpty ?? false)) lines.add(RText(d.address!, align: h));
+  if (t.showPhone && (d.phone?.trim().isNotEmpty ?? false)) lines.add(RText(style == 'mini' ? d.phone! : '${L['tel']}: ${d.phone}', align: h));
+  if (t.showTaxNumber && (d.taxNumber?.trim().isNotEmpty ?? false)) lines.add(RText('${d.taxLabel ?? 'NTN'}: ${d.taxNumber}', align: h));
+
+  // ---- order details ----
+  final details = <(String, String)>[
+    (L['invoice'], d.invoiceNo),
+    (L['date'], d.dateTime),
+    (L['type'], typeLabel(d.orderTypeLabel)),
+    if (hasTable) (L['table'], d.tableLabel!),
+    if (showToken) (L['token'], d.token!),
+    if (t.showCashier && d.cashier != null) (L['cashier'], d.cashier!),
+  ];
+  switch (style) {
+    case 'stamp':
+      lines.add(const RFeed());
+      lines.add(RCells([L['invoice'].toUpperCase(), if (showToken) L['token'].toUpperCase()], [d.invoiceNo, if (showToken) d.token!], dashed: true, across: true));
+      for (final r in details.where((r) => r.$1 != L['invoice'])) {
+        lines.add(row(r.$1, r.$2));
+      }
+    case 'elegant':
+      lines.add(rule);
+      lines.add(RText((t.title.isEmpty ? 'INVOICE' : t.title).split('').join(' '), align: PrintAlign.center, bold: true));
+      lines.add(rule);
+      for (final r in details) {
+        lines.add(row(r.$1, r.$2));
+      }
+    case 'sheet':
+      lines.add(RText(t.title.isEmpty ? 'SALES INVOICE' : t.title, align: PrintAlign.center, bold: true, inverse: true));
+      lines.add(RKeyGrid(details));
+    case 'framed':
+      lines.add(rule);
+      lines.add(RText([typeLabel(d.orderTypeLabel).toUpperCase(), if (hasTable) d.tableLabel!, if (showToken) '${L['token']} #${d.token}'].join('\n'), align: PrintAlign.center, bold: true, box: true));
+      for (final r in details.where((r) => r.$1 != L['type'] && r.$1 != L['table'] && r.$1 != L['token'])) {
+        lines.add(row(r.$1, r.$2));
+      }
+    default: // mini
+      lines.add(rule);
+      lines.add(RText([d.invoiceNo, d.dateTime].join(' | '), align: body));
+      lines.add(RText([typeLabel(d.orderTypeLabel), if (hasTable) d.tableLabel!, if (showToken) 'Tkn ${d.token}', if (t.showCashier && d.cashier != null) d.cashier!].join(' | '), align: body));
+  }
+  if (d.deliveryTo.isNotEmpty) {
+    lines.add(const RRule());
+    for (final x in d.deliveryTo) {
+      lines.add(RText(x, align: body));
+    }
+  }
+
+  // ---- items ----
+  if (style == 'sheet') {
+    lines.add(RItemGrid(('Item', 'Amount'), [
+      for (var i = 0; i < d.lines.length; i++)
+        (['${i + 1}. ${d.lines[i].name}', '${formatQty(d.lines[i].qtyMilli)} × ${money(d.lines[i].unitPriceMinor)}', for (final m in d.lines[i].modifiers) '  - $m', if (d.lines[i].note != null) '  * ${d.lines[i].note}'], money(d.lines[i].totalMinor)),
+    ]));
+    if (t.showItemCount) lines.add(RRow('Items: ${d.lines.length}', 'Qty: ${formatQty(d.lines.fold<int>(0, (a, l) => a + l.qtyMilli))}'));
+  } else {
+    lines.add(rule);
+    for (final l in d.lines) {
+      final qty = formatQty(l.qtyMilli);
+      lines.add(row(rtl ? '${l.name} ×$qty' : (elegant ? '$qty × ${l.name}' : '$qty  ${l.name}'), money(l.totalMinor), bold: style == 'framed'));
+      for (final m in l.modifiers) {
+        lines.add(RText('    - $m', align: body));
+      }
+      if (l.note != null) lines.add(RText('    * ${l.note}', align: body));
+    }
+  }
+
+  // ---- totals ----
+  final totals = <(String, String)>[
+    (L['subtotal'], money(d.subtotalMinor)),
+    if (d.discountMinor > 0) (L['discount'], '-${money(d.discountMinor)}'),
+    if (d.serviceChargeMinor > 0) (L['service'], money(d.serviceChargeMinor)),
+    if (d.deliveryChargeMinor > 0) (L['delivery'], money(d.deliveryChargeMinor)),
+    if (d.taxMinor > 0) (L['tax'], money(d.taxMinor)),
+    if (d.tipMinor > 0) (L['tip'], money(d.tipMinor)),
+    if (d.roundingMinor != 0) (L['rounding'], money(d.roundingMinor)),
+  ];
+  lines.add(style == 'sheet' ? const RFeed() : rule);
+  if (style == 'sheet') {
+    lines.add(RKeyGrid(totals));
+  } else {
+    for (final r in totals) {
+      lines.add(row(r.$1, r.$2));
+    }
+  }
+  final totalWord = style == 'framed' ? 'GRAND ${L['total'].toUpperCase()}' : L['total'].toUpperCase(), totalValue = '$cur ${money(d.totalMinor)}';
+  if (style == 'framed') lines.add(rule);
+  lines.add(rtl ? RRow(totalValue, totalWord, bold: true, height: 2, inverse: style == 'sheet') : RRow(totalWord, totalValue, bold: true, height: 2, inverse: style == 'sheet'));
+  if (style == 'framed') lines.add(rule);
+  if (d.payments.isNotEmpty) {
+    for (final p in d.payments) {
+      final label = switch (p.label) { 'Cash' => L['cash'], 'Card' => L['card'], _ => p.label };
+      lines.add(row(L['payment'], label));
+      lines.add(row(L['paid'], money(p.amountMinor)));
+    }
+    if (d.changeMinor > 0) lines.add(row(L['change'], money(d.changeMinor)));
+  }
+  if (style == 'stamp' && d.payments.isNotEmpty) lines.add(const RStamp('PAID'));
+  // ---- footer ----
+  lines.add(rule);
+  if (t.language == 'en' && style != 'mini') lines.add(RText(_inWordsTitle(d.totalMinor, d.currency), align: PrintAlign.center));
+  for (final l in t.footerLines.map((l) => l == BillDesign.defaultFooter ? L['thanks'] : l).where((l) => l.trim().isNotEmpty)) {
+    lines.add(RText(l, align: PrintAlign.center));
+  }
+  lines.addAll(_dineInEnd(d, L, PrintAlign.center, showTable: t.showTable));
   final qr = t.qrText ?? d.qrData;
   if (qr != null && qr.isNotEmpty) lines.add(RQr(qr));
   if (t.showPoweredBy) lines.add(const RText('Powered by Digital Target', align: PrintAlign.center));
