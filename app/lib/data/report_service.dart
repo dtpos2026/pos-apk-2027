@@ -45,6 +45,14 @@ class AccountLine {
   int get netMinor => inMinor - refundsMinor - outMinor;
 }
 
+/// Bills and sales in one hour of the day (0-23), for the peak hours report.
+class HourLine {
+  const HourLine({required this.hour, required this.bills, required this.amountMinor});
+  final int hour;
+  final int bills;
+  final int amountMinor;
+}
+
 /// Sales breakdowns for a date range (inclusive, business dates 'YYYY-MM-DD'). Only paid bills count here;
 /// voided bills are excluded, and refunds are reported separately in the daily summary.
 class ReportService {
@@ -88,6 +96,17 @@ class ReportService {
     final out = [for (final e in byName.entries) ProfitLine(label: e.key, qtyMilli: e.value.$1, revenueMinor: e.value.$2, costMinor: e.value.$3?.round())];
     out.sort((a, b) => (b.profitMinor ?? b.revenueMinor).compareTo(a.profitMinor ?? a.revenueMinor));
     return out;
+  }
+
+  /// Paid bills per hour of the day (the hour the order was started, phone time), only hours that had bills, earliest first.
+  Future<List<HourLine>> hourWise(String from, String to) async {
+    final bills = <int, int>{}, amount = <int, int>{};
+    for (final r in await h.q("SELECT created_at, total_minor FROM \"order\" WHERE status IN ('paid','refunded') AND business_date BETWEEN ? AND ?", [from, to])) {
+      final hour = DateTime.fromMillisecondsSinceEpoch(r['created_at'] as int).hour;
+      bills[hour] = (bills[hour] ?? 0) + 1;
+      amount[hour] = (amount[hour] ?? 0) + (r['total_minor'] as int);
+    }
+    return [for (final hr in bills.keys.toList()..sort()) HourLine(hour: hr, bills: bills[hr]!, amountMinor: amount[hr]!)];
   }
 
   Future<List<ReportLine>> categoryWise(String from, String to) async => [

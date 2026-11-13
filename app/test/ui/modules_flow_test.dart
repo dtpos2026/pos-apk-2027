@@ -415,7 +415,8 @@ void main() {
   });
 
   testWidgets('inventory: add stock, buy, waste, count, low-stock filter and stock value', (t) async {
-    final h = await start(t);
+    final share = FakeShare();
+    final h = await start(t, share: share);
     await openTab(t, 'inventory', 'Inventory');
     await tapKey(t, 'add-stock');
     await form(t, {'name': 'Flour', 'open': '10', 'cost': '100', 'reorder': '5'});
@@ -453,6 +454,12 @@ void main() {
     await tapKey(t, 'low-filter');
     expect(find.byKey(const ValueKey('stock-Flour')), findsOneWidget);
     expect(await n(h, "SELECT COUNT(*) AS n FROM stock_movement WHERE reason = 'adjustment'"), 1);
+
+    // the low items as a purchase list for the supplier: 3 kg left, reorder level 5 -> buy 7 to be back at 10
+    await tapKey(t, 'purchase-list');
+    await tapKey(t, 'purchase-list-share');
+    expect(share.shared.single, contains('Purchase list'));
+    expect(share.shared.single, contains('Flour: buy 7 kg (left 3)'));
   });
 
   testWidgets('staff: the owner adds a cashier who can then sign in; a cashier never sees Staff', (t) async {

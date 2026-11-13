@@ -24,11 +24,12 @@ String _key(DateTime d) => '${d.year}-${two(d.month)}-${two(d.day)}';
 final reportProvider = FutureProvider.family<SalesReport, String>((ref, date) => ref.watch(posServiceProvider).salesReport(date));
 final _rangeProvider = FutureProvider.autoDispose.family<_RangeData, (String, String)>((ref, r) async {
   final s = ref.watch(reportServiceProvider);
-  return _RangeData(await s.itemWise(r.$1, r.$2), await s.categoryWise(r.$1, r.$2), await s.cashierWise(r.$1, r.$2), await s.totals(r.$1, r.$2), await s.profitWise(r.$1, r.$2), await s.accounts(r.$1, r.$2), await s.moneyOut(r.$1, r.$2));
+  return _RangeData(await s.itemWise(r.$1, r.$2), await s.categoryWise(r.$1, r.$2), await s.cashierWise(r.$1, r.$2), await s.totals(r.$1, r.$2), await s.profitWise(r.$1, r.$2), await s.accounts(r.$1, r.$2), await s.moneyOut(r.$1, r.$2), await s.hourWise(r.$1, r.$2));
 });
 
 class _RangeData {
-  const _RangeData(this.items, this.categories, this.cashiers, this.totals, this.profit, this.accounts, this.moneyOut);
+  const _RangeData(this.items, this.categories, this.cashiers, this.totals, this.profit, this.accounts, this.moneyOut, this.hours);
+  final List<HourLine> hours;
   final List<AccountLine> accounts;
   final List<MoneyOut> moneyOut;
   final List<ProfitLine> profit;
@@ -45,7 +46,7 @@ class ReportsScreen extends ConsumerStatefulWidget {
 }
 
 class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTickerProviderStateMixin {
-  late final TabController _tabs = TabController(length: 6, vsync: this);
+  late final TabController _tabs = TabController(length: 7, vsync: this);
   late DateTime _from = ref.read(clockProvider)();
   late DateTime _to = _from;
 
@@ -143,7 +144,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
       generatedAt: ref.read(clockProvider)(),
     );
     final print = ref.read(printServiceProvider);
-    final jobs = await print.queueDocument('report', (_) => buildReportSlip(data, profit: d.profit, accounts: d.accounts, moneyOut: d.moneyOut));
+    final jobs = await print.queueDocument('report', (_) => buildReportSlip(data, profit: d.profit, accounts: d.accounts, moneyOut: d.moneyOut, hours: d.hours));
     if (jobs.isNotEmpty) print.processQueue();
     if (mounted) showMessage(context, jobs.isEmpty ? t['no_printer'] : t['print_queued']);
   }
@@ -170,7 +171,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
           IconButton(key: const ValueKey('export-pdf'), tooltip: t['export_pdf'], onPressed: range.value == null ? null : () => _exportPdf(range.value!), icon: const Icon(Icons.picture_as_pdf_outlined)),
         ]),
       ),
-      TabBar(controller: _tabs, isScrollable: true, tabAlignment: TabAlignment.start, tabs: [Tab(text: t['summary']), Tab(text: t['items_report']), Tab(text: t['categories_report']), Tab(text: t['cashiers_report']), Tab(key: const ValueKey('tab-profit'), text: t['profit_report']), Tab(key: const ValueKey('tab-accounts'), text: t['accounts_report'])]),
+      TabBar(controller: _tabs, isScrollable: true, tabAlignment: TabAlignment.start, tabs: [Tab(text: t['summary']), Tab(text: t['items_report']), Tab(text: t['categories_report']), Tab(text: t['cashiers_report']), Tab(key: const ValueKey('tab-profit'), text: t['profit_report']), Tab(key: const ValueKey('tab-accounts'), text: t['accounts_report']), Tab(key: const ValueKey('tab-hours'), text: t['peak_hours'])]),
       Expanded(
         child: range.when(
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -182,6 +183,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
             _Breakdown(lines: d.cashiers, header: t['cashiers_report'], withQty: false, onExport: () => _export(d.cashiers, 'Cashier', 'cashiers', withQty: false)),
             _ProfitTab(lines: d.profit),
             _AccountsTab(accounts: d.accounts, out: d.moneyOut),
+            _HoursTab(lines: d.hours),
           ]),
         ),
       ),
@@ -375,6 +377,51 @@ class _AccountsTab extends ConsumerWidget {
             subtitle: Text([out[i].date, out[i].method, if ((out[i].detail ?? '').isNotEmpty) out[i].detail!].join('  ·  '), maxLines: 1, overflow: TextOverflow.ellipsis),
             trailing: Text(ref.money(out[i].amountMinor), style: TextStyle(fontWeight: FontWeight.w800, color: cs.error)),
           ),
+        ),
+    ]);
+  }
+}
+
+/// "1 PM" style label for an hour of the day.
+String hourLabel(int h) => '${h % 12 == 0 ? 12 : h % 12} ${h < 12 ? 'AM' : 'PM'}';
+
+/// Bills and sales per hour of the day, busiest hour marked: when to have more staff and stock ready.
+class _HoursTab extends ConsumerWidget {
+  const _HoursTab({required this.lines});
+  final List<HourLine> lines;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = Strings.of(context);
+    if (lines.isEmpty) return const Center(child: Text('-'));
+    final most = lines.fold<int>(0, (m, l) => l.bills > m ? l.bills : m);
+    final busiest = lines.firstWhere((l) => l.bills == most);
+    final scheme = Theme.of(context).colorScheme;
+    return ListView(padding: const EdgeInsets.fromLTRB(12, 8, 12, 24), children: [
+      Card(
+        key: const ValueKey('busiest-hour'),
+        color: scheme.primaryContainer,
+        child: ListTile(
+          leading: const Icon(Icons.local_fire_department_outlined),
+          title: Text('${t['busiest_hour']}: ${hourLabel(busiest.hour)} - ${hourLabel((busiest.hour + 1) % 24)}', style: const TextStyle(fontWeight: FontWeight.w800)),
+          subtitle: Text('${t['bills']}: ${busiest.bills}   ${ref.money(busiest.amountMinor)}'),
+        ),
+      ),
+      for (final l in lines)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(children: [
+            SizedBox(width: 64, child: Text(hourLabel(l.hour), style: const TextStyle(fontWeight: FontWeight.w600))),
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(value: l.bills / most, minHeight: 14, color: l.hour == busiest.hour ? scheme.primary : scheme.primary.withValues(alpha: 0.55), backgroundColor: scheme.surfaceContainerHighest),
+              ),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(width: 40, child: Text('${l.bills}', textAlign: TextAlign.end)),
+            SizedBox(width: 92, child: Text(ref.money(l.amountMinor), textAlign: TextAlign.end, style: const TextStyle(fontWeight: FontWeight.w700))),
+          ]),
         ),
     ]);
   }

@@ -11,6 +11,7 @@ ReceiptDoc buildReportSlip(
   List<ProfitLine> profit = const [],
   List<AccountLine> accounts = const [],
   List<MoneyOut> moneyOut = const [],
+  List<HourLine> hours = const [],
   int maxLines = 15,
 }) {
   String m(int v) => formatMinor(v, currency: d.currency, symbol: false);
@@ -49,6 +50,9 @@ ReceiptDoc buildReportSlip(
     final rev = costed.fold<int>(0, (a, p) => a + p.revenueMinor), cost = costed.fold<int>(0, (a, p) => a + p.costMinor!);
     section('PROFIT (items with recipe)', [('Revenue', m(rev)), ('Cost', m(cost)), ('Gross profit', m(rev - cost))]);
   }
+  String h12(int h) => '${h % 12 == 0 ? 12 : h % 12}${h < 12 ? 'am' : 'pm'}';
+  final busy = [...hours]..sort((a, b) => b.bills.compareTo(a.bills));
+  section('PEAK HOURS (bills)', [for (final l in busy.take(5)) ('${h12(l.hour)}-${h12((l.hour + 1) % 24)} (${l.bills})', m(l.amountMinor))]);
   final outByKind = <String, int>{};
   for (final o in moneyOut) {
     outByKind[o.kind] = (outByKind[o.kind] ?? 0) + o.amountMinor;

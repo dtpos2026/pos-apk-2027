@@ -120,6 +120,13 @@ void main() {
     expect(t.widget<Text>(find.byKey(const ValueKey('stat-gross'))).data, 'PKR 900.00');
     expect(t.widget<Text>(find.byKey(const ValueKey('stat-bills'))).data, '1');
     await shot(t, '09_report');
+    // peak hours: the one sale's hour is the busiest
+    await t.ensureVisible(find.byKey(const ValueKey('tab-hours')));
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const ValueKey('tab-hours')));
+    await t.pumpAndSettle();
+    expect(find.byKey(const ValueKey('busiest-hour')), findsOneWidget);
+    expect(find.textContaining('Busiest hour'), findsOneWidget);
   });
 
   testWidgets('crash recovery: the cart comes back after the app is restarted', (t) async {

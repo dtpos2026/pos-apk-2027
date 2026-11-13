@@ -9,6 +9,7 @@ import '../../app/whatsapp.dart';
 import '../../data/inventory_service.dart';
 import '../../data/pos_service.dart';
 import '../../domain/money.dart';
+import '../../domain/purchase_list.dart';
 import '../common/dialogs.dart';
 
 final _stockProvider = FutureProvider.autoDispose<List<StockRow>>((ref) => ref.watch(inventoryServiceProvider).list());
@@ -220,6 +221,32 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> with SingleTi
     if (v != null) _refresh();
   }
 
+  /// The low items as a shopping list: send it to the supplier on WhatsApp, or print it.
+  Future<void> _purchaseList(List<StockRow> low) async {
+    final s = Strings.of(context);
+    final business = ref.read(businessProvider).value?.name ?? '';
+    final now = ref.read(clockProvider)();
+    final date = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      builder: (c) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(title: Text(s['purchase_list'], style: const TextStyle(fontWeight: FontWeight.w800)), subtitle: Text('${low.length} ${s['low_stock']}')),
+          ListTile(key: const ValueKey('purchase-list-share'), leading: const Icon(Icons.share), title: Text(s['share']), onTap: () => Navigator.pop(c, 'share')),
+          ListTile(key: const ValueKey('purchase-list-print'), leading: const Icon(Icons.print_outlined), title: Text(s['print']), onTap: () => Navigator.pop(c, 'print')),
+        ]),
+      ),
+    );
+    if (choice == 'share') {
+      await ref.read(shareServiceProvider).shareText(purchaseListText(business, low, date), subject: s['purchase_list']);
+    } else if (choice == 'print') {
+      final print = ref.read(printServiceProvider);
+      final jobs = await print.queueDocument('purchase_list', (_) => purchaseListDoc(business, low, date));
+      if (jobs.isNotEmpty) print.processQueue();
+      if (mounted) showMessage(context, jobs.isEmpty ? s['no_printer'] : s['print_queued']);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = Strings.of(context);
@@ -239,6 +266,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> with SingleTi
                 padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
                 child: Row(children: [
                   Expanded(child: Text('${s['valuation']}: ${ref.money(value)}', key: const ValueKey('stock-value'), style: const TextStyle(fontWeight: FontWeight.w800))),
+                  if (stock.any((r) => r.isLow)) IconButton(key: const ValueKey('purchase-list'), tooltip: s['purchase_list'], onPressed: () => _purchaseList(stock.where((r) => r.isLow).toList()), icon: const Icon(Icons.shopping_cart_checkout)),
                   IconButton(key: const ValueKey('recipe-btn'), tooltip: s['recipe'], onPressed: () => ref.read(shellTabProvider.notifier).go('recipes'), icon: const Icon(Icons.menu_book_outlined)),
                 ]),
               ),
