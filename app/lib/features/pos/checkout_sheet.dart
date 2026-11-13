@@ -15,6 +15,7 @@ import '../../cloud/access_controller.dart';
 import '../../data/pos_service.dart';
 import '../../data/queries.dart';
 import '../../data/receipt_loader.dart';
+import '../../domain/loyalty.dart';
 import '../../domain/money.dart';
 import '../../domain/payments.dart';
 import '../../domain/receipt.dart';
@@ -76,10 +77,36 @@ class _CheckoutSheetState extends ConsumerState<CheckoutSheet> {
   bool _canToken = false;
   bool _canBill = true;
 
+  /// The customer's loyalty points (null = points off, no customer, or none to spend) and the settings.
+  ({int balance, LoyaltyConfig cfg})? _points;
+
   @override
   void initState() {
     super.initState();
     _loadPrintDefaults();
+    _loadPoints();
+  }
+
+  Future<void> _loadPoints() async {
+    final customer = ref.read(cartProvider).customerId;
+    if (customer == null) return;
+    final svc = ref.read(loyaltyServiceProvider);
+    final cfg = await svc.config();
+    if (!cfg.enabled) return;
+    final bal = await svc.balance(customer);
+    if (!mounted || bal <= 0 || bal < cfg.minRedeem) return;
+    setState(() => _points = (balance: bal, cfg: cfg));
+  }
+
+  /// Pays part (or all) of the bill with the customer's points: as many as needed, never more than they have.
+  void _usePoints() {
+    final p = _points;
+    if (p == null || _lines.any((l) => l.method.id == loyaltyMethodId)) return;
+    final alreadyPaid = _lines.fold<int>(0, (s, l) => s + (parseMinor(l.controller.text, currency: _cur) ?? 0));
+    final remaining = (widget.totalMinor - alreadyPaid).clamp(0, widget.totalMinor);
+    final amount = remaining < p.cfg.valueOf(p.balance) ? remaining : p.cfg.valueOf(p.balance);
+    if (amount <= 0) return;
+    setState(() => _lines.add(_Line(const PaymentMethodInfo(loyaltyMethodId, 'Points', 'other'), TextEditingController(text: formatMinor(amount, currency: _cur, symbol: false).replaceAll(',', '')))));
   }
 
   /// What would print by itself for this order type: the cashier can switch the bill and the token off or on for this one sale.
@@ -225,7 +252,16 @@ class _CheckoutSheetState extends ConsumerState<CheckoutSheet> {
             Expanded(child: Align(alignment: AlignmentDirectional.centerEnd, child: FittedBox(fit: BoxFit.scaleDown, child: Text(ref.money(widget.totalMinor), key: const ValueKey('checkout-total'), style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: scheme.primary))))),
           ]),
           const SizedBox(height: 14),
-          Wrap(spacing: 8, runSpacing: 8, children: [for (final m in methods) ActionChip(key: ValueKey('method-${m.name}'), avatar: Icon(_iconFor(m.kind), size: 18), label: Text(m.kind == 'cash' ? t['cash'] : (m.kind == 'card' ? t['card'] : m.name)), onPressed: () => _add(m))]),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            for (final m in methods) ActionChip(key: ValueKey('method-${m.name}'), avatar: Icon(_iconFor(m.kind), size: 18), label: Text(m.kind == 'cash' ? t['cash'] : (m.kind == 'card' ? t['card'] : m.name)), onPressed: () => _add(m)),
+            if (_points != null)
+              ActionChip(
+                key: const ValueKey('use-points'),
+                avatar: const Icon(Icons.stars_rounded, size: 18),
+                label: Text('${t['use_points']} (${_points!.balance} = ${ref.money(_points!.cfg.valueOf(_points!.balance))})'),
+                onPressed: _usePoints,
+              ),
+          ]),
           const SizedBox(height: 10),
           for (var i = 0; i < _lines.length; i++) ...[
             Row(children: [

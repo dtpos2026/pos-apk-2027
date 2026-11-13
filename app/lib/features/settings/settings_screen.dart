@@ -13,6 +13,7 @@ import '../tokens/tokens_settings_screen.dart';
 
 import '../../app/business_mode.dart';
 import '../../app/device_channel.dart' show DeviceChannel, PairedPrinter;
+import 'loyalty_card.dart';
 import 'printer_diagnostics_screen.dart';
 import '../../app/feedback.dart';
 import '../cloud/notices.dart' show noticeClearedProvider;
@@ -203,6 +204,7 @@ class SettingsScreen extends ConsumerWidget {
         const ListTile(dense: true, leading: Icon(Icons.location_on_outlined), title: Text('Burewala, Pakistan')),
       ]),
       _Section(t['tax_section'], [const _TaxServiceCard()]),
+      _Section(t['loyalty_title'], [const LoyaltyCard()]),
       _Section(t['sound_section'], [
         SwitchListTile(
           key: const ValueKey('opt-sound'),

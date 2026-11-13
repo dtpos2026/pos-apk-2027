@@ -33,7 +33,7 @@ class PaymentMethodService {
   static const kinds = ['cash', 'card', 'bank', 'wallet', 'credit', 'other'];
 
   Future<List<PaymentMethodRow>> all() async => [
-        for (final r in await h.q('SELECT id, name, kind, enabled, provider, account_no, holder, image_path FROM payment_method WHERE deleted_at IS NULL ORDER BY sort, name'))
+        for (final r in await h.q("SELECT id, name, kind, enabled, provider, account_no, holder, image_path FROM payment_method WHERE deleted_at IS NULL AND id <> 'loyalty' ORDER BY sort, name"))
           PaymentMethodRow(r['id'] as String, r['name'] as String, r['kind'] as String, (r['enabled'] as int) == 1, provider: r['provider'] as String?, accountNo: r['account_no'] as String?, holder: r['holder'] as String?, imagePath: r['image_path'] as String?),
       ];
 
@@ -55,7 +55,7 @@ class PaymentMethodService {
         if ((await h.q('SELECT id FROM payment_method WHERE lower(name) = lower(?) AND deleted_at IS NULL', [n])).isNotEmpty) {
           throw PosException('duplicate', 'A payment method with this name already exists');
         }
-        final sort = await h.intValue('SELECT COALESCE(MAX(sort),0) + 1 FROM payment_method');
+        final sort = await h.intValue("SELECT COALESCE(MAX(sort),0) + 1 FROM payment_method WHERE id <> 'loyalty'");
         final id = h.id;
         await h.exec('INSERT INTO payment_method(id, name, kind, sort, provider, account_no, holder, updated_at) VALUES (?,?,?,?,?,?,?,?)', [id, n, kind, sort, _clean(provider), _clean(accountNo), _clean(holder), h.ts]);
         await h.audit('payment_method.add', staffId: staffId, entity: 'payment_method', entityId: id, after: {'name': n, 'kind': kind});

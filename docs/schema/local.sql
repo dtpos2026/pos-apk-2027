@@ -189,6 +189,13 @@ CREATE TABLE customer_ledger (              -- append-only; balance = SUM(amount
   staff_id TEXT REFERENCES staff(id), created_at INTEGER NOT NULL
 );
 CREATE INDEX customer_ledger_ix ON customer_ledger(customer_id, created_at);
+CREATE TABLE loyalty_ledger (               -- append-only; points balance = SUM(points). Earned on paid bills, spent as a payment, reversed on void
+  id TEXT PRIMARY KEY, customer_id TEXT NOT NULL REFERENCES customer(id),
+  kind TEXT NOT NULL CHECK (kind IN ('earn','redeem','reverse','adjust')),
+  points INTEGER NOT NULL, order_id TEXT, note TEXT,
+  staff_id TEXT REFERENCES staff(id), created_at INTEGER NOT NULL
+);
+CREATE INDEX loyalty_ledger_ix ON loyalty_ledger(customer_id, created_at);
 
 -- ---------- orders & billing ----------
 CREATE TABLE invoice_sequence (             -- gap-free numbering per prefix and business day/year

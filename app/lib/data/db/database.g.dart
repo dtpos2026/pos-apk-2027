@@ -14932,6 +14932,520 @@ class CustomerLedgerCompanion extends UpdateCompanion<CustomerLedgerData> {
   }
 }
 
+class LoyaltyLedger extends Table
+    with TableInfo<LoyaltyLedger, LoyaltyLedgerData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  LoyaltyLedger(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'PRIMARY KEY',
+  );
+  static const VerificationMeta _customerIdMeta = const VerificationMeta(
+    'customerId',
+  );
+  late final GeneratedColumn<String> customerId = GeneratedColumn<String>(
+    'customer_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL REFERENCES customer(id)',
+  );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints:
+        'NOT NULL CHECK (kind IN (\'earn\', \'redeem\', \'reverse\', \'adjust\'))',
+  );
+  static const VerificationMeta _pointsMeta = const VerificationMeta('points');
+  late final GeneratedColumn<int> points = GeneratedColumn<int>(
+    'points',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  static const VerificationMeta _orderIdMeta = const VerificationMeta(
+    'orderId',
+  );
+  late final GeneratedColumn<String> orderId = GeneratedColumn<String>(
+    'order_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: '',
+  );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: '',
+  );
+  static const VerificationMeta _staffIdMeta = const VerificationMeta(
+    'staffId',
+  );
+  late final GeneratedColumn<String> staffId = GeneratedColumn<String>(
+    'staff_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'REFERENCES staff(id)',
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    customerId,
+    kind,
+    points,
+    orderId,
+    note,
+    staffId,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'loyalty_ledger';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LoyaltyLedgerData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('customer_id')) {
+      context.handle(
+        _customerIdMeta,
+        customerId.isAcceptableOrUnknown(data['customer_id']!, _customerIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_customerIdMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('points')) {
+      context.handle(
+        _pointsMeta,
+        points.isAcceptableOrUnknown(data['points']!, _pointsMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_pointsMeta);
+    }
+    if (data.containsKey('order_id')) {
+      context.handle(
+        _orderIdMeta,
+        orderId.isAcceptableOrUnknown(data['order_id']!, _orderIdMeta),
+      );
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
+    if (data.containsKey('staff_id')) {
+      context.handle(
+        _staffIdMeta,
+        staffId.isAcceptableOrUnknown(data['staff_id']!, _staffIdMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LoyaltyLedgerData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LoyaltyLedgerData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      ),
+      customerId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}customer_id'],
+      )!,
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      )!,
+      points: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}points'],
+      )!,
+      orderId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}order_id'],
+      ),
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      ),
+      staffId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}staff_id'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  LoyaltyLedger createAlias(String alias) {
+    return LoyaltyLedger(attachedDatabase, alias);
+  }
+
+  @override
+  bool get dontWriteConstraints => true;
+}
+
+class LoyaltyLedgerData extends DataClass
+    implements Insertable<LoyaltyLedgerData> {
+  /// append-only; points balance = SUM(points). Earned on paid bills, spent as a payment, reversed on void
+  final String? id;
+  final String customerId;
+  final String kind;
+  final int points;
+  final String? orderId;
+  final String? note;
+  final String? staffId;
+  final int createdAt;
+  const LoyaltyLedgerData({
+    this.id,
+    required this.customerId,
+    required this.kind,
+    required this.points,
+    this.orderId,
+    this.note,
+    this.staffId,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (!nullToAbsent || id != null) {
+      map['id'] = Variable<String>(id);
+    }
+    map['customer_id'] = Variable<String>(customerId);
+    map['kind'] = Variable<String>(kind);
+    map['points'] = Variable<int>(points);
+    if (!nullToAbsent || orderId != null) {
+      map['order_id'] = Variable<String>(orderId);
+    }
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    if (!nullToAbsent || staffId != null) {
+      map['staff_id'] = Variable<String>(staffId);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    return map;
+  }
+
+  LoyaltyLedgerCompanion toCompanion(bool nullToAbsent) {
+    return LoyaltyLedgerCompanion(
+      id: id == null && nullToAbsent ? const Value.absent() : Value(id),
+      customerId: Value(customerId),
+      kind: Value(kind),
+      points: Value(points),
+      orderId: orderId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(orderId),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      staffId: staffId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(staffId),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory LoyaltyLedgerData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LoyaltyLedgerData(
+      id: serializer.fromJson<String?>(json['id']),
+      customerId: serializer.fromJson<String>(json['customer_id']),
+      kind: serializer.fromJson<String>(json['kind']),
+      points: serializer.fromJson<int>(json['points']),
+      orderId: serializer.fromJson<String?>(json['order_id']),
+      note: serializer.fromJson<String?>(json['note']),
+      staffId: serializer.fromJson<String?>(json['staff_id']),
+      createdAt: serializer.fromJson<int>(json['created_at']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String?>(id),
+      'customer_id': serializer.toJson<String>(customerId),
+      'kind': serializer.toJson<String>(kind),
+      'points': serializer.toJson<int>(points),
+      'order_id': serializer.toJson<String?>(orderId),
+      'note': serializer.toJson<String?>(note),
+      'staff_id': serializer.toJson<String?>(staffId),
+      'created_at': serializer.toJson<int>(createdAt),
+    };
+  }
+
+  LoyaltyLedgerData copyWith({
+    Value<String?> id = const Value.absent(),
+    String? customerId,
+    String? kind,
+    int? points,
+    Value<String?> orderId = const Value.absent(),
+    Value<String?> note = const Value.absent(),
+    Value<String?> staffId = const Value.absent(),
+    int? createdAt,
+  }) => LoyaltyLedgerData(
+    id: id.present ? id.value : this.id,
+    customerId: customerId ?? this.customerId,
+    kind: kind ?? this.kind,
+    points: points ?? this.points,
+    orderId: orderId.present ? orderId.value : this.orderId,
+    note: note.present ? note.value : this.note,
+    staffId: staffId.present ? staffId.value : this.staffId,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  LoyaltyLedgerData copyWithCompanion(LoyaltyLedgerCompanion data) {
+    return LoyaltyLedgerData(
+      id: data.id.present ? data.id.value : this.id,
+      customerId: data.customerId.present
+          ? data.customerId.value
+          : this.customerId,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      points: data.points.present ? data.points.value : this.points,
+      orderId: data.orderId.present ? data.orderId.value : this.orderId,
+      note: data.note.present ? data.note.value : this.note,
+      staffId: data.staffId.present ? data.staffId.value : this.staffId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LoyaltyLedgerData(')
+          ..write('id: $id, ')
+          ..write('customerId: $customerId, ')
+          ..write('kind: $kind, ')
+          ..write('points: $points, ')
+          ..write('orderId: $orderId, ')
+          ..write('note: $note, ')
+          ..write('staffId: $staffId, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    customerId,
+    kind,
+    points,
+    orderId,
+    note,
+    staffId,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LoyaltyLedgerData &&
+          other.id == this.id &&
+          other.customerId == this.customerId &&
+          other.kind == this.kind &&
+          other.points == this.points &&
+          other.orderId == this.orderId &&
+          other.note == this.note &&
+          other.staffId == this.staffId &&
+          other.createdAt == this.createdAt);
+}
+
+class LoyaltyLedgerCompanion extends UpdateCompanion<LoyaltyLedgerData> {
+  final Value<String?> id;
+  final Value<String> customerId;
+  final Value<String> kind;
+  final Value<int> points;
+  final Value<String?> orderId;
+  final Value<String?> note;
+  final Value<String?> staffId;
+  final Value<int> createdAt;
+  final Value<int> rowid;
+  const LoyaltyLedgerCompanion({
+    this.id = const Value.absent(),
+    this.customerId = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.points = const Value.absent(),
+    this.orderId = const Value.absent(),
+    this.note = const Value.absent(),
+    this.staffId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LoyaltyLedgerCompanion.insert({
+    this.id = const Value.absent(),
+    required String customerId,
+    required String kind,
+    required int points,
+    this.orderId = const Value.absent(),
+    this.note = const Value.absent(),
+    this.staffId = const Value.absent(),
+    required int createdAt,
+    this.rowid = const Value.absent(),
+  }) : customerId = Value(customerId),
+       kind = Value(kind),
+       points = Value(points),
+       createdAt = Value(createdAt);
+  static Insertable<LoyaltyLedgerData> custom({
+    Expression<String>? id,
+    Expression<String>? customerId,
+    Expression<String>? kind,
+    Expression<int>? points,
+    Expression<String>? orderId,
+    Expression<String>? note,
+    Expression<String>? staffId,
+    Expression<int>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (customerId != null) 'customer_id': customerId,
+      if (kind != null) 'kind': kind,
+      if (points != null) 'points': points,
+      if (orderId != null) 'order_id': orderId,
+      if (note != null) 'note': note,
+      if (staffId != null) 'staff_id': staffId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LoyaltyLedgerCompanion copyWith({
+    Value<String?>? id,
+    Value<String>? customerId,
+    Value<String>? kind,
+    Value<int>? points,
+    Value<String?>? orderId,
+    Value<String?>? note,
+    Value<String?>? staffId,
+    Value<int>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return LoyaltyLedgerCompanion(
+      id: id ?? this.id,
+      customerId: customerId ?? this.customerId,
+      kind: kind ?? this.kind,
+      points: points ?? this.points,
+      orderId: orderId ?? this.orderId,
+      note: note ?? this.note,
+      staffId: staffId ?? this.staffId,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (customerId.present) {
+      map['customer_id'] = Variable<String>(customerId.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (points.present) {
+      map['points'] = Variable<int>(points.value);
+    }
+    if (orderId.present) {
+      map['order_id'] = Variable<String>(orderId.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (staffId.present) {
+      map['staff_id'] = Variable<String>(staffId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LoyaltyLedgerCompanion(')
+          ..write('id: $id, ')
+          ..write('customerId: $customerId, ')
+          ..write('kind: $kind, ')
+          ..write('points: $points, ')
+          ..write('orderId: $orderId, ')
+          ..write('note: $note, ')
+          ..write('staffId: $staffId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class InvoiceSequence extends Table
     with TableInfo<InvoiceSequence, InvoiceSequenceData> {
   @override
@@ -31256,6 +31770,11 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'customer_ledger_ix',
     'CREATE INDEX customer_ledger_ix ON customer_ledger (customer_id, created_at)',
   );
+  late final LoyaltyLedger loyaltyLedger = LoyaltyLedger(this);
+  late final Index loyaltyLedgerIx = Index(
+    'loyalty_ledger_ix',
+    'CREATE INDEX loyalty_ledger_ix ON loyalty_ledger (customer_id, created_at)',
+  );
   late final InvoiceSequence invoiceSequence = InvoiceSequence(this);
   late final Index shiftOneOpenPerStaff = Index(
     'shift_one_open_per_staff',
@@ -31414,6 +31933,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     customerPhoneIx,
     customerLedger,
     customerLedgerIx,
+    loyaltyLedger,
+    loyaltyLedgerIx,
     invoiceSequence,
     shiftOneOpenPerStaff,
     orderDateIx,
@@ -33774,6 +34295,24 @@ final class $StaffReferences
     );
   }
 
+  static MultiTypedResultKey<LoyaltyLedger, List<LoyaltyLedgerData>>
+  _loyaltyLedgerRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.loyaltyLedger,
+    aliasName: $_aliasNameGenerator(db.staff.id, db.loyaltyLedger.staffId),
+  );
+
+  $LoyaltyLedgerProcessedTableManager get loyaltyLedgerRefs {
+    final manager = $LoyaltyLedgerTableManager(
+      $_db,
+      $_db.loyaltyLedger,
+    ).filter((f) => f.staffId.id.sqlEquals($_itemColumn<String>('id')));
+
+    final cache = $_typedResult.readTableOrNull(_loyaltyLedgerRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
   static MultiTypedResultKey<Payment, List<PaymentData>> _paymentRefsTable(
     _$AppDatabase db,
   ) => MultiTypedResultKey.fromTable(
@@ -34116,6 +34655,31 @@ class $StaffFilterComposer extends Composer<_$AppDatabase, Staff> {
           }) => $CustomerLedgerFilterComposer(
             $db: $db,
             $table: $db.customerLedger,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> loyaltyLedgerRefs(
+    Expression<bool> Function($LoyaltyLedgerFilterComposer f) f,
+  ) {
+    final $LoyaltyLedgerFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.loyaltyLedger,
+      getReferencedColumn: (t) => t.staffId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $LoyaltyLedgerFilterComposer(
+            $db: $db,
+            $table: $db.loyaltyLedger,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -34599,6 +35163,31 @@ class $StaffAnnotationComposer extends Composer<_$AppDatabase, Staff> {
     return f(composer);
   }
 
+  Expression<T> loyaltyLedgerRefs<T extends Object>(
+    Expression<T> Function($LoyaltyLedgerAnnotationComposer a) f,
+  ) {
+    final $LoyaltyLedgerAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.loyaltyLedger,
+      getReferencedColumn: (t) => t.staffId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $LoyaltyLedgerAnnotationComposer(
+            $db: $db,
+            $table: $db.loyaltyLedger,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
   Expression<T> paymentRefs<T extends Object>(
     Expression<T> Function($PaymentAnnotationComposer a) f,
   ) {
@@ -34795,6 +35384,7 @@ class $StaffTableManager
             bool shiftRefs,
             bool deliveryStatusLogRefs,
             bool customerLedgerRefs,
+            bool loyaltyLedgerRefs,
             bool paymentRefs,
             bool cashMovementRefs,
             bool stockMovementRefs,
@@ -34894,6 +35484,7 @@ class $StaffTableManager
                 shiftRefs = false,
                 deliveryStatusLogRefs = false,
                 customerLedgerRefs = false,
+                loyaltyLedgerRefs = false,
                 paymentRefs = false,
                 cashMovementRefs = false,
                 stockMovementRefs = false,
@@ -34910,6 +35501,7 @@ class $StaffTableManager
                     if (shiftRefs) db.shift,
                     if (deliveryStatusLogRefs) db.deliveryStatusLog,
                     if (customerLedgerRefs) db.customerLedger,
+                    if (loyaltyLedgerRefs) db.loyaltyLedger,
                     if (paymentRefs) db.payment,
                     if (cashMovementRefs) db.cashMovement,
                     if (stockMovementRefs) db.stockMovement,
@@ -35032,6 +35624,23 @@ class $StaffTableManager
                             table,
                             p0,
                           ).customerLedgerRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.staffId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (loyaltyLedgerRefs)
+                        await $_getPrefetchedData<
+                          StaffData,
+                          Staff,
+                          LoyaltyLedgerData
+                        >(
+                          currentTable: table,
+                          referencedTable: $StaffReferences
+                              ._loyaltyLedgerRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $StaffReferences(db, table, p0).loyaltyLedgerRefs,
                           referencedItemsForCurrentItem:
                               (item, referencedItems) => referencedItems.where(
                                 (e) => e.staffId == item.id,
@@ -35187,6 +35796,7 @@ typedef $StaffProcessedTableManager =
         bool shiftRefs,
         bool deliveryStatusLogRefs,
         bool customerLedgerRefs,
+        bool loyaltyLedgerRefs,
         bool paymentRefs,
         bool cashMovementRefs,
         bool stockMovementRefs,
@@ -41286,6 +41896,27 @@ final class $CustomerReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<LoyaltyLedger, List<LoyaltyLedgerData>>
+  _loyaltyLedgerRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.loyaltyLedger,
+    aliasName: $_aliasNameGenerator(
+      db.customer.id,
+      db.loyaltyLedger.customerId,
+    ),
+  );
+
+  $LoyaltyLedgerProcessedTableManager get loyaltyLedgerRefs {
+    final manager = $LoyaltyLedgerTableManager(
+      $_db,
+      $_db.loyaltyLedger,
+    ).filter((f) => f.customerId.id.sqlEquals($_itemColumn<String>('id')));
+
+    final cache = $_typedResult.readTableOrNull(_loyaltyLedgerRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $CustomerFilterComposer extends Composer<_$AppDatabase, Customer> {
@@ -41397,6 +42028,31 @@ class $CustomerFilterComposer extends Composer<_$AppDatabase, Customer> {
           }) => $CustomerLedgerFilterComposer(
             $db: $db,
             $table: $db.customerLedger,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> loyaltyLedgerRefs(
+    Expression<bool> Function($LoyaltyLedgerFilterComposer f) f,
+  ) {
+    final $LoyaltyLedgerFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.loyaltyLedger,
+      getReferencedColumn: (t) => t.customerId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $LoyaltyLedgerFilterComposer(
+            $db: $db,
+            $table: $db.loyaltyLedger,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -41573,6 +42229,31 @@ class $CustomerAnnotationComposer extends Composer<_$AppDatabase, Customer> {
     );
     return f(composer);
   }
+
+  Expression<T> loyaltyLedgerRefs<T extends Object>(
+    Expression<T> Function($LoyaltyLedgerAnnotationComposer a) f,
+  ) {
+    final $LoyaltyLedgerAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.loyaltyLedger,
+      getReferencedColumn: (t) => t.customerId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $LoyaltyLedgerAnnotationComposer(
+            $db: $db,
+            $table: $db.loyaltyLedger,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $CustomerTableManager
@@ -41588,7 +42269,11 @@ class $CustomerTableManager
           $CustomerUpdateCompanionBuilder,
           (CustomerData, $CustomerReferences),
           CustomerData,
-          PrefetchHooks Function({bool orderRefs, bool customerLedgerRefs})
+          PrefetchHooks Function({
+            bool orderRefs,
+            bool customerLedgerRefs,
+            bool loyaltyLedgerRefs,
+          })
         > {
   $CustomerTableManager(_$AppDatabase db, Customer table)
     : super(
@@ -41667,12 +42352,17 @@ class $CustomerTableManager
               )
               .toList(),
           prefetchHooksCallback:
-              ({orderRefs = false, customerLedgerRefs = false}) {
+              ({
+                orderRefs = false,
+                customerLedgerRefs = false,
+                loyaltyLedgerRefs = false,
+              }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
                     if (orderRefs) db.order,
                     if (customerLedgerRefs) db.customerLedger,
+                    if (loyaltyLedgerRefs) db.loyaltyLedger,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -41715,6 +42405,26 @@ class $CustomerTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (loyaltyLedgerRefs)
+                        await $_getPrefetchedData<
+                          CustomerData,
+                          Customer,
+                          LoyaltyLedgerData
+                        >(
+                          currentTable: table,
+                          referencedTable: $CustomerReferences
+                              ._loyaltyLedgerRefsTable(db),
+                          managerFromTypedResult: (p0) => $CustomerReferences(
+                            db,
+                            table,
+                            p0,
+                          ).loyaltyLedgerRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.customerId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -41735,7 +42445,11 @@ typedef $CustomerProcessedTableManager =
       $CustomerUpdateCompanionBuilder,
       (CustomerData, $CustomerReferences),
       CustomerData,
-      PrefetchHooks Function({bool orderRefs, bool customerLedgerRefs})
+      PrefetchHooks Function({
+        bool orderRefs,
+        bool customerLedgerRefs,
+        bool loyaltyLedgerRefs,
+      })
     >;
 typedef $ShiftCreateCompanionBuilder =
     ShiftCompanion Function({
@@ -46806,6 +47520,468 @@ typedef $CustomerLedgerProcessedTableManager =
       $CustomerLedgerUpdateCompanionBuilder,
       (CustomerLedgerData, $CustomerLedgerReferences),
       CustomerLedgerData,
+      PrefetchHooks Function({bool customerId, bool staffId})
+    >;
+typedef $LoyaltyLedgerCreateCompanionBuilder =
+    LoyaltyLedgerCompanion Function({
+      Value<String?> id,
+      required String customerId,
+      required String kind,
+      required int points,
+      Value<String?> orderId,
+      Value<String?> note,
+      Value<String?> staffId,
+      required int createdAt,
+      Value<int> rowid,
+    });
+typedef $LoyaltyLedgerUpdateCompanionBuilder =
+    LoyaltyLedgerCompanion Function({
+      Value<String?> id,
+      Value<String> customerId,
+      Value<String> kind,
+      Value<int> points,
+      Value<String?> orderId,
+      Value<String?> note,
+      Value<String?> staffId,
+      Value<int> createdAt,
+      Value<int> rowid,
+    });
+
+final class $LoyaltyLedgerReferences
+    extends BaseReferences<_$AppDatabase, LoyaltyLedger, LoyaltyLedgerData> {
+  $LoyaltyLedgerReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static Customer _customerIdTable(_$AppDatabase db) => db.customer.createAlias(
+    $_aliasNameGenerator(db.loyaltyLedger.customerId, db.customer.id),
+  );
+
+  $CustomerProcessedTableManager get customerId {
+    final $_column = $_itemColumn<String>('customer_id')!;
+
+    final manager = $CustomerTableManager(
+      $_db,
+      $_db.customer,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_customerIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static Staff _staffIdTable(_$AppDatabase db) => db.staff.createAlias(
+    $_aliasNameGenerator(db.loyaltyLedger.staffId, db.staff.id),
+  );
+
+  $StaffProcessedTableManager? get staffId {
+    final $_column = $_itemColumn<String>('staff_id');
+    if ($_column == null) return null;
+    final manager = $StaffTableManager(
+      $_db,
+      $_db.staff,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_staffIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $LoyaltyLedgerFilterComposer
+    extends Composer<_$AppDatabase, LoyaltyLedger> {
+  $LoyaltyLedgerFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get points => $composableBuilder(
+    column: $table.points,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get orderId => $composableBuilder(
+    column: $table.orderId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $CustomerFilterComposer get customerId {
+    final $CustomerFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.customerId,
+      referencedTable: $db.customer,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $CustomerFilterComposer(
+            $db: $db,
+            $table: $db.customer,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $StaffFilterComposer get staffId {
+    final $StaffFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.staffId,
+      referencedTable: $db.staff,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $StaffFilterComposer(
+            $db: $db,
+            $table: $db.staff,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $LoyaltyLedgerOrderingComposer
+    extends Composer<_$AppDatabase, LoyaltyLedger> {
+  $LoyaltyLedgerOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get points => $composableBuilder(
+    column: $table.points,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get orderId => $composableBuilder(
+    column: $table.orderId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $CustomerOrderingComposer get customerId {
+    final $CustomerOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.customerId,
+      referencedTable: $db.customer,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $CustomerOrderingComposer(
+            $db: $db,
+            $table: $db.customer,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $StaffOrderingComposer get staffId {
+    final $StaffOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.staffId,
+      referencedTable: $db.staff,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $StaffOrderingComposer(
+            $db: $db,
+            $table: $db.staff,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $LoyaltyLedgerAnnotationComposer
+    extends Composer<_$AppDatabase, LoyaltyLedger> {
+  $LoyaltyLedgerAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<int> get points =>
+      $composableBuilder(column: $table.points, builder: (column) => column);
+
+  GeneratedColumn<String> get orderId =>
+      $composableBuilder(column: $table.orderId, builder: (column) => column);
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $CustomerAnnotationComposer get customerId {
+    final $CustomerAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.customerId,
+      referencedTable: $db.customer,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $CustomerAnnotationComposer(
+            $db: $db,
+            $table: $db.customer,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $StaffAnnotationComposer get staffId {
+    final $StaffAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.staffId,
+      referencedTable: $db.staff,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $StaffAnnotationComposer(
+            $db: $db,
+            $table: $db.staff,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $LoyaltyLedgerTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          LoyaltyLedger,
+          LoyaltyLedgerData,
+          $LoyaltyLedgerFilterComposer,
+          $LoyaltyLedgerOrderingComposer,
+          $LoyaltyLedgerAnnotationComposer,
+          $LoyaltyLedgerCreateCompanionBuilder,
+          $LoyaltyLedgerUpdateCompanionBuilder,
+          (LoyaltyLedgerData, $LoyaltyLedgerReferences),
+          LoyaltyLedgerData,
+          PrefetchHooks Function({bool customerId, bool staffId})
+        > {
+  $LoyaltyLedgerTableManager(_$AppDatabase db, LoyaltyLedger table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $LoyaltyLedgerFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $LoyaltyLedgerOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $LoyaltyLedgerAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String?> id = const Value.absent(),
+                Value<String> customerId = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                Value<int> points = const Value.absent(),
+                Value<String?> orderId = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<String?> staffId = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LoyaltyLedgerCompanion(
+                id: id,
+                customerId: customerId,
+                kind: kind,
+                points: points,
+                orderId: orderId,
+                note: note,
+                staffId: staffId,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                Value<String?> id = const Value.absent(),
+                required String customerId,
+                required String kind,
+                required int points,
+                Value<String?> orderId = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<String?> staffId = const Value.absent(),
+                required int createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => LoyaltyLedgerCompanion.insert(
+                id: id,
+                customerId: customerId,
+                kind: kind,
+                points: points,
+                orderId: orderId,
+                note: note,
+                staffId: staffId,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $LoyaltyLedgerReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({customerId = false, staffId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (customerId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.customerId,
+                                referencedTable: $LoyaltyLedgerReferences
+                                    ._customerIdTable(db),
+                                referencedColumn: $LoyaltyLedgerReferences
+                                    ._customerIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+                    if (staffId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.staffId,
+                                referencedTable: $LoyaltyLedgerReferences
+                                    ._staffIdTable(db),
+                                referencedColumn: $LoyaltyLedgerReferences
+                                    ._staffIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $LoyaltyLedgerProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      LoyaltyLedger,
+      LoyaltyLedgerData,
+      $LoyaltyLedgerFilterComposer,
+      $LoyaltyLedgerOrderingComposer,
+      $LoyaltyLedgerAnnotationComposer,
+      $LoyaltyLedgerCreateCompanionBuilder,
+      $LoyaltyLedgerUpdateCompanionBuilder,
+      (LoyaltyLedgerData, $LoyaltyLedgerReferences),
+      LoyaltyLedgerData,
       PrefetchHooks Function({bool customerId, bool staffId})
     >;
 typedef $InvoiceSequenceCreateCompanionBuilder =
@@ -60620,6 +61796,8 @@ class $AppDatabaseManager {
       $DealItemTableManager(_db, _db.dealItem);
   $CustomerLedgerTableManager get customerLedger =>
       $CustomerLedgerTableManager(_db, _db.customerLedger);
+  $LoyaltyLedgerTableManager get loyaltyLedger =>
+      $LoyaltyLedgerTableManager(_db, _db.loyaltyLedger);
   $InvoiceSequenceTableManager get invoiceSequence =>
       $InvoiceSequenceTableManager(_db, _db.invoiceSequence);
   $OrderItemTableManager get orderItem =>

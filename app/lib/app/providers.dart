@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart' show Color, Locale, ThemeMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/loyalty_service.dart';
 import '../data/auth_service.dart';
 import '../data/bill_history.dart';
 import '../data/customer_service.dart';
@@ -89,6 +90,7 @@ final textRasterizerProvider = Provider<TextRasterizer>((ref) => const FlutterTe
 /// How print jobs reach printers. main() supplies Bluetooth + LAN; the default (and tests) use LAN only.
 final printerTransportProvider = Provider<TransportFactory>((ref) => defaultTransport);
 final bluetoothScannerProvider = Provider<BluetoothPrinterScanner?>((ref) => null);
+final loyaltyServiceProvider = Provider<LoyaltyService>((ref) => LoyaltyService(ref.watch(databaseProvider), now: ref.watch(clockProvider)));
 final printServiceProvider = Provider<PrintService>((ref) {
   final svc = PrintService(ref.watch(databaseProvider), now: ref.watch(clockProvider), rasterizer: ref.watch(textRasterizerProvider), transport: ref.watch(printerTransportProvider));
   ref.onDispose(svc.dispose);

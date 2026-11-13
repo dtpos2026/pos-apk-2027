@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
+import '../domain/loyalty.dart';
 import '../domain/bill.dart';
 import '../domain/payments.dart';
 import 'db/database.dart';
@@ -412,7 +413,8 @@ class PosService {
         // payments -> methods
         final methods = <String, Map<String, Object?>>{};
         for (final p in payments) {
-          final m = await _select('SELECT * FROM payment_method WHERE id = ? AND enabled = 1 AND deleted_at IS NULL', [p.methodId]);
+          // the points method is hidden from the payment lists (disabled) but is a valid way to pay
+          final m = await _select('SELECT * FROM payment_method WHERE id = ? AND (enabled = 1 OR id = ?) AND deleted_at IS NULL', [p.methodId, loyaltyMethodId]);
           if (m.isEmpty) throw PosException('bad_method', 'Payment method unavailable');
           methods[p.methodId] = m.first;
         }
@@ -434,6 +436,21 @@ class PosService {
           if (bal + creditTotal > (c['credit_limit_minor'] as int)) {
             throw PosException('credit_limit', 'Credit limit exceeded');
           }
+        }
+
+        // loyalty points: paying with points needs a customer who has them; points are earned on what was paid in money
+        final loyalty = LoyaltyConfig.decode((await _select('SELECT setting_value FROM setting WHERE setting_key = ?', [loyaltySettingKey])).firstOrNull?['setting_value'] as String?);
+        final pointsPaid = [
+          for (var i = 0; i < payments.length; i++)
+            if (payments[i].methodId == loyaltyMethodId) result.appliedMinor[i]
+        ].fold<int>(0, (a, b) => a + b);
+        var pointsUsed = 0;
+        if (pointsPaid > 0) {
+          if (!loyalty.enabled) throw PosException('points_off', 'Loyalty points are switched off');
+          if (customerId == null) throw PosException('points_need_customer', 'Select the customer to pay with points');
+          final have = (await _select('SELECT COALESCE(SUM(points),0) AS p FROM loyalty_ledger WHERE customer_id = ?', [customerId])).first['p'] as int;
+          pointsUsed = loyalty.pointsFor(pointsPaid);
+          if (pointsUsed > have || have < loyalty.minRedeem) throw PosException('points_short', 'Not enough points ($have)');
         }
 
         // a sale belongs to the day it is PAID (an order held yesterday and paid today is today's sale), and never to a closed day
@@ -459,6 +476,13 @@ class PosService {
         if (creditTotal > 0) {
           await _exec('INSERT INTO customer_ledger(id, customer_id, kind, amount_minor, order_id, staff_id, created_at) VALUES (?,?,?,?,?,?,?)',
               [_newId(), customerId, 'sale_credit', creditTotal, orderId, staffId, now]);
+        }
+        if (pointsUsed > 0) {
+          await _exec('INSERT INTO loyalty_ledger(id, customer_id, kind, points, order_id, staff_id, created_at) VALUES (?,?,?,?,?,?,?)', [_newId(), customerId, 'redeem', -pointsUsed, orderId, staffId, now]);
+        }
+        final earned = customerId == null ? 0 : loyalty.earnFor(bill.totalMinor - pointsPaid);
+        if (earned > 0) {
+          await _exec('INSERT INTO loyalty_ledger(id, customer_id, kind, points, order_id, staff_id, created_at) VALUES (?,?,?,?,?,?,?)', [_newId(), customerId, 'earn', earned, orderId, staffId, now]);
         }
         if (o['table_id'] != null) {
           await _exec("UPDATE dining_table SET status='free', updated_at=?, version=version+1 WHERE id=?", [now, o['table_id']]);
@@ -553,6 +577,13 @@ class PosService {
           final items = await _select("SELECT * FROM order_item WHERE order_id = ? AND status = 'active'", [orderId]);
           await _applyStock(orderId, items, sign: 1, reason: 'return', staffId: staffId);
           await _tokens.voidForOrder(orderId); // waiting tokens and unused coupons of a cancelled sale stop working
+          // points earned on the bill go away and points spent on it come back
+          final pts = (await _select("SELECT customer_id, COALESCE(SUM(points),0) AS p FROM loyalty_ledger WHERE order_id = ? GROUP BY customer_id", [orderId]));
+          for (final r in pts) {
+            if ((r['p'] as int) != 0) {
+              await _exec('INSERT INTO loyalty_ledger(id, customer_id, kind, points, order_id, staff_id, created_at) VALUES (?,?,?,?,?,?,?)', [_newId(), r['customer_id'], 'reverse', -(r['p'] as int), orderId, staffId, now]);
+            }
+          }
           final credit = (await _select("SELECT COALESCE(SUM(amount_minor),0) AS s FROM payment WHERE order_id = ? AND method_kind = 'credit'", [orderId])).first['s'] as int;
           if (credit > 0 && o['customer_id'] != null) {
             await _exec('INSERT INTO customer_ledger(id, customer_id, kind, amount_minor, order_id, staff_id, created_at) VALUES (?,?,?,?,?,?,?)',

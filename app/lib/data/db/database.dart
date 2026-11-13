@@ -7,7 +7,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -21,6 +21,7 @@ class AppDatabase extends _$AppDatabase {
           if (from < 8) await migrateToV8(this);
           if (from < 9) await migrateToV9(this);
           if (from < 10) await migrateToV10(this);
+          if (from < 11) await migrateToV11(this);
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
@@ -57,6 +58,17 @@ Future<void> migrateToV2(AppDatabase db) async {
 }
 
 /// Version 10: a profile picture for staff, riders and waiters. Mirrors docs/schema/local.sql.
+/// Version 11: loyalty points (an append-only ledger per customer). Mirrors docs/schema/local.sql.
+Future<void> migrateToV11(AppDatabase db) async {
+  await db.customStatement("""CREATE TABLE IF NOT EXISTS loyalty_ledger (
+  id TEXT PRIMARY KEY, customer_id TEXT NOT NULL REFERENCES customer(id),
+  kind TEXT NOT NULL CHECK (kind IN ('earn','redeem','reverse','adjust')),
+  points INTEGER NOT NULL, order_id TEXT, note TEXT,
+  staff_id TEXT REFERENCES staff(id), created_at INTEGER NOT NULL
+)""");
+  await db.customStatement('CREATE INDEX IF NOT EXISTS loyalty_ledger_ix ON loyalty_ledger(customer_id, created_at)');
+}
+
 Future<void> migrateToV10(AppDatabase db) async {
   for (final t in const ['staff', 'team_member']) {
     final cols = await db.customSelect('PRAGMA table_info($t)').get();
