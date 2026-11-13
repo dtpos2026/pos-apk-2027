@@ -58,7 +58,12 @@ class CartNotifier extends Notifier<CartState> {
   Future<void> _queue = Future.value();
 
   @override
-  CartState build() => const CartState();
+  CartState build() {
+    // loaded now, so the very first bill after start already gets the automatic service charge and happy hour
+    ref.listen(serviceDefaultProvider, (_, _) {});
+    ref.listen(happyHourProvider, (_, _) {});
+    return const CartState();
+  }
 
   PosService get _pos => ref.read(posServiceProvider);
 
@@ -160,11 +165,20 @@ class CartNotifier extends Notifier<CartState> {
     }
   }
 
-  /// A new bill (first item) starts with the automatic service charge from Settings, if the owner switched it on.
+  /// A new bill (first item) starts with the automatic service charge from Settings, if the owner switched it on, and with the
+  /// happy hour discount while happy hour runs (the cashier can still change or remove either).
   CartState _begin() {
-    if (state.items.isNotEmpty || state.config.serviceChargeBp != 0 || state.config.serviceChargeFixedMinor != 0) return state;
-    final bp = ref.read(serviceDefaultProvider).value ?? 0;
-    return bp == 0 ? state : state.copyWith(config: state.config.copyWith(serviceChargeBp: bp));
+    if (state.items.isNotEmpty) return state;
+    var s = state;
+    if (s.config.serviceChargeBp == 0 && s.config.serviceChargeFixedMinor == 0) {
+      final bp = ref.read(serviceDefaultProvider).value ?? 0;
+      if (bp != 0) s = s.copyWith(config: s.config.copyWith(serviceChargeBp: bp));
+    }
+    final hh = ref.read(happyHourProvider).value;
+    if (s.config.billDiscount == null && hh != null && hh.activeAt(ref.read(clockProvider)())) {
+      s = s.copyWith(config: s.config.copyWith(billDiscount: Discount.percent(hh.percentBp)));
+    }
+    return s;
   }
 
   void add(MenuProduct p) {

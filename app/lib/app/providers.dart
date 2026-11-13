@@ -15,6 +15,7 @@ import '../data/report_service.dart';
 import '../data/staff_service.dart';
 import '../data/attendance_service.dart';
 import '../data/kitchen_service.dart';
+import '../domain/happy_hour.dart';
 import '../domain/print_settings.dart';
 import 'strings.dart';
 import 'theme_style.dart';
@@ -149,6 +150,9 @@ class ProductFilter {
 }
 
 /// The service charge added to every new bill by itself (basis points; 0 = none). Set in Settings > Tax & service charge.
+/// Settings > Happy hour (off until switched on).
+final happyHourProvider = FutureProvider<HappyHour>((ref) async => HappyHour.decode(await getSetting(ref.watch(databaseProvider), happyHourSettingKey)));
+
 final serviceDefaultProvider = FutureProvider<int>((ref) async {
   final db = ref.watch(databaseProvider);
   if ((await getSetting(db, 'service.auto')) != '1') return 0;

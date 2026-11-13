@@ -13,6 +13,7 @@ import '../tokens/tokens_settings_screen.dart';
 
 import '../../app/business_mode.dart';
 import '../../app/device_channel.dart' show DeviceChannel, PairedPrinter;
+import 'happy_hour_card.dart';
 import 'loyalty_card.dart';
 import 'printer_diagnostics_screen.dart';
 import '../../app/feedback.dart';
@@ -205,6 +206,7 @@ class SettingsScreen extends ConsumerWidget {
       ]),
       _Section(t['tax_section'], [const _TaxServiceCard()]),
       _Section(t['loyalty_title'], [const LoyaltyCard()]),
+      _Section(t['happy_title'], [const HappyHourCard()]),
       _Section(t['sound_section'], [
         SwitchListTile(
           key: const ValueKey('opt-sound'),
