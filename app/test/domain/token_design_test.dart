@@ -74,7 +74,7 @@ void main() {
     final slip = sampleSlip(TokenKind.price, businessName: 'Burger Point');
     final texts = {for (final id in builtInTemplateOrder) id: previewSlip(builtInTemplates[id]!, slip)};
     expect(texts.values.toSet().length, builtInTemplateOrder.length);
-    expect(builtInTemplateOrder.length, 12);
+    expect(builtInTemplateOrder.length, 14);
     expect(texts['price'], allOf(contains('Rate'), contains('Amount'), contains('TOTAL'), contains('Discount')));
     expect(texts['classic'], isNot(contains('Zinger')));
     expect(texts['product'], contains('2 x Zinger Burger'));

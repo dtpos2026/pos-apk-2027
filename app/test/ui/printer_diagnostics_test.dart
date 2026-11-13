@@ -53,6 +53,15 @@ void main() {
     expect(find.textContaining('bytes sent'), findsOneWidget);
     await tapKey(t, 'diag-graphics');
     expect(sent, hasLength(2));
+    await t.ensureVisible(find.byKey(const ValueKey('diag-kot')));
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const ValueKey('diag-kot')));
+    for (var i = 0; i < 30 && sent.length < 3; i++) {
+      await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 30)));
+      await t.pump();
+    }
+    expect(sent, hasLength(3));
+    expect(String.fromCharCodes(sent.last), contains('Zinger Burger'), reason: 'sample KOT');
 
     fail = true;
     await tapKey(t, 'diag-text');

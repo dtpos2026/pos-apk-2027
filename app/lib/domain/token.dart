@@ -394,7 +394,7 @@ class TokenDesign {
 
 const _itemsAll = {'qty': true, 'price': true, 'amount': true, 'header': true, 'modifiers': true};
 
-/// The seven ready-made designs. All are editable; "reset" returns to these.
+/// The ready-made designs. All are editable; "reset" returns to these.
 final Map<String, TokenDesign> builtInTemplates = {
   // 1. Classic food token: business, big number, order type, time.
   'classic': const TokenDesign(id: 'classic', name: 'Classic Food Token', builtIn: true, blocks: [
@@ -547,10 +547,28 @@ final Map<String, TokenDesign> builtInTemplates = {
     TokenBlock(BlockType.orderNo),
     TokenBlock(BlockType.powered),
   ]),
+  // 13. Compact 58 mm: the number big, everything else on a few short lines (fast to print, little paper).
+  'compact58': const TokenDesign(id: 'compact58', name: 'Compact 58 mm', builtIn: true, blocks: [
+    TokenBlock(BlockType.business, bold: true),
+    TokenBlock(BlockType.token, size: 4, bold: true),
+    TokenBlock(BlockType.orderType),
+    TokenBlock(BlockType.dateTime),
+    TokenBlock(BlockType.rule),
+    TokenBlock(BlockType.items, align: PrintAlign.left, flags: {'qty': true}),
+    TokenBlock(BlockType.powered),
+  ]),
+  // 14. Big number: only what the customer needs to see across the counter.
+  'bignumber': const TokenDesign(id: 'bignumber', name: 'Big Number', builtIn: true, blocks: [
+    TokenBlock(BlockType.business, bold: true),
+    TokenBlock(BlockType.title, text: 'YOUR NUMBER', bold: true),
+    TokenBlock(BlockType.token, size: 5, bold: true),
+    TokenBlock(BlockType.dateTime),
+    TokenBlock(BlockType.powered),
+  ]),
 };
 
 /// The designs offered in the order shown in the app: seven for food counters, then the five token designs of DT Retail POS.
-const builtInTemplateOrder = ['classic', 'product', 'price', 'tandoor', 'stall', 'premium', 'coupon', 'r_classic', 'r_boxed', 'r_bold', 'r_minimal', 'r_ticket'];
+const builtInTemplateOrder = ['classic', 'compact58', 'bignumber', 'product', 'price', 'tandoor', 'stall', 'premium', 'coupon', 'r_classic', 'r_boxed', 'r_bold', 'r_minimal', 'r_ticket'];
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Printing

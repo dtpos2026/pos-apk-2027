@@ -10,7 +10,10 @@ import '../../app/providers.dart';
 import '../../app/strings.dart';
 import '../../data/print_service.dart';
 import '../../data/queries.dart';
+import '../../data/receipt_settings.dart';
 import '../../domain/escpos.dart';
+import '../../domain/receipt.dart';
+import '../../domain/receipt_doc.dart';
 import 'settings_screen.dart' show printersProvider;
 
 /// Plain text and a small test picture, so "paired but nothing prints" can be pinned down step by step.
@@ -136,6 +139,23 @@ class _PrinterDiagnosticsScreenState extends ConsumerState<PrinterDiagnosticsScr
     return '${bytes.length} bytes sent in ${secs}s${route == null ? '' : ' via $route'} (speed ${PrintSpeed.value}). Look at the paper.';
   }
 
+  /// A kitchen ticket with sample items, in the KOT design chosen in Settings: what the kitchen will get.
+  Future<Uint8List> _sampleKot(int paperMm) async {
+    final design = await ReceiptTemplateStore(ref.read(databaseProvider)).loadKot();
+    final doc = buildKotDoc(
+      station: 'Kitchen',
+      orderLabel: 'TEST-001',
+      orderTypeLabel: 'Dine-in',
+      tableLabel: 'T5',
+      dateTime: 'Printer test',
+      lines: const [KotLine('Zinger Burger', 2000, modifiers: ['Extra cheese']), KotLine('Chicken Biryani', 1000, note: 'Less spicy'), KotLine('Cola', 3000)],
+      token: 'A12',
+      waiter: 'Ali',
+      design: design,
+    );
+    return ((await EscPosRenderer(paperMm: paperMm, rasterizer: ref.read(textRasterizerProvider)).render(doc))..cut()).toBytes();
+  }
+
   Future<void> _setSpeed(String v) async {
     setState(() => PrintSpeed.value = v);
     await setSetting(ref.read(databaseProvider), PrintSpeed.settingKey, v, ref.read(clockProvider)().millisecondsSinceEpoch);
@@ -179,6 +199,8 @@ class _PrinterDiagnosticsScreenState extends ConsumerState<PrinterDiagnosticsScr
           FilledButton.tonal(key: const ValueKey('diag-text'), onPressed: _busy ? null : () => _run(t['pr_diag_text'], () => _send(p, plainTextTest(paperMm: (p['paper_mm'] as int?) ?? 58))), child: Text(t['pr_diag_text'])),
           const SizedBox(height: 8),
           FilledButton.tonal(key: const ValueKey('diag-graphics'), onPressed: _busy ? null : () => _run(t['pr_diag_graphics'], () => _send(p, graphicsTest(paperMm: (p['paper_mm'] as int?) ?? 58))), child: Text(t['pr_diag_graphics'])),
+          const SizedBox(height: 8),
+          FilledButton.tonal(key: const ValueKey('diag-kot'), onPressed: _busy ? null : () => _run(t['pr_diag_kot'], () async => _send(p, await _sampleKot((p['paper_mm'] as int?) ?? 58))), child: Text(t['pr_diag_kot'])),
         ],
         const SizedBox(height: 16),
         if (_busy) const LinearProgressIndicator(),
